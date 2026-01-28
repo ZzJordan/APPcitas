@@ -38,6 +38,8 @@ const initDb = async () => {
                 // Add columns if they don't exist (for existing DBs)
                 db.run("ALTER TABLE rooms ADD COLUMN linkA_session TEXT", () => { });
                 db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
+                db.run("ALTER TABLE rooms ADD COLUMN active_since INTEGER", () => { });
+                db.run("ALTER TABLE rooms ADD COLUMN total_active_seconds INTEGER DEFAULT 0", () => { });
             });
 
             // Create messages table

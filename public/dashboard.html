@@ -54,12 +54,13 @@
                                 <th>Amigos</th>
                                 <th>Links de Acceso</th>
                                 <th>Estado Real-time</th>
+                                <th>Tiempo Compartido</th>
                                 <th style="text-align: right;">Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="roomsTableBody">
                             <tr>
-                                <td colspan="4" style="text-align: center; padding: 4rem; color: var(--text-dim);">
+                                <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-dim);">
                                     Cargando salas...</td>
                             </tr>
                         </tbody>
@@ -120,6 +121,16 @@
     <script>
         const socket = io();
         let currentUser = null;
+        let activeTimers = {}; // { roomId: startTime (ms) }
+        let roomTotals = {};   // { roomId: totalSeconds } used for base
+        let timerInterval = null;
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${h}h ${m}m ${s}s`;
+        }
 
         function switchTab(e, tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -152,11 +163,31 @@
 
             const tbody = document.getElementById('roomsTableBody');
             if (rooms.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding:4rem; color: var(--text-dim);">No hay salas creadas aún. Dale al botón de arriba para empezar.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding:4rem; color: var(--text-dim);">No hay salas creadas aún. Dale al botón de arriba para empezar.</td></tr>';
                 return;
             }
 
-            tbody.innerHTML = rooms.map(room => `
+            // Reset trackers
+            activeTimers = {};
+            roomTotals = {};
+
+            tbody.innerHTML = rooms.map(room => {
+                // Store base total
+                roomTotals[room.id] = room.total_active_seconds || 0;
+
+                // If currently active, store start time
+                if (room.active_since) {
+                    activeTimers[room.id] = room.active_since;
+                }
+
+                // Initial Calc
+                let displayTime = formatTime(room.total_active_seconds || 0);
+                if (room.active_since) {
+                    const currentDuration = Math.floor((Date.now() - room.active_since) / 1000) + (room.total_active_seconds || 0);
+                    displayTime = formatTime(currentDuration);
+                }
+
+                return `
                 <tr id="room-${room.id}">
                     <td>
                         <div style="font-weight:700; font-size: 1.1rem; color: white;">${room.friendA_name} & ${room.friendB_name}</div>
@@ -173,11 +204,31 @@
                         </div>
                     </td>
                     <td><span class="badge badge-${room.status.toLowerCase().replace(/ /g, '')}">${room.status}</span></td>
+                    <td class="time-cell" id="timer-${room.id}" style="font-family: monospace; font-size: 1.1rem;">
+                        ${displayTime}
+                    </td>
                     <td style="text-align: right;">
                         <button onclick="deleteRoom(${room.id})" class="btn-main btn-glass" style="padding: 0.5rem 1rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.2) !important;">Borrar</button>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
+
+            // Start global timer if not running
+            if (!timerInterval) {
+                timerInterval = setInterval(updateTimersUI, 1000);
+            }
+        }
+
+        function updateTimersUI() {
+            const now = Date.now();
+            for (const [roomId, startTime] of Object.entries(activeTimers)) {
+                const el = document.getElementById(`timer-${roomId}`);
+                if (el) {
+                    const elapsed = Math.floor((now - startTime) / 1000);
+                    const total = (roomTotals[roomId] || 0) + elapsed;
+                    el.innerText = formatTime(total);
+                }
+            }
         }
 
         let roomToDelete = null;
@@ -270,8 +321,26 @@
             const row = document.querySelector(`#room-${room_id}`);
             if (row) {
                 const badge = row.cells[2].querySelector('.badge');
-                badge.className = `badge badge-${status.toLowerCase().replace(/ /g, '')}`;
-                badge.innerText = status;
+                if (badge) {
+                    badge.className = `badge badge-${status.toLowerCase().replace(/ /g, '')}`;
+                    badge.innerText = status;
+                }
+            }
+        });
+
+        socket.on('time-update', ({ room_id, active_since, added_seconds }) => {
+            if (active_since) {
+                // Timer started
+                activeTimers[room_id] = active_since;
+            } else {
+                // Timer stopped
+                delete activeTimers[room_id];
+                if (added_seconds && roomTotals[room_id] !== undefined) {
+                    roomTotals[room_id] += added_seconds;
+                    // Update UI immediately with final value
+                    const el = document.getElementById(`timer-${room_id}`);
+                    if (el) el.innerText = formatTime(roomTotals[room_id]);
+                }
             }
         });
 

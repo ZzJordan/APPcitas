@@ -182,15 +182,50 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 
 // --- CHAT ROUTES ---
 
+app.post('/api/request-new-link', (req, res) => {
+  // This endpoint is public because the user is blocked from the chat, 
+  // but they have the "old" link as proof of knowing the URL.
+  const { oldLink } = req.body;
+
+  db.get(
+    "SELECT id, cupido_id, linkA, linkB, created_at FROM rooms WHERE linkA = ? OR linkB = ?",
+    [oldLink, oldLink],
+    (err, room) => {
+      if (err || !room) return res.status(404).json({ error: "Link no encontrado" });
+
+      const isA = (oldLink === room.linkA);
+      const newLink = require('crypto').randomUUID();
+      const linkField = isA ? 'linkA' : 'linkB';
+      const sessionField = isA ? 'linkA_session' : 'linkB_session';
+
+      // Update DB: Set new link, clear session (so new user can claim it)
+      db.run(
+        `UPDATE rooms SET ${linkField} = ?, ${sessionField} = NULL WHERE id = ?`,
+        [newLink, room.id],
+        function (err) {
+          if (err) return res.status(500).json({ error: "Error al generar" });
+
+          // Notify Cupido Dashboard
+          io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', {
+            room_id: room.id,
+            role: isA ? 'A' : 'B',
+            new_link: newLink
+          });
+
+          res.json({ message: "Link regenerado" });
+        }
+      );
+    }
+  );
+});
+
 // Render Chat Page
 app.get('/chat/:link', (req, res) => {
   const { link } = req.params;
   const ua = req.headers['user-agent'] || '';
-
-  // Detect bots
   const isBot = /bot|facebookexternalhit|whatsapp|telegrambot|slackbot|twitterbot|spider|crawl|externalhit/i.test(ua);
 
-  // Parse cookies manually
+  // Parse cookies
   const parseCookies = (header) => {
     const list = {};
     if (!header) return list;
@@ -202,10 +237,20 @@ app.get('/chat/:link', (req, res) => {
   };
 
   db.get(
-    "SELECT id, linkA, linkB, linkA_session, linkB_session FROM rooms WHERE linkA = ? OR linkB = ?",
+    "SELECT * FROM rooms WHERE linkA = ? OR linkB = ?",
     [link, link],
     (err, room) => {
-      if (err || !room) return res.status(404).send("Link de chat inválido o expirado.");
+      if (err || !room) return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+
+      // Check Expiration (24h)
+      const created = new Date(room.created_at).getTime();
+      const now = Date.now();
+      const hoursDiff = (now - created) / (1000 * 60 * 60);
+
+      if (hoursDiff > 24) {
+        // Frontend handles 403/404 from API
+        return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+      }
 
       const isA = (link === room.linkA);
       const sessionField = isA ? 'linkA_session' : 'linkB_session';
@@ -215,46 +260,24 @@ app.get('/chat/:link', (req, res) => {
       const cookies = parseCookies(req.headers.cookie);
       const clientToken = cookies[cookieName];
 
-      // Logic:
-      // 1. If no token in DB -> First user claiming it. Generate token, save, set cookie.
-      // 2. If token in DB:
-      //    a. If client has same token -> Valid User.
-      //    b. If bot -> Allow (readonly/preview).
-      //    c. Else -> Block.
-
       if (!currentTokenInDb) {
         if (!isBot) {
-          // Claim the link
+          // First access! Claim it.
           const newToken = require('crypto').randomUUID();
           db.run(`UPDATE rooms SET ${sessionField} = ? WHERE id = ?`, [newToken, room.id], (err) => {
-            if (err) return res.status(500).send("Error interno");
-            // Set simple cookie
-            res.setHeader('Set-Cookie', `${cookieName}=${newToken}; Path=/; Max-Age=31536000; HttpOnly`); // 1 year
+            res.setHeader('Set-Cookie', `${cookieName}=${newToken}; Path=/; Max-Age=31536000; HttpOnly`);
             res.sendFile(path.join(__dirname, 'public', 'chat.html'));
           });
         } else {
           res.sendFile(path.join(__dirname, 'public', 'chat.html'));
         }
       } else {
-        // Link already claimed
-        if (clientToken === currentTokenInDb) {
-          // Welcome back owner
-          res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-        } else if (isBot) {
-          // Crawler allowed
+        // Already claimed
+        if (clientToken === currentTokenInDb || isBot) {
           res.sendFile(path.join(__dirname, 'public', 'chat.html'));
         } else {
-          // Forbidden
-          return res.status(403).send(`
-            <div style="font-family: 'Outfit', sans-serif; background: #0b141a; color: white; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 2rem;">
-              <div style="font-size: 4rem; margin-bottom: 2rem;">🔒</div>
-              <h1 style="color: #ff4d6d; font-size: 2rem; margin-bottom: 1rem;">Link ya vinculado</h1>
-              <p style="color: #a0a0a0; max-width: 400px; line-height: 1.6; margin-bottom: 2rem;">
-                Este chat ya está vinculado a otro dispositivo. Por seguridad, solo se puede acceder desde el navegador donde se abrió por primera vez.
-              </p>
-              <button onclick="window.location.reload()" style="padding: 1rem 2rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-weight: 600; cursor: pointer;">Actualizar</button>
-            </div>
-          `);
+          // Blocked - Serve HTML so frontend shows "Request New Link" overlay
+          res.sendFile(path.join(__dirname, 'public', 'chat.html'));
         }
       }
     }
@@ -348,30 +371,66 @@ io.on('connection', (socket) => {
     );
   });
 
+
+  // Clean up stalled active sessions on restart
+  db.run("UPDATE rooms SET active_since = NULL");
+
   function updateAndNotifyStatus(room_id, cupido_id) {
-    const statusObj = roomStatus[room_id];
-    let statusText = 'pendiente';
+    db.get("SELECT active_since FROM rooms WHERE id = ?", [room_id], (err, row) => {
+      const currentActiveSince = row ? row.active_since : null;
+      const statusObj = roomStatus[room_id];
+      let statusText = 'pendiente';
+      const isNowActive = (statusObj && statusObj.A && statusObj.B);
 
-    if (statusObj && statusObj.A && statusObj.B) {
-      statusText = 'activo';
-    } else if (statusObj && statusObj.A) {
-      statusText = 'A conectado';
-    } else if (statusObj && statusObj.B) {
-      statusText = 'B conectado';
-    } else if (statusObj) {
-      statusText = 'desconectado';
-    }
+      if (isNowActive) {
+        statusText = 'activo';
+      } else if (statusObj && statusObj.A) {
+        statusText = 'A conectado';
+      } else if (statusObj && statusObj.B) {
+        statusText = 'B conectado';
+      } else if (statusObj) {
+        statusText = 'desconectado';
+      }
 
-    // Update DB
-    db.run("UPDATE rooms SET status = ? WHERE id = ?", [statusText, room_id]);
+      // Time Tracking Logic
+      if (isNowActive && !currentActiveSince) {
+        // Just became active -> Start timer
+        const now = Date.now();
+        db.run("UPDATE rooms SET status = ?, active_since = ? WHERE id = ?", [statusText, now, room_id]);
 
-    // Notify Dashboard
-    io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+        // Notify Dashboard immediately
+        io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+        io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: now });
 
-    // Notify the room itself for real-time presence indicators
-    io.to(`room_${room_id}`).emit('presence-update', {
-      A: !!statusObj.A,
-      B: !!statusObj.B
+      } else if (!isNowActive && currentActiveSince) {
+        // Stopped being active -> Stop timer and accumulate
+        const now = Date.now();
+        const duration = Math.floor((now - currentActiveSince) / 1000);
+        db.run(
+          "UPDATE rooms SET status = ?, active_since = NULL, total_active_seconds = total_active_seconds + ? WHERE id = ?",
+          [statusText, duration, room_id]
+        );
+
+        // Notify Dashboard
+        io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+        // We send active_since: null so client knows to stop counting
+        // We also should technically send the new total, but client can refetch or just stop. 
+        // Let's send a specific event or just let the client refresh if they want precise exactness,
+        // but for smooth UI, sending null active_since stops the counter.
+        io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: null, added_seconds: duration });
+
+      } else {
+        // Status changed but not related to active/inactive transition (e.g. A connected -> B connected but A left)
+        // Or just refreshing state
+        db.run("UPDATE rooms SET status = ? WHERE id = ?", [statusText, room_id]);
+        io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+      }
+
+      // Notify the room itself for real-time presence indicators
+      io.to(`room_${room_id}`).emit('presence-update', {
+        A: !!(statusObj && statusObj.A),
+        B: !!(statusObj && statusObj.B)
+      });
     });
   }
 
