@@ -186,6 +186,10 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 app.get('/chat/:link', (req, res) => {
   const { link } = req.params;
   const fingerprint = getFingerprint(req);
+  const ua = req.headers['user-agent'] || '';
+
+  // Detect bots and crawlers (WhatsApp, Facebook, etc.) to prevent them from "consuming" the link
+  const isBot = /bot|facebookexternalhit|whatsapp|telegrambot|slackbot|twitterbot|spider|crawl|externalhit/i.test(ua);
 
   db.get(
     "SELECT id, linkA, linkB, linkA_session, linkB_session FROM rooms WHERE linkA = ? OR linkB = ?",
@@ -197,11 +201,14 @@ app.get('/chat/:link', (req, res) => {
       const currentSession = isA ? room.linkA_session : room.linkB_session;
 
       if (!currentSession) {
-        // First time accessing - bind to this fingerprint
-        const field = isA ? 'linkA_session' : 'linkB_session';
-        db.run(`UPDATE rooms SET ${field} = ? WHERE id = ?`, [fingerprint, room.id]);
-      } else if (currentSession !== fingerprint) {
-        // Already used by another device/session
+        if (!isBot) {
+          // First time accessing by a real user - bind to this fingerprint
+          const field = isA ? 'linkA_session' : 'linkB_session';
+          db.run(`UPDATE rooms SET ${field} = ? WHERE id = ?`, [fingerprint, room.id]);
+        }
+        // If it's a bot, we just serve the page without marking it as used
+      } else if (currentSession !== fingerprint && !isBot) {
+        // Already used by another device/session, and it's not a bot
         return res.status(403).send(`
           <div style="font-family: 'Outfit', sans-serif; background: #0b141a; color: white; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 2rem;">
             <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
