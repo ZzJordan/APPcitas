@@ -281,6 +281,11 @@
                 document.getElementById('otherAvatar').innerText = otherName[0].toUpperCase();
                 updatePresenceUI(data.otherConnected);
 
+                // Update Title and Meta Tags for clearer sharing context if not already set by server (client-side fallback/enhancement)
+                document.title = `Chat para ${myName} | APPcitas`;
+                // Note: Changing OG tags client-side won't affect scraping bots (like WhatsApp) unless we use SSR. 
+                // However, it helps if the user bookmarks or keeps the tab open.
+
                 if (!data.isLoggedIn) document.getElementById('guest-overlay').style.display = 'flex';
 
                 // Local History

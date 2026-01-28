@@ -165,10 +165,10 @@
                     <td>
                         <div style="display:flex; gap:0.5rem; flex-wrap: wrap;">
                             <button class="copy-btn ${room.linkA_used ? 'btn-used' : ''}" style="flex:1; min-width: 120px;" onclick="copyToClipboard('${room.linkA}', this)">
-                                ${room.linkA_used ? 'A (1 disp.)' : 'Copiar Link A'}
+                                ${room.linkA_used ? `Para ${room.friendA_name} (Usado)` : `Para ${room.friendA_name}`}
                             </button>
                             <button class="copy-btn ${room.linkB_used ? 'btn-used' : ''}" style="flex:1; min-width: 120px;" onclick="copyToClipboard('${room.linkB}', this)">
-                                ${room.linkB_used ? 'B (1 disp.)' : 'Copiar Link B'}
+                                ${room.linkB_used ? `Para ${room.friendB_name} (Usado)` : `Para ${room.friendB_name}`}
                             </button>
                         </div>
                     </td>
