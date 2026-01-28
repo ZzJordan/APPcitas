@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | APPcitas</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body class="auth-page">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="container" id="authContainer">
+        <div id="loginView">
+            <h1>🎯 APPcitas</h1>
+            <p class="subtitle">Gestiona tus citas de forma sencilla</p>
+
+            <form id="loginForm">
+                <div class="input-group">
+                    <label for="username">Usuario</label>
+                    <input type="text" id="username" placeholder="cupido1" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-main" id="loginBtn" style="width: 100%;">Entrar como Cupido</button>
+                <div id="errorMessage" class="error">Usuario o contraseña incorrectos</div>
+            </form>
+
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <p style="color: var(--text-dim); font-size: 0.9rem;">
+                    ¿No tienes cuenta? <a href="#" onclick="showRegister()"
+                        style="color: var(--primary); font-weight: 600; text-decoration: none;">Regístrate como
+                        Cupido</a>
+                </p>
+            </div>
+
+            <div
+                style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center;">
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1.2rem;">¿Tienes un link de
+                    invitación? Úsalo aquí:</p>
+                <form id="linkForm" style="display: flex; gap: 0.8rem; flex-direction: column;">
+                    <input type="text" id="chatLink" placeholder="Pega tu link aquí"
+                        style="flex: 1; padding: 0.9rem; border-radius: 12px; border: 1px solid var(--border); background: var(--glass); color: white; outline: none; transition: border-color 0.3s;">
+                    <button type="submit" class="btn-main btn-glass" style="width: 100%; margin-top: 0;">Ir al
+                        Chat</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="registerView" style="display: none;">
+            <h1>Crear Cuenta</h1>
+            <p class="subtitle">Únete a la comunidad de Cupidos</p>
+
+            <form id="registerForm">
+                <div class="input-group">
+                    <label for="regUsername">Nuevo Usuario</label>
+                    <input type="text" id="regUsername" placeholder="Ej: cupido_pro" required>
+                </div>
+
+                <div class="input-group">
+                    <label for="regPassword">Contraseña</label>
+                    <input type="password" id="regPassword" placeholder="••••••••" required>
+                </div>
+
+                <button type="submit" class="btn-main" id="registerBtn" style="width: 100%;">Registrarse</button>
+                <div id="regError" class="error">Error al registrar</div>
+            </form>
+
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <p style="color: var(--text-dim); font-size: 0.9rem;">
+                    ¿Ya tienes cuenta? <a href="#" onclick="showLogin()"
+                        style="color: var(--primary); font-weight: 600; text-decoration: none;">Inicia Sesión</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showRegister() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('registerView').style.display = 'block';
+        }
+
+        function showLogin() {
+            document.getElementById('loginView').style.display = 'block';
+            document.getElementById('registerView').style.display = 'none';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorMsg = document.getElementById('errorMessage');
+
+            btn.innerText = 'Verificando...';
+            btn.disabled = true;
+            errorMsg.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    btn.innerText = '¡Correcto!';
+                    btn.style.background = '#4ade80';
+                    setTimeout(() => window.location.href = '/dashboard', 500);
+                } else {
+                    const data = await response.json();
+                    btn.innerText = 'Entrar como Cupido';
+                    btn.disabled = false;
+                    errorMsg.innerText = data.error || 'Fallo en el login';
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                btn.innerText = 'Entrar como Cupido';
+                btn.disabled = false;
+                errorMsg.innerText = 'Error de conexión';
+                errorMsg.style.display = 'block';
+            }
+        });
+
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('registerBtn');
+            const username = document.getElementById('regUsername').value;
+            const password = document.getElementById('regPassword').value;
+            const errorMsg = document.getElementById('regError');
+
+            btn.innerText = 'Registrando...';
+            btn.disabled = true;
+            errorMsg.style.display = 'none';
+
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (response.ok) {
+                    btn.innerText = '¡Registrado!';
+                    btn.style.background = '#4ade80';
+                    setTimeout(() => window.location.href = '/dashboard', 500);
+                } else {
+                    const data = await response.json();
+                    btn.innerText = 'Registrarse';
+                    btn.disabled = false;
+                    errorMsg.innerText = data.error || 'Error al registrar';
+                    errorMsg.style.display = 'block';
+                }
+            } catch (error) {
+                btn.innerText = 'Registrarse';
+                btn.disabled = false;
+                errorMsg.innerText = 'Error de conexión';
+                errorMsg.style.display = 'block';
+            }
+        });
+
+        document.getElementById('linkForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            let link = document.getElementById('chatLink').value.trim();
+            if (link) {
+                if (link.includes('/chat/')) link = link.split('/chat/').pop();
+                window.location.href = `/chat/${link}`;
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat | APPcitas</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0b141a;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            margin: 0;
+        }
+
+        .chat-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+            background: #0b141a;
+            position: relative;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .chat-header {
+            background: #202c33;
+            padding: 0.8rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        .avatar {
+            width: 42px;
+            height: 42px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: white;
+            box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3);
+        }
+
+        #messages-container {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-blend-mode: overlay;
+            background-color: #0b141a;
+            scrollbar-width: thin;
+            scrollbar-color: #374045 transparent;
+        }
+
+        .message {
+            max-width: 75%;
+            padding: 0.7rem 1rem;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            position: relative;
+            line-height: 1.5;
+            animation: fadeInMsg 0.3s ease-out;
+            word-wrap: break-word;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        @keyframes fadeInMsg {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.sent {
+            align-self: flex-end;
+            background: #005c4b;
+            color: #e9edef;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.received {
+            align-self: flex-start;
+            background: #202c33;
+            color: #e9edef;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message .time {
+            font-size: 0.7rem;
+            color: rgba(255, 255, 255, 0.4);
+            margin-top: 0.4rem;
+            text-align: right;
+        }
+
+        .input-area {
+            background: #202c33;
+            padding: 1rem 1.5rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-shrink: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        #msg-input {
+            flex: 1;
+            background: #2a3942;
+            border: none;
+            padding: 0.8rem 1.2rem;
+            border-radius: 24px;
+            color: white;
+            outline: none;
+            font-size: 1rem;
+            transition: background 0.2s;
+        }
+
+        #msg-input:focus {
+            background: #32444e;
+        }
+
+        .send-btn {
+            background: var(--primary);
+            border: none;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary-hover);
+        }
+
+        /* Guest Overlay */
+        #guest-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .guest-card {
+            background: #1c1c21;
+            padding: 3rem;
+            border-radius: 32px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        }
+
+        @media (max-width: 900px) {
+            .chat-wrapper {
+                max-width: 100%;
+                box-shadow: none;
+            }
+
+            .message {
+                max-width: 85%;
+            }
+        }
+
+        @media (max-width: 600px) {
+            .chat-header {
+                padding: 0.8rem 1rem;
+                gap: 0.8rem;
+            }
+
+            .avatar {
+                width: 38px;
+                height: 38px;
+                font-size: 1rem;
+            }
+
+            .input-area {
+                padding: 0.8rem 1rem;
+            }
+
+            .guest-card {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chat-wrapper">
+        <div id="guest-overlay">
+            <div class="guest-card">
+                <h2 style="font-size: 2rem; margin-bottom: 1rem;">🎯 APPcitas</h2>
+                <p style="color: #a0a0a0; margin-bottom: 2rem; line-height: 1.6;">Has sido invitado a una cita en
+                    APPcitas. Elige cómo prefieres entrar:</p>
+                <div style="display: flex; flex-direction: column; gap: 1rem; width: 100%;">
+                    <button onclick="enterAsGuest()" class="btn-main" style="background: #4ade80; width: 100%;">Entrar
+                        como Invitado</button>
+                    <button onclick="location.href='/login'" class="btn-main"
+                        style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); width: 100%;">Login
+                        / Registro</button>
+                </div>
+                <p style="margin-top: 1.5rem; font-size: 0.85rem; color: #707070;">Acceder con tu cuenta te permite ver
+                    este chat más tarde en tus "Chats Guardados".</p>
+            </div>
+        </div>
+
+        <div class="chat-header">
+            <div class="avatar" id="otherAvatar">?</div>
+            <div>
+                <div style="font-weight: 700; font-size: 1.1rem; color: #e9edef;" id="otherNameDisplay">Cargando...
+                </div>
+                <div id="otherStatusDisplay" style="font-size: 0.85rem; color: #ef4444; font-weight: 500;">
+                    Desconectado/a ✗</div>
+            </div>
+        </div>
+
+        <div id="messages-container">
+            <!-- Mensajes aquí -->
+        </div>
+
+        <form class="input-area" id="chat-form">
+            <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
+            <button type="submit" class="send-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z">
+                    </path>
+                </svg>
+            </button>
+        </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const link = window.location.pathname.split('/').pop();
+        let chatId, myRole, myName, otherRole, otherName;
+        const socket = io();
+
+        const msgContainer = document.getElementById('messages-container');
+        const chatForm = document.getElementById('chat-form');
+        const msgInput = document.getElementById('msg-input');
+        const otherStatusDisplay = document.getElementById('otherStatusDisplay');
+
+        function updatePresenceUI(isConnected) {
+            if (isConnected) {
+                otherStatusDisplay.innerText = `Conectado/a ✓`;
+                otherStatusDisplay.style.color = '#4ade80';
+            } else {
+                otherStatusDisplay.innerText = `Desconectado/a ✗`;
+                otherStatusDisplay.style.color = '#ef4444';
+            }
+        }
+
+        function addMessage(msg, isSent) {
+            const div = document.createElement('div');
+            div.className = `message ${isSent ? 'sent' : 'received'}`;
+            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            div.innerHTML = `<div class="text">${msg.text}</div><div class="time">${time}</div>`;
+            msgContainer.appendChild(div);
+            msgContainer.scrollTop = msgContainer.scrollHeight;
+        }
+
+        async function initChat() {
+            try {
+                const res = await fetch(`/api/chat-info/${link}`);
+                if (!res.ok) throw new Error("Link no válido");
+
+                const data = await res.json();
+                chatId = data.room_id;
+                myRole = data.sender;
+                myName = data.myName;
+                otherName = data.otherName;
+                otherRole = data.otherRole;
+
+                document.getElementById('otherNameDisplay').innerText = otherName;
+                document.getElementById('otherAvatar').innerText = otherName[0].toUpperCase();
+                updatePresenceUI(data.otherConnected);
+
+                if (!data.isLoggedIn) document.getElementById('guest-overlay').style.display = 'flex';
+
+                // Local History
+                const recents = JSON.parse(localStorage.getItem('recent_chats') || '[]');
+                const existingIndex = recents.findIndex(c => c.link === link);
+                if (existingIndex !== -1) recents.splice(existingIndex, 1);
+                recents.unshift({ link: link, name: `Chat con ${otherName}`, timestamp: new Date().toISOString() });
+                localStorage.setItem('recent_chats', JSON.stringify(recents.slice(0, 15)));
+
+                data.messages.forEach(msg => addMessage(msg, msg.sender === myRole));
+                socket.emit('join-room', { link: link });
+
+            } catch (err) {
+                alert(err.message);
+                window.location.href = '/login';
+            }
+        }
+
+        chatForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = msgInput.value.trim();
+            if (text && chatId) {
+                socket.emit('send-message', { room_id: chatId, sender: myRole, text: text });
+                msgInput.value = '';
+            }
+        });
+
+        socket.on('new-message', (msg) => addMessage(msg, msg.sender === myRole));
+        socket.on('user_joined', (data) => { if (data.role === otherRole) updatePresenceUI(true); });
+        socket.on('user_left', (data) => { if (data.role === otherRole) updatePresenceUI(false); });
+
+        function enterAsGuest() { document.getElementById('guest-overlay').style.display = 'none'; }
+        initChat();
+    </script>
+</body>
+
+</html>
