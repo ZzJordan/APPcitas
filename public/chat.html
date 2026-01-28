@@ -15,14 +15,23 @@
     <link rel="stylesheet" href="/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --sat: env(safe-area-inset-top);
+            --sab: env(safe-area-inset-bottom);
+        }
+
         body {
             background-color: #0b141a;
             display: flex;
             flex-direction: column;
             height: 100vh;
+            /* Fallback */
             height: 100dvh;
+            /* Modern browsers */
             overflow: hidden;
             margin: 0;
+            font-size: 16px;
+            /* Prevent zoom on iOS */
         }
 
         .chat-wrapper {
@@ -39,7 +48,7 @@
 
         .chat-header {
             background: #202c33;
-            padding: 0.8rem 1.5rem;
+            padding: calc(0.8rem + var(--sat)) 1.5rem 0.8rem 1.5rem;
             display: flex;
             align-items: center;
             gap: 1.2rem;
@@ -74,6 +83,7 @@
             background-color: #0b141a;
             scrollbar-width: thin;
             scrollbar-color: #374045 transparent;
+            -webkit-overflow-scrolling: touch;
         }
 
         .message {
@@ -124,6 +134,7 @@
         .input-area {
             background: #202c33;
             padding: 1rem 1.5rem;
+            padding-bottom: calc(1rem + var(--sab));
             display: flex;
             gap: 1rem;
             align-items: center;
@@ -160,68 +171,11 @@
             justify-content: center;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .send-btn:hover {
-            transform: scale(1.1);
-            background: var(--primary-hover);
-        }
-
-        /* Guest Overlay */
-        #guest-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 2rem;
-            text-align: center;
-        }
-
-        .guest-card {
-            background: #1c1c21;
-            padding: 3rem;
-            border-radius: 32px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            max-width: 440px;
-            width: 100%;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
-        }
-
-        @media (max-width: 900px) {
-            .chat-wrapper {
-                max-width: 100%;
-                box-shadow: none;
-            }
-
-            .message {
-                max-width: 85%;
-            }
-        }
-
-        @media (max-width: 600px) {
-            .chat-header {
-                padding: 0.8rem 1rem;
-                gap: 0.8rem;
-            }
-
-            .avatar {
-                width: 38px;
-                height: 38px;
-                font-size: 1rem;
-            }
-
-            .input-area {
-                padding: 0.8rem 1rem;
-            }
-
-            .guest-card {
-                padding: 2rem;
-            }
+        .send-btn:active {
+            transform: scale(0.9);
         }
     </style>
 </head>
@@ -281,6 +235,8 @@
         const msgInput = document.getElementById('msg-input');
         const otherStatusDisplay = document.getElementById('otherStatusDisplay');
 
+        let isSending = false;
+
         function updatePresenceUI(isConnected) {
             if (isConnected) {
                 otherStatusDisplay.innerText = `Conectado/a ✓`;
@@ -297,12 +253,21 @@
             const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             div.innerHTML = `<div class="text">${msg.text}</div><div class="time">${time}</div>`;
             msgContainer.appendChild(div);
-            msgContainer.scrollTop = msgContainer.scrollHeight;
+            // Scroll to bottom efficiently
+            msgContainer.scrollTo({
+                top: msgContainer.scrollHeight,
+                behavior: 'smooth'
+            });
         }
 
         async function initChat() {
             try {
                 const res = await fetch(`/api/chat-info/${link}`);
+                if (res.status === 403) {
+                    // Shouldn't happen if server redirects/shows error page, but handle just in case
+                    document.body.innerHTML = await res.text();
+                    return;
+                }
                 if (!res.ok) throw new Error("Link no válido");
 
                 const data = await res.json();
@@ -326,28 +291,58 @@
                 localStorage.setItem('recent_chats', JSON.stringify(recents.slice(0, 15)));
 
                 data.messages.forEach(msg => addMessage(msg, msg.sender === myRole));
+
+                // Properly join room
                 socket.emit('join-room', { link: link });
 
             } catch (err) {
-                alert(err.message);
-                window.location.href = '/login';
+                console.error(err);
+                if (err.message !== "Link no válido") alert("Error de conexión: " + err.message);
             }
         }
 
         chatForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            if (!chatId) return;
+
             const text = msgInput.value.trim();
-            if (text && chatId) {
+            if (text) {
+                // Optimistic update? No, let's wait for server echo to be sure it's received.
+                // But user wants "better writing". Maybe local echo is better for feel.
+                // Let's stick to server echo for consistency, but disable button while sending if slow? No, that feels sluggish.
+                // The issue "writing not working well" usually means lag or keyboard issues.
+                // We enabled 16px font to prevent zoom.
+
                 socket.emit('send-message', { room_id: chatId, sender: myRole, text: text });
                 msgInput.value = '';
+                msgInput.focus();
             }
         });
 
-        socket.on('new-message', (msg) => addMessage(msg, msg.sender === myRole));
+        // Ensure socket handlers are not duplicated
+        socket.off('new-message');
+        socket.on('new-message', (msg) => {
+            addMessage(msg, msg.sender === myRole);
+        });
+
         socket.on('user_joined', (data) => { if (data.role === otherRole) updatePresenceUI(true); });
         socket.on('user_left', (data) => { if (data.role === otherRole) updatePresenceUI(false); });
 
+        socket.on('connect', () => {
+            console.log("Socket connected");
+            if (chatId) socket.emit('join-room', { link: link }); // Re-join on reconnect
+        });
+
         function enterAsGuest() { document.getElementById('guest-overlay').style.display = 'none'; }
+
+        // Handle iOS viewport height issues
+        const setAppHeight = () => {
+            const doc = document.documentElement;
+            doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+        }
+        window.addEventListener('resize', setAppHeight);
+        setAppHeight();
+
         initChat();
     </script>
 </body>

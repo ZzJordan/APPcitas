@@ -185,11 +185,21 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 // Render Chat Page
 app.get('/chat/:link', (req, res) => {
   const { link } = req.params;
-  const fingerprint = getFingerprint(req);
   const ua = req.headers['user-agent'] || '';
 
-  // Detect bots and crawlers (WhatsApp, Facebook, etc.) to prevent them from "consuming" the link
+  // Detect bots
   const isBot = /bot|facebookexternalhit|whatsapp|telegrambot|slackbot|twitterbot|spider|crawl|externalhit/i.test(ua);
+
+  // Parse cookies manually
+  const parseCookies = (header) => {
+    const list = {};
+    if (!header) return list;
+    header.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      list[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+    return list;
+  };
 
   db.get(
     "SELECT id, linkA, linkB, linkA_session, linkB_session FROM rooms WHERE linkA = ? OR linkB = ?",
@@ -198,28 +208,55 @@ app.get('/chat/:link', (req, res) => {
       if (err || !room) return res.status(404).send("Link de chat inválido o expirado.");
 
       const isA = (link === room.linkA);
-      const currentSession = isA ? room.linkA_session : room.linkB_session;
+      const sessionField = isA ? 'linkA_session' : 'linkB_session';
+      const currentTokenInDb = room[sessionField];
 
-      if (!currentSession) {
+      const cookieName = `chat_token_${room.id}_${isA ? 'A' : 'B'}`;
+      const cookies = parseCookies(req.headers.cookie);
+      const clientToken = cookies[cookieName];
+
+      // Logic:
+      // 1. If no token in DB -> First user claiming it. Generate token, save, set cookie.
+      // 2. If token in DB:
+      //    a. If client has same token -> Valid User.
+      //    b. If bot -> Allow (readonly/preview).
+      //    c. Else -> Block.
+
+      if (!currentTokenInDb) {
         if (!isBot) {
-          // First time accessing by a real user - bind to this fingerprint
-          const field = isA ? 'linkA_session' : 'linkB_session';
-          db.run(`UPDATE rooms SET ${field} = ? WHERE id = ?`, [fingerprint, room.id]);
+          // Claim the link
+          const newToken = require('crypto').randomUUID();
+          db.run(`UPDATE rooms SET ${sessionField} = ? WHERE id = ?`, [newToken, room.id], (err) => {
+            if (err) return res.status(500).send("Error interno");
+            // Set simple cookie
+            res.setHeader('Set-Cookie', `${cookieName}=${newToken}; Path=/; Max-Age=31536000; HttpOnly`); // 1 year
+            res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+          });
+        } else {
+          res.sendFile(path.join(__dirname, 'public', 'chat.html'));
         }
-        // If it's a bot, we just serve the page without marking it as used
-      } else if (currentSession !== fingerprint && !isBot) {
-        // Already used by another device/session, and it's not a bot
-        return res.status(403).send(`
-          <div style="font-family: 'Outfit', sans-serif; background: #0b141a; color: white; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 2rem;">
-            <div style="font-size: 4rem; margin-bottom: 1rem;">🔒</div>
-            <h1 style="color: #ff4d6d;">Link ya usado</h1>
-            <p style="color: #a0a0a0; max-width: 400px; line-height: 1.6;">Este link de invitación ya ha sido abierto en otro dispositivo o navegador. Por seguridad, solo puede ser usado por la primera persona que lo abrió.</p>
-            <button onclick="window.location.reload()" style="margin-top: 2rem; padding: 1rem 2rem; background: #ff4d6d; border: none; border-radius: 12px; color: white; font-weight: 600; cursor: pointer;">Reintentar</button>
-          </div>
-        `);
+      } else {
+        // Link already claimed
+        if (clientToken === currentTokenInDb) {
+          // Welcome back owner
+          res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+        } else if (isBot) {
+          // Crawler allowed
+          res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+        } else {
+          // Forbidden
+          return res.status(403).send(`
+            <div style="font-family: 'Outfit', sans-serif; background: #0b141a; color: white; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 2rem;">
+              <div style="font-size: 4rem; margin-bottom: 2rem;">🔒</div>
+              <h1 style="color: #ff4d6d; font-size: 2rem; margin-bottom: 1rem;">Link ya vinculado</h1>
+              <p style="color: #a0a0a0; max-width: 400px; line-height: 1.6; margin-bottom: 2rem;">
+                Este chat ya está vinculado a otro dispositivo. Por seguridad, solo se puede acceder desde el navegador donde se abrió por primera vez.
+              </p>
+              <button onclick="window.location.reload()" style="padding: 1rem 2rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 12px; color: white; font-weight: 600; cursor: pointer;">Actualizar</button>
+            </div>
+          `);
+        }
       }
-
-      res.sendFile(path.join(__dirname, 'public', 'chat.html'));
     }
   );
 });
