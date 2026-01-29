@@ -1,7 +1,7 @@
 {
-    "name": "APPcitas",
-    "short_name": "APPcitas",
-    "description": "Gestiona tus citas de forma profesional",
+    "name": "Cupido's Project",
+    "short_name": "Cupido",
+    "description": "Transformando amistades en conexiones mágicas",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#0b0b0d",

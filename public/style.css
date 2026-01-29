@@ -22,7 +22,7 @@
 }
 
 body {
-    background-color: var(--bg);
+    background: var(--bg);
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
@@ -33,7 +33,7 @@ body {
 }
 
 /* Layout Containers */
-.app-container {
+.container {
     width: 100%;
     max-width: 600px;
     margin: 0 auto;
@@ -42,10 +42,9 @@ body {
 
 .auth-page {
     display: flex;
-    justify-content: center;
     align-items: center;
+    justify-content: center;
     min-height: 100vh;
-    padding: 1.5rem;
 }
 
 /* Common Button Styles */
@@ -73,21 +72,20 @@ body {
 }
 
 .btn-glass {
-    background: var(--glass);
+    background: var(--glass) !important;
     border: 1px solid var(--border) !important;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     color: white;
 }
 
-/* Background elements */
+/* Background Blobs */
 .blob {
     display: none;
-    /* Removed in favor of body radial gradients for cleaner look */
 }
 
 /* Form Container */
-.container {
+.premium-card {
     background: var(--card);
     padding: 2.5rem 2rem;
     border-radius: 32px;
@@ -158,31 +156,52 @@ h1 {
 }
 
 .input-group input:focus {
-    border-color: var(--primary);
     background: rgba(255, 77, 109, 0.05);
+    border-color: var(--primary);
     box-shadow: 0 0 0 4px rgba(255, 77, 109, 0.1);
 }
 
-/* Dashboard Navigation */
+/* Dashboard Specifics */
+.app-container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1.5rem;
+}
+
 .nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 3rem;
-    flex-wrap: wrap;
-    gap: 1.5rem;
-}
-
-.nav-info h1 {
-    text-align: left;
-    font-size: 2rem;
-    margin-bottom: 0.2rem;
+    padding-top: var(--safe-top);
 }
 
 .nav-actions {
     display: flex;
     gap: 1rem;
-    flex-wrap: wrap;
+}
+
+.tabs {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s;
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-color: var(--primary);
 }
 
 /* Mobile Friendly List Cards */
@@ -316,6 +335,46 @@ h1 {
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    z-index: 2000;
+    padding: 1.5rem;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background: var(--surface);
+    padding: 3rem 2rem;
+    border-radius: 36px;
+    width: 100%;
+    max-width: 420px;
+    border: 1px solid var(--border);
+    position: relative;
+    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
+    animation: premiumFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.close-modal {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    font-size: 2rem;
+    color: var(--text-dim);
+    cursor: pointer;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
 .error {
     display: none;
     background: rgba(239, 68, 68, 0.1);
@@ -345,145 +404,37 @@ h1 {
     }
 }
 
-/* Modal Stylings */
-.modal {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    z-index: 2000;
-    padding: 1.5rem;
-    align-items: center;
-    justify-content: center;
-}
-
-.modal-content {
-    background: var(--surface);
-    padding: 3rem 2rem;
-    border-radius: 36px;
-    width: 100%;
-    max-width: 420px;
-    border: 1px solid var(--border);
-    position: relative;
-    box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.8);
-    animation: premiumFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.close-modal {
-    position: absolute;
-    top: 1.5rem;
-    right: 2rem;
-    color: var(--text-dim);
-    font-size: 2rem;
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.close-modal:hover {
-    color: white;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .app-container {
-        padding: 1.5rem 1rem;
-    }
-
-    .nav {
-        justify-content: center;
-        text-align: center;
-        gap: 1rem;
-    }
-
-    .nav-info h1 {
-        text-align: center;
-        font-size: 1.8rem;
-    }
-
-    .nav-actions {
-        width: 100%;
-        flex-direction: column;
-    }
-
-    .btn-main {
-        width: 100%;
-    }
-
-    .tabs {
-        justify-content: center;
-        gap: 1.5rem;
-    }
-}
-
-@media (max-width: 480px) {
-
-    .container,
-    .modal-content {
-        padding: 2rem 1.5rem;
-    }
-
-    h1 {
-        font-size: 1.8rem;
-    }
-
-    .stat-card .value {
-        font-size: 2.5rem;
-    }
-}
-
-/* Recents Grid */
-.recents-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-    padding: 1.5rem;
-}
-
 .recent-card {
-    background: var(--surface);
-    padding: 1.8rem;
-    border-radius: 24px;
+    background: var(--card);
+    padding: 2rem;
+    border-radius: 28px;
     border: 1px solid var(--border);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.3s;
     position: relative;
+    overflow: hidden;
 }
 
 .recent-card:hover {
-    transform: translateY(-8px);
     border-color: var(--primary);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+    transform: translateY(-5px);
+    background: rgba(255, 77, 109, 0.05);
 }
 
-.btn-used {
-    border-color: rgba(74, 222, 128, 0.4) !important;
-    background: rgba(74, 222, 128, 0.05) !important;
-    color: #4ade80 !important;
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
 }
 
-.error {
-    display: none;
-    background: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-    padding: 0.8rem;
-    border-radius: 12px;
-    font-size: 0.85rem;
-    margin-top: 1rem;
-    text-align: center;
-    border: 1px solid rgba(239, 68, 68, 0.2);
-    animation: fadeIn 0.3s ease-out;
+::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-5px);
-    }
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 10px;
+}
 
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+::-webkit-scrollbar-thumb:hover {
+    background: var(--text-dim);
 }

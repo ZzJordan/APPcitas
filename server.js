@@ -1,28 +1,15 @@
-require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
 const path = require('path');
 const { db, initDb } = require('./db');
 const http = require('http');
-const socketIo = require('socket.io');
-const { validationResult } = require('express-validator');
-const rateLimit = require('express-rate-limit');
-const helmet = require('helmet');
-const csrf = require('csurf');
-const crypto = require('crypto');
-
-// Importar middleware
-const { isAuthenticated } = require('./middleware/auth');
-const { handleError, notFoundHandler } = require('./middleware/errorHandler');
-const { handleValidationErrors } = require('./middleware/validators/handleValidation');
-const { loginValidator, registerValidator } = require('./middleware/validators/authValidator');
-const { createRoomValidator, roomIdValidator, requestNewLinkValidator } = require('./middleware/validators/roomValidator');
-const { sendMessageValidator, chatInfoValidator } = require('./middleware/validators/chatValidator');
+const socketIo = require('socket.io'); // Changed from { Server } to socketIo
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+const io = socketIo(server); // Changed to use socketIo directly
+const crypto = require('crypto');
 
 function getFingerprint(req) {
   const ua = req.headers['user-agent'] || '';
@@ -41,43 +28,27 @@ function getFingerprint(req) {
 })();
 
 // Middleware
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.socket.io"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-      imgSrc: ["'self'", "data:", "https:*"],
-      connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
-      scriptSrcAttr: ["'unsafe-inline'"],
-    },
-  },
-}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'));
-
-// Rate Limiting (Relaxed for testing)
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Demasiados intentos, intenta más tarde',
-});
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'cupido-secret-key-2024',
+  secret: 'cupido-secret-key-2024',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false, // Set to true only in production with HTTPS
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24
+    secure: false, // Set to true if using HTTPS
+    maxAge: 1000 * 60 * 60 * 24 // 24 hours
   }
 }));
 
-// CSRF Protection (Disabled for now to ensure functionality)
-// app.use(csrfProtection);
+// Auth Middleware
+const isAuthenticated = (req, res, next) => {
+  if (req.session.userId) {
+    return next();
+  }
+  res.redirect('/login');
+};
 
 // Existing Route (Preserved)
 app.get('/', (req, res) => {
@@ -89,28 +60,23 @@ app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-app.post('/api/login',
-  loginLimiter,
-  loginValidator,
-  handleValidationErrors,
-  (req, res) => {
-    const { username, password } = req.body;
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
 
-    db.get("SELECT * FROM cupidos WHERE username = ?", [username], async (err, user) => {
-      if (err) return res.status(500).json({ error: "Error en el servidor" });
-      if (!user) return res.status(401).json({ error: "Usuario o contraseña incorrectos" });
+  db.get("SELECT * FROM cupidos WHERE username = ?", [username], async (err, user) => {
+    if (err) return res.status(500).json({ error: "Error en el servidor" });
+    if (!user) return res.status(401).json({ error: "Usuario no encontrado" });
 
-      const match = await bcrypt.compare(password, user.password);
-      if (match) {
-        req.session.userId = user.id;
-        req.session.username = user.username;
-        res.status(200).json({ message: "Login exitoso" });
-      } else {
-        res.status(401).json({ error: "Usuario o contraseña incorrectos" });
-      }
-    });
-  }
-);
+    const match = await bcrypt.compare(password, user.password);
+    if (match) {
+      req.session.userId = user.id;
+      req.session.username = user.username;
+      res.status(200).json({ message: "Login exitoso" });
+    } else {
+      res.status(401).json({ error: "Contraseña incorrecta" });
+    }
+  });
+});
 
 app.post('/api/logout', (req, res) => {
   req.session.destroy();
@@ -121,54 +87,46 @@ app.get('/api/user', isAuthenticated, (req, res) => {
   res.json({ username: req.session.username, userId: req.session.userId });
 });
 
-app.post('/api/register',
-  registerValidator,
-  handleValidationErrors,
-  async (req, res) => {
-    const { username, password } = req.body;
+app.post('/api/register', async (req, res) => {
+  const { username, password } = req.body;
+  if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
 
-    try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", [username, hashedPassword], function (err) {
-        if (err) {
-          if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "El usuario ya existe" });
-          return res.status(500).json({ error: "Error al registrar" });
-        }
-        req.session.userId = this.lastID;
-        req.session.username = username;
-        res.status(201).json({ message: "Registro exitoso" });
-      });
-    } catch (err) {
-      res.status(500).json({ error: "Error en el servidor" });
-    }
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", [username, hashedPassword], function (err) {
+      if (err) {
+        if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "El usuario ya existe" });
+        return res.status(500).json({ error: "Error al registrar" });
+      }
+      req.session.userId = this.lastID;
+      req.session.username = username;
+      res.status(201).json({ message: "Registro exitoso" });
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Error en el servidor" });
   }
-);
+});
 
 // Room Management Routes
-app.post('/api/rooms',
-  isAuthenticated,
-  createRoomValidator,
-  handleValidationErrors,
-  (req, res) => {
-    const { friendA_name, friendB_name, noteA, noteB } = req.body;
-    const cupido_id = req.session.userId;
-    const linkA = crypto.randomUUID();
-    const linkB = crypto.randomUUID();
+app.post('/api/rooms', isAuthenticated, (req, res) => {
+  const { friendA_name, friendB_name, noteA, noteB } = req.body;
+  const cupido_id = req.session.userId;
+  const linkA = require('crypto').randomUUID();
+  const linkB = require('crypto').randomUUID();
 
-    db.run(
-      `INSERT INTO rooms (cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB],
-      function (err) {
-        if (err) {
-          console.error(err);
-          return res.status(500).json({ error: "Error al crear la sala" });
-        }
-        res.status(201).json({ id: this.lastID, linkA, linkB });
+  db.run(
+    `INSERT INTO rooms (cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB) 
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB],
+    function (err) {
+      if (err) {
+        console.error(err);
+        return res.status(500).json({ error: "Error al crear la sala" });
       }
-    );
-  }
-);
+      res.status(201).json({ id: this.lastID, linkA, linkB });
+    }
+  );
+});
 
 app.get('/api/rooms', isAuthenticated, (req, res) => {
   const userId = req.session.userId;
@@ -224,46 +182,42 @@ app.get('/dashboard', isAuthenticated, (req, res) => {
 
 // --- CHAT ROUTES ---
 
-app.post('/api/request-new-link',
-  requestNewLinkValidator,
-  handleValidationErrors,
-  (req, res) => {
-    // This endpoint is public because the user is blocked from the chat, 
-    // but they have the "old" link as proof of knowing the URL.
-    const { oldLink } = req.body;
+app.post('/api/request-new-link', (req, res) => {
+  // This endpoint is public because the user is blocked from the chat, 
+  // but they have the "old" link as proof of knowing the URL.
+  const { oldLink } = req.body;
 
-    db.get(
-      "SELECT id, cupido_id, linkA, linkB, created_at FROM rooms WHERE linkA = ? OR linkB = ?",
-      [oldLink, oldLink],
-      (err, room) => {
-        if (err || !room) return res.status(404).json({ error: "Link no encontrado" });
+  db.get(
+    "SELECT id, cupido_id, linkA, linkB, created_at FROM rooms WHERE linkA = ? OR linkB = ?",
+    [oldLink, oldLink],
+    (err, room) => {
+      if (err || !room) return res.status(404).json({ error: "Link no encontrado" });
 
-        const isA = (oldLink === room.linkA);
-        const newLink = crypto.randomUUID();
-        const linkField = isA ? 'linkA' : 'linkB';
-        const sessionField = isA ? 'linkA_session' : 'linkB_session';
+      const isA = (oldLink === room.linkA);
+      const newLink = require('crypto').randomUUID();
+      const linkField = isA ? 'linkA' : 'linkB';
+      const sessionField = isA ? 'linkA_session' : 'linkB_session';
 
-        // Update DB: Set new link, clear session (so new user can claim it)
-        db.run(
-          `UPDATE rooms SET ${linkField} = ?, ${sessionField} = NULL WHERE id = ?`,
-          [newLink, room.id],
-          function (err) {
-            if (err) return res.status(500).json({ error: "Error al generar" });
+      // Update DB: Set new link, clear session (so new user can claim it)
+      db.run(
+        `UPDATE rooms SET ${linkField} = ?, ${sessionField} = NULL WHERE id = ?`,
+        [newLink, room.id],
+        function (err) {
+          if (err) return res.status(500).json({ error: "Error al generar" });
 
-            // Notify Cupido Dashboard
-            io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', {
-              room_id: room.id,
-              role: isA ? 'A' : 'B',
-              new_link: newLink
-            });
+          // Notify Cupido Dashboard
+          io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', {
+            room_id: room.id,
+            role: isA ? 'A' : 'B',
+            new_link: newLink
+          });
 
-            res.json({ message: "Link regenerado" });
-          }
-        );
-      }
-    );
-  }
-);
+          res.json({ message: "Link regenerado" });
+        }
+      );
+    }
+  );
+});
 
 // Render Chat Page
 app.get('/chat/:link', (req, res) => {
@@ -382,53 +336,6 @@ app.get('/api/chat-info/:link', (req, res) => {
 // --- SOCKET.IO LOGIC ---
 const roomStatus = {}; // { room_id: { A: socketId, B: socketId } }
 
-// Clean up stalled active sessions on startup
-db.run("UPDATE rooms SET active_since = NULL");
-
-function updateAndNotifyStatus(room_id, cupido_id) {
-  db.get("SELECT active_since FROM rooms WHERE id = ?", [room_id], (err, row) => {
-    const currentActiveSince = row ? row.active_since : null;
-    const statusObj = roomStatus[room_id];
-    let statusText = 'pendiente';
-    const isNowActive = !!(statusObj && statusObj.A && statusObj.B);
-
-    if (isNowActive) {
-      statusText = 'activo';
-    } else if (statusObj && statusObj.A) {
-      statusText = 'A conectado';
-    } else if (statusObj && statusObj.B) {
-      statusText = 'B conectado';
-    } else if (statusObj) {
-      statusText = 'desconectado';
-    }
-
-    // Time Tracking Logic
-    if (isNowActive && !currentActiveSince) {
-      const now = Date.now();
-      db.run("UPDATE rooms SET status = ?, active_since = ? WHERE id = ?", [statusText, now, room_id]);
-      io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
-      io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: now });
-    } else if (!isNowActive && currentActiveSince) {
-      const now = Date.now();
-      const duration = Math.floor((now - currentActiveSince) / 1000);
-      db.run(
-        "UPDATE rooms SET status = ?, active_since = NULL, total_active_seconds = total_active_seconds + ? WHERE id = ?",
-        [statusText, duration, room_id]
-      );
-      io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
-      io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: null, added_seconds: duration });
-    } else {
-      db.run("UPDATE rooms SET status = ? WHERE id = ?", [statusText, room_id]);
-      io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
-    }
-
-    io.to(`room_${room_id}`).emit('presence-update', {
-      A: !!(statusObj && statusObj.A),
-      B: !!(statusObj && statusObj.B)
-    });
-  });
-}
-
 io.on('connection', (socket) => {
   console.log('Usuario conectado:', socket.id);
 
@@ -458,10 +365,74 @@ io.on('connection', (socket) => {
 
         updateAndNotifyStatus(room_id, room.cupido_id);
 
+        // Notify others in room
         socket.to(`room_${room_id}`).emit('user_joined', { role: sender });
       }
     );
   });
+
+
+  // Clean up stalled active sessions on restart
+  db.run("UPDATE rooms SET active_since = NULL");
+
+  function updateAndNotifyStatus(room_id, cupido_id) {
+    db.get("SELECT active_since FROM rooms WHERE id = ?", [room_id], (err, row) => {
+      const currentActiveSince = row ? row.active_since : null;
+      const statusObj = roomStatus[room_id];
+      let statusText = 'pendiente';
+      const isNowActive = (statusObj && statusObj.A && statusObj.B);
+
+      if (isNowActive) {
+        statusText = 'activo';
+      } else if (statusObj && statusObj.A) {
+        statusText = 'A conectado';
+      } else if (statusObj && statusObj.B) {
+        statusText = 'B conectado';
+      } else if (statusObj) {
+        statusText = 'desconectado';
+      }
+
+      // Time Tracking Logic
+      if (isNowActive && !currentActiveSince) {
+        // Just became active -> Start timer
+        const now = Date.now();
+        db.run("UPDATE rooms SET status = ?, active_since = ? WHERE id = ?", [statusText, now, room_id]);
+
+        // Notify Dashboard immediately
+        io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+        io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: now });
+
+      } else if (!isNowActive && currentActiveSince) {
+        // Stopped being active -> Stop timer and accumulate
+        const now = Date.now();
+        const duration = Math.floor((now - currentActiveSince) / 1000);
+        db.run(
+          "UPDATE rooms SET status = ?, active_since = NULL, total_active_seconds = total_active_seconds + ? WHERE id = ?",
+          [statusText, duration, room_id]
+        );
+
+        // Notify Dashboard
+        io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+        // We send active_since: null so client knows to stop counting
+        // We also should technically send the new total, but client can refetch or just stop. 
+        // Let's send a specific event or just let the client refresh if they want precise exactness,
+        // but for smooth UI, sending null active_since stops the counter.
+        io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: null, added_seconds: duration });
+
+      } else {
+        // Status changed but not related to active/inactive transition (e.g. A connected -> B connected but A left)
+        // Or just refreshing state
+        db.run("UPDATE rooms SET status = ? WHERE id = ?", [statusText, room_id]);
+        io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
+      }
+
+      // Notify the room itself for real-time presence indicators
+      io.to(`room_${room_id}`).emit('presence-update', {
+        A: !!(statusObj && statusObj.A),
+        B: !!(statusObj && statusObj.B)
+      });
+    });
+  }
 
   socket.on('send-message', ({ room_id, sender, text }) => {
     if (!text || text.trim() === '') return;
@@ -497,11 +468,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// Middleware para rutas no encontradas
-app.use(notFoundHandler);
-
-// Middleware de manejo de errores (debe estar al final)
-app.use(handleError);
+// Fallback route for SPA/404 handling - MUST BE LAST
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => console.log(`🚀 http://localhost:${port}`));

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>APPcitas | Bienvenida</title>
+    <title>Cupido's Project | Private Dating Management</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
@@ -14,10 +14,26 @@
         .hero {
             text-align: center;
             animation: fadeIn 0.8s ease-out;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
         }
 
         .btn-main {
             margin-top: 2rem;
+            padding: 1.2rem 2.5rem;
+            font-size: 1.1rem;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 0.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
     </style>
 </head>
@@ -27,14 +43,15 @@
     <div class="blob blob-2"></div>
 
     <div class="container hero">
-        <h1>🎯 APPcitas</h1>
-        <p class="subtitle">Encuentra el match perfecto</p>
+        <div style="font-size: 5rem; margin-bottom: 1.5rem;">💘</div>
+        <h1>Cupido's Project</h1>
+        <p class="subtitle">Creando conexiones reales entre amigos</p>
 
-        <div style="margin: 2rem 0; font-size: 1.1rem; line-height: 1.6;">
-            Bienvenido a la plataforma líder en gestión de citas.
+        <div style="margin: 2rem 0; font-size: 1.2rem; line-height: 1.6; max-width: 500px; color: var(--text-dim);">
+            La plataforma exclusiva donde los cupidos modernos gestionan encuentros mágicos con total discreción.
         </div>
 
-        <a href="/login" class="btn-main">Acceder como Cupido &rarr;</a>
+        <a href="/login" class="btn-main">Iniciar Sesión Cupido &rarr;</a>
     </div>
 
     <script>

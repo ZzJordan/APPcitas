@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard | APPcitas</title>
+    <title>Panel Cupido | Cupido's Project</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
@@ -19,26 +19,28 @@
     <div class="app-container">
         <div class="nav">
             <div class="nav-info">
-                <h1>APPcitas Dashboard</h1>
-                <p class="subtitle" style="text-align: left; margin-bottom: 0;">Hola, <span id="cupidoName"
-                        style="color: var(--primary); font-weight: 600;">...</span> ✨</p>
+                <h1
+                    style="background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                    Cupido's Project</h1>
+                <p class="subtitle" style="text-align: left; margin-bottom: 0;">Panel de Gestión: <span id="cupidoName"
+                        style="color: var(--primary); font-weight: 600;">...</span> 💘</p>
             </div>
             <div class="nav-actions">
-                <button onclick="openModal()" class="btn-main" style="background: #4ade80;">+ Nueva Sala</button>
-                <button onclick="logout()" class="btn-main btn-glass">Cerrar Sesión</button>
+                <button onclick="openModal()" class="btn-main" style="background: #4ade80;">+ Nueva Conexión</button>
+                <button onclick="logout()" class="btn-main btn-glass">Salir</button>
             </div>
         </div>
 
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab(event, 'cupido')">Cupido</button>
-            <button class="tab-btn" onclick="switchTab(event, 'chats')">Mis chats</button>
+            <button class="tab-btn active" onclick="switchTab(event, 'cupido')">Mis Salas</button>
+            <button class="tab-btn" onclick="switchTab(event, 'chats')">Histórico</button>
         </div>
 
         <!-- Cupido Tab -->
-        <div id="cupido-tab" class="tab-content active">
+        <div id="cupido-tab" class="tab-content">
             <div id="roomsContainer" class="rooms-list-container">
                 <div style="text-align: center; padding: 4rem; color: var(--text-dim);">
-                    Cargando salas...
+                    Cargando proyectos...
                 </div>
             </div>
         </div>
@@ -48,45 +50,46 @@
 
         <!-- Mis Chats Tab -->
         <div id="chats-tab" class="tab-content" style="display: none;">
-            <div id="recentsList" class="recents-grid"></div>
+            <div id="recentsList" class="card-grid"></div>
             <div id="noChatsMsg" style="padding: 5rem; text-align: center; display: none;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
-                <p style="color: var(--text-dim); font-size: 1.1rem;">No tienes chats guardados todavía.</p>
+                <p style="color: var(--text-dim); font-size: 1.1rem;">No hay registros históricos aún.</p>
             </div>
         </div>
     </div>
 
-    <!-- Modal Confirmar Borrado -->
+    <!-- Confirm Modal -->
     <div id="confirmModal" class="modal">
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <div style="font-size: 3.5rem; margin-bottom: 1.5rem;">⚠️</div>
-            <h2 style="margin-bottom: 1rem; font-weight: 700;">¿Estás seguro?</h2>
-            <p style="color: var(--text-dim); margin-bottom: 2rem; line-height: 1.6;">Esta acción eliminará la sala
-                permanentemente.</p>
+            <h2 style="margin-bottom: 1rem; font-weight: 700;">¿Cerrar Proyecto?</h2>
+            <p style="color: var(--text-dim); margin-bottom: 2rem; line-height: 1.6;">Esta acción eliminará la sala y
+                todos los mensajes de forma permanente.</p>
             <div style="display: flex; gap: 1rem; justify-content: center;">
                 <button id="cancelDeleteBtn" class="btn-main btn-glass" style="flex: 1;">Cancelar</button>
-                <button id="confirmDeleteBtn" class="btn-main" style="flex: 1; background: #ef4444;">Borrar</button>
+                <button id="confirmDeleteBtn" class="btn-main" style="flex: 1; background: #ef4444;">Borrar
+                    Todo</button>
             </div>
         </div>
     </div>
 
-    <!-- Modal Nueva Sala -->
+    <!-- Create Room Modal -->
     <div id="roomModal" class="modal">
         <div class="modal-content">
             <span class="close-modal" onclick="closeModal()">&times;</span>
-            <h2 style="margin-bottom: 2rem; text-align: center; font-weight: 700;">Crear Nueva Sala</h2>
+            <h2 style="margin-bottom: 2rem; text-align: center; font-weight: 700;">Nueva Conexión</h2>
             <form id="createRoomForm">
                 <div class="form-row">
                     <div class="input-group">
-                        <label>Nombre Amigo A</label>
-                        <input type="text" id="friendA" required placeholder="Ej: Pedro">
+                        <label>Persona A</label>
+                        <input type="text" id="friendA" required placeholder="Ej: Juan">
                     </div>
                     <div class="input-group">
-                        <label>Nombre Amigo B</label>
+                        <label>Persona B</label>
                         <input type="text" id="friendB" required placeholder="Ej: Sonia">
                     </div>
                 </div>
-                <button type="submit" class="btn-main" style="width: 100%; margin-top: 1rem;">Generar Sala y
+                <button type="submit" class="btn-main" style="width: 100%; margin-top: 1rem;">Crear Sala y Generar
                     Links</button>
             </form>
         </div>
@@ -103,7 +106,7 @@
         function formatTime(seconds) {
             const h = Math.floor(seconds / 3600);
             const m = Math.floor((seconds % 3600) / 60);
-            const s = Math.floor(seconds % 60);
+            const s = seconds % 60;
             return `${h}h ${m}m ${s}s`;
         }
 
@@ -116,7 +119,8 @@
         function switchTab(e, tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
-            e.currentTarget.classList.add('active');
+            const btn = e.currentTarget || e.target;
+            btn.classList.add('active');
             const target = document.getElementById(`${tab}-tab`);
             if (target) target.style.display = 'block';
             if (tab === 'chats') loadRecents();
@@ -150,9 +154,9 @@
                 if (rooms.length === 0) {
                     container.innerHTML = `
                         <div style="text-align: center; padding:5rem; color: var(--text-dim);">
-                            <div style="font-size:3rem; margin-bottom:1rem;">🎯</div>
-                            <p>No hay salas creadas aún.</p>
-                            <p style="font-size:0.8rem; margin-top:0.5rem;">Pulsa el botón + para empezar</p>
+                            <div style="font-size:3rem; margin-bottom:1rem;">💖</div>
+                            <p>Aún no has creado ninguna conexión.</p>
+                            <p style="font-size:0.8rem; margin-top:0.5rem;">Pulsa el botón + para empezar tu labor de Cupido</p>
                         </div>`;
                     return;
                 }
@@ -175,7 +179,7 @@
                         <div class="room-header">
                             <div>
                                 <div class="room-names">${room.friendA_name} & ${room.friendB_name}</div>
-                                <div class="room-date">Creada el ${new Date(room.created_at).toLocaleDateString()}</div>
+                                <div class="room-date">Iniciado el ${new Date(room.created_at).toLocaleDateString()}</div>
                             </div>
                             <span class="badge badge-${room.status.toLowerCase().replace(/ /g, '')}">${room.status}</span>
                         </div>
@@ -184,17 +188,17 @@
                             <div style="font-family: monospace; font-size: 1.2rem; font-weight: 600; color: var(--primary);">
                                 ⏱️ <span id="timer-${room.id}">${displayTime}</span>
                             </div>
-                            <button class="delete-btn" onclick="deleteRoom(${room.id})" style="background:none; border:none; color:#ef4444; font-size:0.9rem; font-weight:600; cursor:pointer; opacity:0.7;">Borrar Sala</button>
+                            <button class="delete-btn" onclick="deleteRoom(${room.id})" style="background:none; border:none; color:#ef4444; font-size:0.9rem; font-weight:600; cursor:pointer; opacity:0.7;">Borrar Proyecto</button>
                         </div>
 
                         <div class="link-pills">
                             <div class="pill ${room.linkA_used ? 'used' : ''}" onclick="copyToClipboard('${room.linkA}', this)">
-                                <span>Para ${room.friendA_name}</span>
-                                <span>${room.linkA_used ? '¡Copiado!' : 'Copiar Link'}</span>
+                                <span>Link ${room.friendA_name}</span>
+                                <span>${room.linkA_used ? '¡Enviado!' : 'Copiar Link'}</span>
                             </div>
                             <div class="pill ${room.linkB_used ? 'used' : ''}" onclick="copyToClipboard('${room.linkB}', this)">
-                                <span>Para ${room.friendB_name}</span>
-                                <span>${room.linkB_used ? '¡Copiado!' : 'Copiar Link'}</span>
+                                <span>Link ${room.friendB_name}</span>
+                                <span>${room.linkB_used ? '¡Enviado!' : 'Copiar Link'}</span>
                             </div>
                         </div>
                     </div>`;
@@ -203,7 +207,7 @@
                 if (!timerInterval) timerInterval = setInterval(updateTimersUI, 1000);
             } catch (e) {
                 console.error("Load Rooms Error:", e);
-                document.getElementById('roomsContainer').innerHTML = '<div style="color: #ef4444; padding: 2rem; text-align: center;">Error al cargar salas (ver consola)</div>';
+                document.getElementById('roomsContainer').innerHTML = '<div style="color: #ef4444; padding: 2rem; text-align: center;">Error de conexión con el Proyecto</div>';
             }
         }
 
@@ -212,9 +216,8 @@
             for (const [roomId, startTime] of Object.entries(activeTimers)) {
                 const el = document.getElementById(`timer-${roomId}`);
                 if (el) {
-                    const elapsed = Math.floor((now - startTime) / 1000);
-                    const total = (roomTotals[roomId] || 0) + elapsed;
-                    el.innerText = formatTime(total);
+                    const elapsed = Math.floor((now - startTime) / 1000) + (roomTotals[roomId] || 0);
+                    el.innerText = formatTime(elapsed);
                 }
             }
         }
@@ -229,8 +232,7 @@
 
         document.getElementById('cancelDeleteBtn').onclick = () => {
             document.getElementById('confirmModal').style.display = 'none';
-            roomToDelete = null;
-        };
+        }
 
         document.getElementById('confirmDeleteBtn').onclick = async () => {
             if (!roomToDelete) return;
@@ -240,7 +242,7 @@
                 document.getElementById('confirmModal').style.display = 'none';
                 roomToDelete = null;
             } else {
-                alert("Error al borrar");
+                alert("No se pudo eliminar el proyecto");
             }
         };
 
@@ -251,7 +253,7 @@
             const friendB = document.getElementById('friendB').value;
 
             btn.disabled = true;
-            btn.innerText = 'Generando...';
+            btn.innerText = 'Generando Conexión...';
 
             try {
                 const res = await fetch('/api/rooms', {
@@ -264,13 +266,13 @@
                     await loadRooms();
                     e.target.reset();
                 } else {
-                    alert("Error al crear la sala");
+                    alert("Error al crear la conexión");
                 }
             } catch (e) {
                 alert("Error de red");
             } finally {
                 btn.disabled = false;
-                btn.innerText = 'Generar Sala y Links';
+                btn.innerText = 'Crear Sala y Generar Links';
             }
         };
 
@@ -315,9 +317,9 @@
                         const name = (room.accessed_role === 'A') ? room.friendB_name : room.friendA_name;
                         return `
                         <div class="recent-card" onclick="location.href='/chat/${link}'">
-                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Chat con ${name}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-dim);">Entrado: ${new Date(room.accessed_at).toLocaleString()}</div>
-                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.2;">💬</div>
+                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Conexión con ${name}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-dim);">Último acceso: ${new Date(room.accessed_at).toLocaleString()}</div>
+                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.2;">💖</div>
                         </div>`;
                     }).join('');
                 }
@@ -354,6 +356,12 @@
         window.logout = logout;
 
         loadUser();
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(e => console.log('SW fail', e));
+            });
+        }
     </script>
 </body>
 

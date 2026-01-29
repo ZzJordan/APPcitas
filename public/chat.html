@@ -6,7 +6,7 @@
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>Chat | APPcitas</title>
+    <title>Chat Privado | Cupido's Project</title>
     <link rel="stylesheet" href="/style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#08080a">
@@ -21,7 +21,6 @@
         html,
         body {
             height: 100%;
-            width: 100%;
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -110,7 +109,6 @@
         }
 
         .message.received {
-            align-self: flex-start;
             background: var(--card);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -120,7 +118,7 @@
         }
 
         .message .time {
-            font-size: 0.65rem;
+            font-size: 0.7rem;
             opacity: 0.5;
             margin-top: 0.3rem;
             text-align: right;
@@ -296,8 +294,7 @@
             <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
             <button type="submit" class="send-btn">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                    <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z">
-                    </path>
+                    <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z" />
                 </svg>
             </button>
         </form>
@@ -328,8 +325,6 @@
                     errorOverlay.style.display = 'flex';
                     return;
                 }
-
-                if (!res.ok) throw new Error("Error de conexión");
 
                 const data = await res.json();
                 chatId = data.room_id;
@@ -394,15 +389,16 @@
             const div = document.createElement('div');
             div.className = `message ${isSent ? 'sent' : 'received'}`;
             const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            div.innerHTML = `<div>${msg.text}</div><div class="time">${time}</div>`;
+            div.innerHTML = `
+                <div class="text">${msg.text}</div>
+                <div class="time">${time}</div>
+            `;
             msgContainer.appendChild(div);
             scrollToBottom();
         }
 
         function scrollToBottom() {
-            requestAnimationFrame(() => {
-                msgContainer.scrollTop = msgContainer.scrollHeight;
-            });
+            msgContainer.scrollTop = msgContainer.scrollHeight;
         }
 
         function updatePresence(isOnline) {
@@ -410,18 +406,22 @@
             otherStatusDisplay.style.color = isOnline ? '#4ade80' : '#ef4444';
         }
 
-        document.getElementById('chat-form').addEventListener('submit', (e) => {
+        document.getElementById('chat-form').onsubmit = (e) => {
             e.preventDefault();
             const text = msgInput.value.trim();
-            if (!text) return;
-
-            socket.emit('send-message', { room_id: chatId, sender: myRole, text });
-            msgInput.value = '';
-            msgInput.focus();
-        });
+            if (text && chatId) {
+                socket.emit('send-message', { room_id: chatId, sender: myRole, text });
+                msgInput.value = '';
+            }
+        };
 
         socket.on('new-message', msg => {
             if (msg.sender !== myRole) addMessage(msg, false);
+            else {
+                // For sent messages, the server sends back the confirmed message
+                // but we already show it if we wanted latency compensation.
+                // Here we just render all from server for simplicity.
+            }
         });
 
         socket.on('presence-update', (presence) => {

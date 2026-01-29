@@ -1,4 +1,4 @@
-const CACHE_NAME = 'appcitas-v1';
+const CACHE_NAME = 'cupido-project-v1';
 const ASSETS = [
     '/',
     '/index.html',

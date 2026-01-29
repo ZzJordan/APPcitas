@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | APPcitas</title>
+    <title>Cupido's Project | Acceso Privado</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
@@ -19,37 +19,39 @@
     <div class="container premium-card">
         <!-- View: Login -->
         <div id="loginView">
-            <div style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center;">🎯</div>
-            <h1 style="text-align: center; margin-bottom: 0.5rem;">APPcitas</h1>
-            <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Gestiona tus citas con distinción</p>
+            <div style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center;">🛡️</div>
+            <h1
+                style="text-align: center; margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                Cupido's Project</h1>
+            <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Acceso exclusivo para Cupidos</p>
 
             <form id="loginForm">
                 <div class="input-group">
-                    <label>Usuario</label>
+                    <label>Usuario Cupido</label>
                     <input type="text" id="username" placeholder="Tu usuario" required>
                 </div>
                 <div class="input-group">
                     <label>Contraseña</label>
                     <input type="password" id="password" placeholder="••••••••" required>
                 </div>
-                <button type="submit" class="btn-main" id="loginBtn" style="width: 100%; margin-top: 1rem;">Entrar al
-                    Dashboard</button>
+                <button type="submit" class="btn-main" id="loginBtn" style="width: 100%; margin-top: 1rem;">Acceder al
+                    Panel</button>
                 <div id="errorMessage" class="error"></div>
             </form>
 
             <div style="margin-top: 2rem; text-align: center;">
                 <p style="color: var(--text-dim); font-size: 0.9rem;">
-                    ¿Nuevo aquí? <a href="javascript:void(0)" onclick="showRegister()"
-                        style="color: var(--primary); font-weight: 700;">Crea tu cuenta</a>
+                    ¿Eres un nuevo Cupido? <a href="javascript:void(0)" onclick="showRegister()"
+                        style="color: var(--primary); font-weight: 700;">Únete al proyecto</a>
                 </p>
             </div>
 
             <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); text-align: center;">
-                <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.5rem;">O entra como invitado:</p>
+                <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.5rem;">Invitados & Amigos:</p>
                 <form id="linkForm" style="display: flex; gap: 0.8rem; flex-direction: column;">
-                    <input type="text" id="chatLink" placeholder="Pega tu link o código aquí"
+                    <input type="text" id="chatLink" placeholder="Pega tu código de invitación"
                         style="padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border); background: var(--glass); color: white; outline: none;">
-                    <button type="submit" class="btn-main btn-glass">Unirse al Chat</button>
+                    <button type="submit" class="btn-main btn-glass">Acceder a la Conversación</button>
                 </form>
             </div>
         </div>
@@ -57,26 +59,28 @@
         <!-- View: Register -->
         <div id="registerView" style="display: none;">
             <div style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center;">✨</div>
-            <h1 style="text-align: center; margin-bottom: 0.5rem;">Nuevo Cupido</h1>
-            <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Crea tu cuenta profesional</p>
+            <h1
+                style="text-align: center; margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                Registro Cupido</h1>
+            <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Crea tu perfil profesional</p>
 
             <form id="registerForm">
                 <div class="input-group">
-                    <label>Usuario</label>
-                    <input type="text" id="regUsername" placeholder="Ej: cupido_pro" required>
+                    <label>Nombre de Usuario</label>
+                    <input type="text" id="regUsername" placeholder="Ej: cupido_master" required>
                 </div>
                 <div class="input-group">
-                    <label>Contraseña</label>
+                    <label>Contraseña Maestra</label>
                     <input type="password" id="regPassword" placeholder="••••••••" required>
                 </div>
-                <button type="submit" class="btn-main" id="registerBtn"
-                    style="width: 100%; margin-top: 1rem;">Registrarse</button>
+                <button type="submit" class="btn-main" id="registerBtn" style="width: 100%; margin-top: 1rem;">Registrar
+                    Cupido</button>
                 <div id="regError" class="error"></div>
             </form>
 
             <div style="margin-top: 2rem; text-align: center;">
                 <p style="color: var(--text-dim); font-size: 0.9rem;">
-                    ¿Ya tienes cuenta? <a href="javascript:void(0)" onclick="showLogin()"
+                    ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()"
                         style="color: var(--primary); font-weight: 700;">Inicia Sesión</a>
                 </p>
             </div>
@@ -119,16 +123,16 @@
                     setTimeout(() => location.href = '/dashboard', 500);
                 } else {
                     const data = await res.json();
-                    errEl.innerText = data.error || 'Error en el login';
+                    errEl.innerText = data.error || 'Acceso denegado';
                     errEl.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = 'Entrar al Dashboard';
+                    btn.innerText = 'Acceder al Panel';
                 }
             } catch (err) {
                 errEl.innerText = 'Error de conexión';
                 errEl.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Entrar al Dashboard';
+                btn.innerText = 'Acceder al Panel';
             }
         };
 
@@ -151,7 +155,7 @@
                 });
 
                 if (res.ok) {
-                    btn.innerText = '¡Listo!';
+                    btn.innerText = '¡Registrado!';
                     btn.style.background = '#4ade80';
                     setTimeout(() => location.href = '/dashboard', 500);
                 } else {
@@ -159,13 +163,13 @@
                     errEl.innerText = data.error || 'Error al registrar';
                     errEl.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = 'Registrarse';
+                    btn.innerText = 'Registrar Cupido';
                 }
             } catch (err) {
                 errEl.innerText = 'Error de conexión';
                 errEl.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Registrarse';
+                btn.innerText = 'Registrar Cupido';
             }
         };
 
@@ -177,6 +181,12 @@
                 location.href = `/chat/${link}`;
             }
         };
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW fail', err));
+            });
+        }
     </script>
 </body>
 
