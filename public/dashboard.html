@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard | APPcitas</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff4d6d">
+    <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -33,41 +36,15 @@
 
         <!-- Cupido Tab -->
         <div id="cupido-tab" class="tab-content active">
-            <div class="card-grid">
-                <div class="stat-card">
-                    <h3>Salas Totales</h3>
-                    <div class="value" id="totalRooms">0</div>
-                    <p style="font-size: 0.8rem; color: #4ade80;">Activas en el sistema</p>
-                </div>
-                <div class="stat-card">
-                    <h3>Citas Pendientes</h3>
-                    <div class="value" id="pendingRooms">0</div>
-                    <p style="font-size: 0.8rem; color: #4ade80;">Esperando conexión</p>
-                </div>
-            </div>
-
-            <div class="rooms-table-container">
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Amigos</th>
-                                <th>Links de Acceso</th>
-                                <th>Estado Real-time</th>
-                                <th>Tiempo Compartido</th>
-                                <th style="text-align: right;">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="roomsTableBody">
-                            <tr>
-                                <td colspan="5" style="text-align: center; padding: 4rem; color: var(--text-dim);">
-                                    Cargando salas...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div id="roomsContainer" class="rooms-list-container">
+                <div style="text-align: center; padding: 4rem; color: var(--text-dim);">
+                    Cargando salas...
                 </div>
             </div>
         </div>
+
+        <!-- Floating Action Button -->
+        <button class="fab" onclick="openModal()">+</button>
 
         <!-- Mis Chats Tab -->
         <div id="chats-tab" class="tab-content" style="display: none;">
@@ -75,8 +52,6 @@
             <div id="noChatsMsg" style="padding: 5rem; text-align: center; display: none;">
                 <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
                 <p style="color: var(--text-dim); font-size: 1.1rem;">No tienes chats guardados todavía.</p>
-                <p style="color: var(--text-dim); font-size: 0.9rem; margin-top: 0.5rem;">Aquí solo verás los chats a
-                    los que has sido invitado.</p>
             </div>
         </div>
     </div>
@@ -86,8 +61,8 @@
         <div class="modal-content" style="max-width: 400px; text-align: center;">
             <div style="font-size: 3.5rem; margin-bottom: 1.5rem;">⚠️</div>
             <h2 style="margin-bottom: 1rem; font-weight: 700;">¿Estás seguro?</h2>
-            <p style="color: var(--text-dim); margin-bottom: 2rem; line-height: 1.6;">Esta acción eliminará
-                permanentemente la sala, todos los mensajes y los accesos de los invitados.</p>
+            <p style="color: var(--text-dim); margin-bottom: 2rem; line-height: 1.6;">Esta acción eliminará la sala
+                permanentemente.</p>
             <div style="display: flex; gap: 1rem; justify-content: center;">
                 <button id="cancelDeleteBtn" class="btn-main btn-glass" style="flex: 1;">Cancelar</button>
                 <button id="confirmDeleteBtn" class="btn-main" style="flex: 1; background: #ef4444;">Borrar</button>
@@ -121,8 +96,8 @@
     <script>
         const socket = io();
         let currentUser = null;
-        let activeTimers = {}; // { roomId: startTime (ms) }
-        let roomTotals = {};   // { roomId: totalSeconds } used for base
+        let activeTimers = {};
+        let roomTotals = {};
         let timerInterval = null;
 
         function formatTime(seconds) {
@@ -132,90 +107,103 @@
             return `${h}h ${m}m ${s}s`;
         }
 
+        // --- UI Modal Logic ---
+        function openModal() { document.getElementById('roomModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('roomModal').style.display = 'none'; }
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+
         function switchTab(e, tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
             e.currentTarget.classList.add('active');
-            document.getElementById(`${tab}-tab`).style.display = 'block';
+            const target = document.getElementById(`${tab}-tab`);
+            if (target) target.style.display = 'block';
             if (tab === 'chats') loadRecents();
         }
+        window.switchTab = switchTab;
 
+        // --- Data Loading ---
         async function loadUser() {
             try {
                 const res = await fetch('/api/user');
-                if (!res.ok) throw new Error();
+                if (!res.ok) throw new Error("Auth failed");
                 const data = await res.json();
                 currentUser = data;
                 document.getElementById('cupidoName').innerText = data.username;
-                // Important: Use the actual userId for socket room
                 socket.emit('join-dashboard', { cupido_id: data.userId });
-                loadRooms();
-            } catch (err) { window.location.href = '/login'; }
+                await loadRooms();
+            } catch (err) {
+                console.error("User Load Error:", err);
+                window.location.href = '/login';
+            }
         }
 
         async function loadRooms() {
-            const res = await fetch('/api/rooms');
-            const data = await res.json();
-            const rooms = data.owned || [];
+            try {
+                const res = await fetch('/api/rooms');
+                if (!res.ok) throw new Error("Could not fetch rooms");
+                const data = await res.json();
+                const rooms = data.owned || [];
 
-            document.getElementById('totalRooms').innerText = rooms.length;
-            document.getElementById('pendingRooms').innerText = rooms.filter(r => r.status === 'pendiente').length;
-
-            const tbody = document.getElementById('roomsTableBody');
-            if (rooms.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding:4rem; color: var(--text-dim);">No hay salas creadas aún. Dale al botón de arriba para empezar.</td></tr>';
-                return;
-            }
-
-            // Reset trackers
-            activeTimers = {};
-            roomTotals = {};
-
-            tbody.innerHTML = rooms.map(room => {
-                // Store base total
-                roomTotals[room.id] = room.total_active_seconds || 0;
-
-                // If currently active, store start time
-                if (room.active_since) {
-                    activeTimers[room.id] = room.active_since;
+                const container = document.getElementById('roomsContainer');
+                if (rooms.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; padding:5rem; color: var(--text-dim);">
+                            <div style="font-size:3rem; margin-bottom:1rem;">🎯</div>
+                            <p>No hay salas creadas aún.</p>
+                            <p style="font-size:0.8rem; margin-top:0.5rem;">Pulsa el botón + para empezar</p>
+                        </div>`;
+                    return;
                 }
 
-                // Initial Calc
-                let displayTime = formatTime(room.total_active_seconds || 0);
-                if (room.active_since) {
-                    const currentDuration = Math.floor((Date.now() - room.active_since) / 1000) + (room.total_active_seconds || 0);
-                    displayTime = formatTime(currentDuration);
-                }
+                activeTimers = {};
+                roomTotals = {};
 
-                return `
-                <tr id="room-${room.id}">
-                    <td>
-                        <div style="font-weight:700; font-size: 1.1rem; color: white;">${room.friendA_name} & ${room.friendB_name}</div>
-                        <div style="font-size:0.8rem; color:var(--text-dim);">Creada el ${new Date(room.created_at).toLocaleDateString()}</div>
-                    </td>
-                    <td>
-                        <div style="display:flex; gap:0.5rem; flex-wrap: wrap;">
-                            <button class="copy-btn ${room.linkA_used ? 'btn-used' : ''}" style="flex:1; min-width: 120px;" onclick="copyToClipboard('${room.linkA}', this)">
-                                ${room.linkA_used ? `Para ${room.friendA_name} (Usado)` : `Para ${room.friendA_name}`}
-                            </button>
-                            <button class="copy-btn ${room.linkB_used ? 'btn-used' : ''}" style="flex:1; min-width: 120px;" onclick="copyToClipboard('${room.linkB}', this)">
-                                ${room.linkB_used ? `Para ${room.friendB_name} (Usado)` : `Para ${room.friendB_name}`}
-                            </button>
+                container.innerHTML = rooms.map(room => {
+                    roomTotals[room.id] = room.total_active_seconds || 0;
+                    if (room.active_since) activeTimers[room.id] = room.active_since;
+
+                    let displayTime = formatTime(room.total_active_seconds || 0);
+                    if (room.active_since) {
+                        const currentDuration = Math.floor((Date.now() - room.active_since) / 1000) + (room.total_active_seconds || 0);
+                        displayTime = formatTime(currentDuration);
+                    }
+
+                    return `
+                    <div class="room-card" id="room-${room.id}">
+                        <div class="room-header">
+                            <div>
+                                <div class="room-names">${room.friendA_name} & ${room.friendB_name}</div>
+                                <div class="room-date">Creada el ${new Date(room.created_at).toLocaleDateString()}</div>
+                            </div>
+                            <span class="badge badge-${room.status.toLowerCase().replace(/ /g, '')}">${room.status}</span>
                         </div>
-                    </td>
-                    <td><span class="badge badge-${room.status.toLowerCase().replace(/ /g, '')}">${room.status}</span></td>
-                    <td class="time-cell" id="timer-${room.id}" style="font-family: monospace; font-size: 1.1rem;">
-                        ${displayTime}
-                    </td>
-                    <td style="text-align: right;">
-                        <button onclick="deleteRoom(${room.id})" class="btn-main btn-glass" style="padding: 0.5rem 1rem; color: #ef4444; border-color: rgba(239, 68, 68, 0.2) !important;">Borrar</button>
-                    </td>
-                </tr>
-            `}).join('');
 
-            // Start global timer if not running
-            if (!timerInterval) {
-                timerInterval = setInterval(updateTimersUI, 1000);
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                            <div style="font-family: monospace; font-size: 1.2rem; font-weight: 600; color: var(--primary);">
+                                ⏱️ <span id="timer-${room.id}">${displayTime}</span>
+                            </div>
+                            <button class="delete-btn" onclick="deleteRoom(${room.id})" style="background:none; border:none; color:#ef4444; font-size:0.9rem; font-weight:600; cursor:pointer; opacity:0.7;">Borrar Sala</button>
+                        </div>
+
+                        <div class="link-pills">
+                            <div class="pill ${room.linkA_used ? 'used' : ''}" onclick="copyToClipboard('${room.linkA}', this)">
+                                <span>Para ${room.friendA_name}</span>
+                                <span>${room.linkA_used ? '¡Copiado!' : 'Copiar Link'}</span>
+                            </div>
+                            <div class="pill ${room.linkB_used ? 'used' : ''}" onclick="copyToClipboard('${room.linkB}', this)">
+                                <span>Para ${room.friendB_name}</span>
+                                <span>${room.linkB_used ? '¡Copiado!' : 'Copiar Link'}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                }).join('');
+
+                if (!timerInterval) timerInterval = setInterval(updateTimersUI, 1000);
+            } catch (e) {
+                console.error("Load Rooms Error:", e);
+                document.getElementById('roomsContainer').innerHTML = '<div style="color: #ef4444; padding: 2rem; text-align: center;">Error al cargar salas (ver consola)</div>';
             }
         }
 
@@ -231,12 +219,13 @@
             }
         }
 
+        // --- Operations ---
         let roomToDelete = null;
-
-        async function deleteRoom(id) {
+        function deleteRoom(id) {
             roomToDelete = id;
             document.getElementById('confirmModal').style.display = 'flex';
         }
+        window.deleteRoom = deleteRoom;
 
         document.getElementById('cancelDeleteBtn').onclick = () => {
             document.getElementById('confirmModal').style.display = 'none';
@@ -245,82 +234,100 @@
 
         document.getElementById('confirmDeleteBtn').onclick = async () => {
             if (!roomToDelete) return;
-            try {
-                const res = await fetch(`/api/rooms/${roomToDelete}`, { method: 'DELETE' });
-                if (res.ok) {
-                    loadRooms();
-                    document.getElementById('confirmModal').style.display = 'none';
-                    roomToDelete = null;
-                } else {
-                    const err = await res.json();
-                    alert(err.error || "Error al borrar");
-                }
-            } catch (e) {
-                console.error(e);
-                alert("Error de conexión");
+            const res = await fetch(`/api/rooms/${roomToDelete}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadRooms();
+                document.getElementById('confirmModal').style.display = 'none';
+                roomToDelete = null;
+            } else {
+                alert("Error al borrar");
             }
         };
-
-        async function loadRecents() {
-            const res = await fetch('/api/rooms');
-            const data = await res.json();
-            const accessed = data.accessed || [];
-
-            const list = document.getElementById('recentsList');
-            const msg = document.getElementById('noChatsMsg');
-
-            if (accessed.length === 0) {
-                msg.style.display = 'block';
-                list.innerHTML = '';
-            } else {
-                msg.style.display = 'none';
-                list.innerHTML = accessed.map(room => {
-                    const link = (room.accessed_role === 'A') ? room.linkA : room.linkB;
-                    const name = (room.accessed_role === 'A') ? room.friendB_name : room.friendA_name;
-                    return `
-                        <div class="recent-card" onclick="location.href='/chat/${link}'">
-                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Chat con ${name}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-dim);">Visto: ${new Date(room.accessed_at).toLocaleString()}</div>
-                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.3;">💬</div>
-                        </div>
-                    `;
-                }).join('');
-            }
-        }
-
-        function openModal() { document.getElementById('roomModal').style.display = 'flex'; }
-        function closeModal() { document.getElementById('roomModal').style.display = 'none'; }
 
         document.getElementById('createRoomForm').onsubmit = async (e) => {
             e.preventDefault();
-            const res = await fetch('/api/rooms', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    friendA_name: document.getElementById('friendA').value,
-                    friendB_name: document.getElementById('friendB').value
-                })
-            });
-            if (res.ok) { closeModal(); loadRooms(); document.getElementById('createRoomForm').reset(); }
+            const btn = e.target.querySelector('button');
+            const friendA = document.getElementById('friendA').value;
+            const friendB = document.getElementById('friendB').value;
+
+            btn.disabled = true;
+            btn.innerText = 'Generando...';
+
+            try {
+                const res = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ friendA_name: friendA, friendB_name: friendB })
+                });
+                if (res.ok) {
+                    closeModal();
+                    await loadRooms();
+                    e.target.reset();
+                } else {
+                    alert("Error al crear la sala");
+                }
+            } catch (e) {
+                alert("Error de red");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Generar Sala y Links';
+            }
         };
 
-        function copyToClipboard(text, btn) {
+        async function copyToClipboard(text, btn) {
             const url = window.location.origin + '/chat/' + text;
-            navigator.clipboard.writeText(url).then(() => {
-                const old = btn.innerText;
-                btn.innerText = '¡Copiado!';
-                btn.style.background = '#4ade80';
-                setTimeout(() => {
-                    btn.innerText = old;
-                    btn.style.background = '';
-                }, 2000);
-            });
+            try {
+                await navigator.clipboard.writeText(url);
+                const span = btn.querySelector('span:last-child');
+                const oldText = span.innerText;
+                span.innerText = '¡Copiado!';
+                btn.classList.add('used');
+                setTimeout(() => { span.innerText = oldText; }, 2000);
+            } catch (err) {
+                const el = document.createElement('textarea');
+                el.value = url;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                const span = btn.querySelector('span:last-child');
+                span.innerText = '¡Copiado!';
+                btn.classList.add('used');
+            }
+        }
+        window.copyToClipboard = copyToClipboard;
+
+        async function loadRecents() {
+            try {
+                const res = await fetch('/api/rooms');
+                const data = await res.json();
+                const accessed = data.accessed || [];
+                const list = document.getElementById('recentsList');
+                const msg = document.getElementById('noChatsMsg');
+
+                if (accessed.length === 0) {
+                    msg.style.display = 'block';
+                    list.innerHTML = '';
+                } else {
+                    msg.style.display = 'none';
+                    list.innerHTML = accessed.map(room => {
+                        const link = (room.accessed_role === 'A') ? room.linkA : room.linkB;
+                        const name = (room.accessed_role === 'A') ? room.friendB_name : room.friendA_name;
+                        return `
+                        <div class="recent-card" onclick="location.href='/chat/${link}'">
+                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Chat con ${name}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-dim);">Entrado: ${new Date(room.accessed_at).toLocaleString()}</div>
+                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.2;">💬</div>
+                        </div>`;
+                    }).join('');
+                }
+            } catch (e) { console.error("Recents Error:", e); }
         }
 
         socket.on('status-change', ({ room_id, status }) => {
-            const row = document.querySelector(`#room-${room_id}`);
-            if (row) {
-                const badge = row.cells[2].querySelector('.badge');
+            const card = document.getElementById(`room-${room_id}`);
+            if (card) {
+                const badge = card.querySelector('.badge');
                 if (badge) {
                     badge.className = `badge badge-${status.toLowerCase().replace(/ /g, '')}`;
                     badge.innerText = status;
@@ -329,22 +336,23 @@
         });
 
         socket.on('time-update', ({ room_id, active_since, added_seconds }) => {
-            if (active_since) {
-                // Timer started
-                activeTimers[room_id] = active_since;
-            } else {
-                // Timer stopped
+            if (active_since) activeTimers[room_id] = active_since;
+            else {
                 delete activeTimers[room_id];
                 if (added_seconds && roomTotals[room_id] !== undefined) {
                     roomTotals[room_id] += added_seconds;
-                    // Update UI immediately with final value
                     const el = document.getElementById(`timer-${room_id}`);
                     if (el) el.innerText = formatTime(roomTotals[room_id]);
                 }
             }
         });
 
-        async function logout() { await fetch('/api/logout', { method: 'POST' }); window.location.href = '/login'; }
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/login';
+        }
+        window.logout = logout;
+
         loadUser();
     </script>
 </body>

@@ -1,8 +1,9 @@
+require('dotenv').config();
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcrypt');
 const path = require('path');
 
-const dbPath = path.join(__dirname, 'database.sqlite');
+const dbPath = path.join(__dirname, process.env.DB_PATH || 'database.sqlite');
 const db = new sqlite3.Database(dbPath);
 
 const initDb = async () => {
@@ -75,8 +76,8 @@ const initDb = async () => {
                     return;
                 }
 
-                if (!row) {
-                    const hashedPassword = await bcrypt.hash('1234', 10);
+                if (!row && process.env.NODE_ENV !== 'production') {
+                    const hashedPassword = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || '1234', 10);
                     db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", ['cupido1', hashedPassword], (err) => {
                         if (err) console.error("Error creating default user:", err);
                         else console.log("Default user 'cupido1' created.");
@@ -85,8 +86,8 @@ const initDb = async () => {
 
                 // Check cupido2
                 db.get("SELECT id FROM cupidos WHERE username = 'cupido2'", async (err, row2) => {
-                    if (!row2) {
-                        const hashedPassword = await bcrypt.hash('1234', 10);
+                    if (!row2 && process.env.NODE_ENV !== 'production') {
+                        const hashedPassword = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || '1234', 10);
                         db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", ['cupido2', hashedPassword], (err) => {
                             if (err) console.error("Error creating cupido2:", err);
                             else console.log("Default user 'cupido2' created.");

@@ -1,0 +1,23 @@
+{
+    "name": "APPcitas",
+    "short_name": "APPcitas",
+    "description": "Gestiona tus citas de forma profesional",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#0b0b0d",
+    "theme_color": "#ff4d6d",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "/app-icon.png",
+            "type": "image/png",
+            "sizes": "512x512",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/app-icon.png",
+            "type": "image/png",
+            "sizes": "192x192"
+        }
+    ]
+}
