@@ -33,13 +33,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(session({
-  secret: 'cupido-secret-key-2024',
+  secret: 'cupidos-project-2026',
   resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false, // Set to true if using HTTPS
-    maxAge: 1000 * 60 * 60 * 24 // 24 hours
-  }
+  saveUninitialized: true,
+  cookie: { maxAge: 24 * 60 * 60 * 1000, secure: process.env.NODE_ENV === 'production' }
 }));
 
 // Auth Middleware
@@ -474,4 +471,6 @@ app.get('*', (req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-server.listen(port, () => console.log(`🚀 http://localhost:${port}`));
+server.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Cupido's LIVE on port ${port}`);
+});
