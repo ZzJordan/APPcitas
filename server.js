@@ -362,8 +362,10 @@ app.post('/api/blinder/register-join', async (req, res) => {
         finishRegistration(invite.cupido_id, null, null);
       });
     } else {
-      res.status(400).json({ error: "Se requiere un token o un enlace de sala" });
+      // Allow registration without token or link
+      finishRegistration(null, null, null);
     }
+
   });
 });
 
