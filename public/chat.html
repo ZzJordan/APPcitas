@@ -25,31 +25,62 @@
             padding: 0;
             overflow: hidden;
             position: fixed;
+            width: 100%;
             background-color: #08080a;
         }
+
 
         .chat-wrapper {
             display: flex;
             flex-direction: column;
-            width: 100%;
+            width: 100vw;
             height: 100dvh;
-            max-width: 600px;
-            margin: 0 auto;
+            max-width: 100%;
+            margin: 0;
             position: relative;
             background: #08080a;
         }
 
+        @media (min-width: 600px) {
+            .chat-wrapper {
+                max-width: 600px;
+                margin: 0 auto;
+                border-left: 1px solid var(--border);
+                border-right: 1px solid var(--border);
+            }
+        }
+
+
         .chat-header {
-            background: rgba(18, 18, 23, 0.82);
-            padding: calc(1rem + var(--sat)) 1.2rem 1rem 1.2rem;
+            background: rgba(18, 18, 23, 0.95);
+            padding: calc(0.8rem + var(--sat)) 1rem 0.8rem 1rem;
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.8rem;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border);
             z-index: 100;
         }
+
+        .back-btn {
+            background: none;
+            border: none;
+            color: white;
+            padding: 0.5rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: background 0.2s;
+            margin-right: -0.2rem;
+        }
+
+        .back-btn:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
 
         .avatar {
             width: 44px;
@@ -274,17 +305,23 @@
 
         <!-- Chat Header -->
         <div class="chat-header">
-            <div class="avatar" id="otherAvatar">?</div>
+            <button class="back-btn" onclick="location.href='/dashboard'">
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                </svg>
+            </button>
+            <div class="avatar" id="otherAvatar" style="width: 40px; height: 40px; font-size: 1.1rem;">?</div>
             <div style="flex: 1; min-width: 0;">
                 <div id="otherNameDisplay"
-                    style="font-weight: 700; font-size: 1.1rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    style="font-weight: 700; font-size: 1.05rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     Cargando...
                 </div>
-                <div id="otherStatusDisplay" style="font-size: 0.85rem; color: #ef4444; font-weight: 600;">
+                <div id="otherStatusDisplay" style="font-size: 0.8rem; color: #ef4444; font-weight: 600;">
                     • Desconectado
                 </div>
             </div>
         </div>
+
 
         <!-- Messages Area -->
         <div id="messages-container"></div>
