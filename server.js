@@ -166,6 +166,10 @@ app.get('/blinder-dashboard', isAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'blinder-dashboard.html'));
 });
 
+app.get('/join/blinder/profile', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'join-blinder.html'));
+});
+
 app.get('/join/blinder/:token', (req, res) => {
   const { token } = req.params;
   db.get("SELECT * FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], (err, row) => {
@@ -173,6 +177,7 @@ app.get('/join/blinder/:token', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'join-blinder.html'));
   });
 });
+
 
 
 
@@ -277,44 +282,88 @@ app.get('/api/cupido/invite', isAuthenticated, (req, res) => {
 });
 
 app.post('/api/blinder/register-join', async (req, res) => {
-  const { username, password, token, fullName, age, city, tagline, photo, tel } = req.body;
+  const { username, password, token, roomLink, fullName, age, city, tagline, photo, tel } = req.body;
 
   db.get("SELECT id FROM blinder_profiles WHERE tel = ?", [tel], (err, existingTel) => {
     if (existingTel) return res.status(400).json({ error: "Este número de teléfono ya está registrado" });
 
-    db.get("SELECT cupido_id FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], async (err, invite) => {
-      if (err || !invite) return res.status(400).json({ error: "Token inválido o expirado" });
-
+    const finishRegistration = (cupido_id, roomId, roleLetter) => {
       try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        db.serialize(() => {
-          db.run("BEGIN TRANSACTION");
-          db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, 'blinder')", [username, hashedPassword], function (err) {
-            if (err) {
-              db.run("ROLLBACK");
-              return res.status(400).json({ error: "El nombre de usuario ya existe" });
-            }
-            const userId = this.lastID;
-            db.run(
-              `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [userId, invite.cupido_id, fullName, age, city, tagline, photo || '', tel],
-              function (err) {
-                if (err) {
-                  db.run("ROLLBACK");
-                  return res.status(500).json({ error: "Error al crear el perfil" });
-                }
-                db.run("COMMIT");
-                req.session.userId = userId;
-                req.session.username = username;
-                req.session.userRole = 'blinder';
-                res.status(201).json({ message: "OK", role: 'blinder' });
+        bcrypt.hash(password, 10, (err, hashedPassword) => {
+          if (err) return res.status(500).json({ error: "Error al hashear contraseña" });
+
+          db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+            db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, 'blinder')", [username, hashedPassword], function (err) {
+              if (err) {
+                db.run("ROLLBACK");
+                return res.status(400).json({ error: "El nombre de usuario ya existe" });
               }
-            );
+              const userId = this.lastID;
+
+              // Set Chat Session if we came from a room link
+              let sessionToken = null;
+              if (roomId && roleLetter) {
+                sessionToken = crypto.randomUUID();
+                const sessionField = roleLetter === 'A' ? 'linkA_session' : 'linkB_session';
+                const idField = roleLetter === 'A' ? 'user_a_id' : 'user_b_id';
+                db.run(`UPDATE rooms SET ${sessionField} = ?, ${idField} = ? WHERE id = ?`, [sessionToken, userId, roomId], (err) => {
+                  if (err) {
+                    console.error("Error updating room session:", err);
+                    // This error is not critical enough to rollback the user creation,
+                    // but we should log it. The user can still join the chat.
+                  }
+                });
+              }
+
+              db.run(
+                `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [userId, cupido_id, fullName, age, city, tagline, photo || '', tel],
+                function (err) {
+                  if (err) {
+                    db.run("ROLLBACK");
+                    return res.status(500).json({ error: "Error al crear el perfil" });
+                  }
+                  db.run("COMMIT", (commitErr) => {
+                    if (commitErr) {
+                      console.error("Error committing transaction:", commitErr);
+                      return res.status(500).json({ error: "Error interno del servidor" });
+                    }
+                    req.session.userId = userId;
+                    req.session.username = username;
+                    req.session.userRole = 'blinder';
+
+                    // If room session was created, send cookie
+                    if (sessionToken && roomId && roleLetter) {
+                      const cookieName = `chat_token_${roomId}_${roleLetter}`;
+                      res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+                    }
+
+                    res.status(201).json({ message: "OK", role: 'blinder', redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
+                  });
+                }
+              );
+            });
           });
         });
       } catch (err) { res.status(500).json({ error: "Error interno del servidor" }); }
-    });
+    };
+
+    if (roomLink) {
+      db.get("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = ? OR linkB = ?", [roomLink, roomLink], (err, room) => {
+        if (err || !room) return res.status(400).json({ error: "Enlace de sala inválido" });
+        const roleLetter = (roomLink === room.linkA) ? 'A' : 'B';
+        finishRegistration(room.cupido_id, room.id, roleLetter);
+      });
+    } else if (token) {
+      db.get("SELECT cupido_id FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], (err, invite) => {
+        if (err || !invite) return res.status(400).json({ error: "Token de invitación inválido o expirado" });
+        finishRegistration(invite.cupido_id, null, null);
+      });
+    } else {
+      res.status(400).json({ error: "Se requiere un token o un enlace de sala" });
+    }
   });
 });
 
@@ -424,25 +473,23 @@ app.post('/api/request-new-link', (req, res) => {
 app.get('/chat/:link', (req, res) => {
   const { link } = req.params;
   db.get("SELECT * FROM rooms WHERE linkA = ? OR linkB = ?", [link, link], (err, room) => {
-    if (err || !room) return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+    if (err || !room) return res.redirect('/login'); // O una página de 404
+
     const isA = (link === room.linkA);
     const sessionField = isA ? 'linkA_session' : 'linkB_session';
     const cookieName = `chat_token_${room.id}_${isA ? 'A' : 'B'}`;
     const clientToken = req.headers.cookie?.split('; ').find(row => row.startsWith(cookieName))?.split('=')[1];
 
-    if (!room[sessionField]) {
-      const newToken = crypto.randomUUID();
-      db.run(`UPDATE rooms SET ${sessionField} = ? WHERE id = ?`, [newToken, room.id], () => {
-        res.setHeader('Set-Cookie', `${cookieName}=${newToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
-        res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-      });
-    } else if (clientToken === room[sessionField]) {
-      res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-    } else {
-      res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+    // If no session token for this specific link, redirect to join/profile creation
+    if (!room[sessionField] && !clientToken) {
+      return res.redirect(`/join/blinder/profile?link=${link}`);
     }
+
+    // If we have a token (either in DB or cookie), serve chat
+    res.sendFile(path.join(__dirname, 'public', 'chat.html'));
   });
 });
+
 
 app.get('/api/chat-info/:link', (req, res) => {
   const { link } = req.params;

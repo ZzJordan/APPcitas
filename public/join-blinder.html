@@ -97,7 +97,9 @@
     </div>
 
     <script>
-        const token = window.location.pathname.split('/').pop();
+        let token = window.location.pathname.split('/').pop();
+        if (token === 'profile') token = null; // Ignore placeholder path
+
         const photoInput = document.getElementById('photoInput');
         const profileImg = document.getElementById('profileImg');
         const photoPlaceholder = document.getElementById('photoPlaceholder');
@@ -126,8 +128,12 @@
             btn.innerText = 'Creando Perfil...';
             errEl.style.display = 'none';
 
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomLink = urlParams.get('link');
+
             const payload = {
                 token,
+                roomLink,
                 username: document.getElementById('username').value,
                 password: document.getElementById('password').value,
                 fullName: document.getElementById('fullName').value,
@@ -138,6 +144,7 @@
                 photo: base64Photo
             };
 
+
             try {
                 const res = await fetch('/api/blinder/register-join', {
                     method: 'POST',
@@ -146,11 +153,13 @@
                 });
 
                 if (res.ok) {
-                    btn.innerText = '¡Perfil Creado! Redirigiendo...';
+                    const data = await res.json();
+                    btn.innerText = '¡Perfil Creado! Entrando...';
                     setTimeout(() => {
-                        location.href = '/blinder-dashboard';
+                        location.href = data.redirectUrl || '/blinder-dashboard';
                     }, 1000);
                 } else {
+
                     const data = await res.json();
                     errEl.innerText = data.error || 'Error al crear perfil';
                     errEl.style.display = 'block';
