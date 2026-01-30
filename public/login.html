@@ -3,15 +3,13 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Cupido's Project | Acceso Privado</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="/style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-    </style>
-
 </head>
 
 
@@ -19,10 +17,10 @@
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
 
-    <div class="container premium-card">
+    <div class="container hero">
         <!-- View: Login -->
-        <div id="loginView">
-            <div id="hero-emoji" class="hero-emoji" style="transition: all 0.5s ease; font-size: 3.5rem;">🛡️</div>
+        <div id="loginView" class="premium-card">
+            <div id="hero-emoji" class="hero-emoji-main">🛡️</div>
             <h1 class="primary-text-gradient text-center mb-1">Cupido's Project</h1>
 
             <div class="role-selector-container" id="role-selector">
@@ -51,7 +49,7 @@
                     </form>
 
                     <div class="text-center mt-2">
-                        <p style="color: var(--text-dim); font-size: 0.9rem;">
+                        <p class="text-dim fs-small">
                             ¿Eres nuevo cupido? <a href="javascript:void(0)" onclick="showRegister()" class="font-800"
                                 style="color: var(--primary);">Únete al proyecto</a>
                         </p>
@@ -74,10 +72,9 @@
                         <div id="blinderErrorMessage" class="error"></div>
                     </form>
 
-                    <div class="text-center mt-2 pt-1 glass-border-top" style="border-top: 1px solid var(--border);">
-                        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.2rem;">¿Eres nuevo? Únete
-                            al proyecto:</p>
-                        <a href="/join/blinder/profile" class="btn-main btn-glass w-full" style="font-size: 0.95rem;">
+                    <div class="text-center mt-2 pt-1 glass-border-top">
+                        <p class="text-dim fs-small mb-1">¿Eres nuevo? Únete al proyecto:</p>
+                        <a href="/join/blinder/profile" class="btn-main btn-glass w-full fs-small px-2">
                             Crear mi Perfil Blinder &rarr;
                         </a>
                     </div>
@@ -88,8 +85,8 @@
         </div>
 
 
-        <div id="registerView" style="display: none;">
-            <div class="hero-emoji">✨</div>
+        <div id="registerView" class="premium-card" style="display: none;">
+            <div class="hero-emoji-main">✨</div>
             <h1 class="primary-text-gradient text-center mb-1">Registro Cupido</h1>
             <p class="subtitle text-center mb-2">Crea tu perfil profesional</p>
 
@@ -120,7 +117,7 @@
 
 
             <div class="text-center mt-2">
-                <p style="color: var(--text-dim); font-size: 0.9rem;">
+                <p class="text-dim fs-small">
                     ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()" class="font-800"
                         style="color: var(--primary);">Inicia Sesión</a>
                 </p>
@@ -202,55 +199,13 @@
                     errEl.innerText = data.error || 'Acceso denegado';
                     errEl.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = 'Acceder al Panel';
+                    btn.innerText = 'Entrar al Panel Cupido';
                 }
             } catch (err) {
                 errEl.innerText = 'Error de conexión';
                 errEl.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Acceder al Panel';
-            }
-        };
-
-        document.getElementById('blinderLoginForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            const user = document.getElementById('blinderUsername').value;
-            const pass = document.getElementById('blinderPassword').value;
-            const errEl = document.getElementById('blinderErrorMessage');
-
-            btn.disabled = true;
-            btn.innerText = 'Verificando...';
-            errEl.style.display = 'none';
-
-            try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: user, password: pass })
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    btn.innerText = '¡Correcto!';
-                    btn.style.background = '#4ade80';
-                    setTimeout(() => {
-                        if (data.role === 'blinder') location.href = '/blinder-dashboard';
-                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
-                        else location.href = '/dashboard';
-                    }, 500);
-                } else {
-                    const data = await res.json();
-                    errEl.innerText = data.error || 'Acceso denegado';
-                    errEl.style.display = 'block';
-                    btn.disabled = false;
-                    btn.innerText = 'Entrar al Panel Blinder';
-                }
-            } catch (err) {
-                errEl.innerText = 'Error de conexión';
-                errEl.style.display = 'block';
-                btn.disabled = false;
-                btn.innerText = 'Entrar al Panel Blinder';
+                btn.innerText = 'Entrar al Panel Cupido';
             }
         };
 
@@ -301,18 +256,9 @@
             }
         };
 
-        document.getElementById('linkForm').onsubmit = (e) => {
-            e.preventDefault();
-            let link = document.getElementById('chatLink').value.trim();
-            if (link) {
-                if (link.includes('/chat/')) link = link.split('/chat/').pop();
-                location.href = `/chat/${link}`;
-            }
-        };
-
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW fail', err));
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
             });
         }
     </script>
