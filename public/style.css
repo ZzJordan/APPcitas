@@ -13,7 +13,7 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* Fix backdrop-filter compatibility and overflow */
+/* Fix backdrop-filter compatibility */
 .glass-effect {
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
@@ -41,9 +41,9 @@ body {
 body {
     background: var(--bg);
     color: var(--text);
-    min-height: -webkit-fill-available;
     min-height: 100vh;
-    min-height: 100dvh;
+    min-height: -webkit-fill-available;
+    line-height: 1.6;
     background-image:
         radial-gradient(circle at 0% 0%, rgba(255, 77, 109, 0.05) 0%, transparent 50%),
         radial-gradient(circle at 100% 100%, rgba(114, 9, 183, 0.05) 0%, transparent 50%);
@@ -94,6 +94,16 @@ body {
     padding: calc(1rem + var(--safe-top)) 1rem calc(1rem + var(--safe-bottom));
 }
 
+.app-container {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: calc(1rem + var(--safe-top)) 1rem calc(1rem + var(--safe-bottom));
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
 .auth-page {
     display: flex;
     flex-direction: column;
@@ -103,6 +113,7 @@ body {
     min-height: 100dvh;
     padding: 1.5rem;
     position: relative;
+    width: 100%;
 }
 
 /* Common Button Styles */
@@ -122,7 +133,8 @@ body {
     justify-content: center;
     font-size: 1rem;
     box-shadow: 0 10px 20px -10px rgba(255, 77, 109, 0.5);
-    -webkit-user-select: none; user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .btn-main:active {
@@ -137,7 +149,13 @@ body {
     color: white;
 }
 
-/* Form Container */
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239, 68, 68, 0.2) !important;
+}
+
+/* Form Container and Cards */
 .premium-card {
     background: var(--card);
     padding: 2.5rem 2rem;
@@ -150,6 +168,16 @@ body {
     box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.5);
     animation: premiumFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
     margin-bottom: 2rem;
+}
+
+.glass-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 1.5rem;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    margin-bottom: 1.5rem;
 }
 
 @keyframes premiumFadeIn {
@@ -188,6 +216,7 @@ h1 {
     font-weight: 500;
 }
 
+/* Inputs */
 .input-group {
     margin-bottom: 1.5rem;
     text-align: left;
@@ -223,7 +252,7 @@ h1 {
     box-shadow: 0 0 0 4px rgba(255, 77, 109, 0.1);
 }
 
-/* Unified Role Selector */
+/* Unified Role Selector (Login) */
 .role-selector-container {
     background: rgba(255, 255, 255, 0.05);
     padding: 6px;
@@ -249,7 +278,8 @@ h1 {
     z-index: 2;
     transition: color 0.3s ease;
     font-size: 0.85rem;
-    -webkit-user-select: none; user-select: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 
 .role-option.active {
@@ -291,6 +321,178 @@ h1 {
     display: none !important;
 }
 
+
+/* --- DASHBOARD & INTERFACE STYLES (Restored) --- */
+
+.nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.settings-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.2rem;
+    transition: all 0.2s;
+    color: white;
+}
+
+.settings-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: rotate(45deg);
+}
+
+/* Tabs */
+.tabs {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.3rem;
+    border-radius: 16px;
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border);
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 0.8rem;
+    border: none;
+    background: transparent;
+    /* Default transparent */
+    color: var(--text-dim);
+    font-weight: 600;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.tab-btn.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Room Cards */
+.room-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s;
+}
+
+.room-card:active {
+    transform: scale(0.98);
+}
+
+.room-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.room-names {
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 65%;
+}
+
+.badge {
+    padding: 0.3rem 0.8rem;
+    border-radius: 50px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.badge-desconectado {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+}
+
+.badge-activo {
+    background: rgba(74, 222, 128, 0.1);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    box-shadow: 0 0 10px rgba(74, 222, 128, 0.1);
+}
+
+/* Link Pills */
+.link-pills {
+    display: flex;
+    gap: 0.8rem;
+}
+
+.pill {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0.8rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.pill span:first-child {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    font-weight: 700;
+}
+
+.pill span:last-child {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.pill:active {
+    background: rgba(255, 77, 109, 0.05);
+}
+
+.pill.used {
+    opacity: 0.5;
+    background: transparent;
+}
+
+.glass-dashed {
+    border: 1px dashed var(--border);
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
 /* Utilities */
 .text-center {
     text-align: center;
@@ -324,20 +526,41 @@ h1 {
     padding: 1rem;
 }
 
+.p-2 {
+    padding: 2rem;
+}
+
+.p-3 {
+    padding: 3rem;
+}
+
+.pt-1 {
+    padding-top: 1rem;
+}
+
+.px-2 {
+    padding-left: 2rem;
+    padding-right: 2rem;
+}
+
 .fs-small {
     font-size: 0.8rem;
+}
+
+.fs-h1 {
+    font-size: 1.8rem;
+}
+
+.font-800 {
+    font-weight: 800;
 }
 
 .text-dim {
     color: var(--text-dim) !important;
 }
 
-.white-text {
-    color: white !important;
-}
-
-.font-800 {
-    font-weight: 800;
+.text-success {
+    color: #4ade80 !important;
 }
 
 .hidden {
@@ -348,10 +571,44 @@ h1 {
     border-top: 1px solid var(--border) !important;
 }
 
+.glass-border-bottom {
+    border-bottom: 1px solid var(--border) !important;
+}
+
+.max-auto {
+    margin: 0 auto !important;
+}
+
+.max-w-400 {
+    max-width: 400px !important;
+}
+
 .hero-emoji-main {
     font-size: 4rem;
     margin-bottom: 1rem;
     text-align: center;
+}
+
+/* Toast Notification (Restored) */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--primary-gradient);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    z-index: 5000;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    font-weight: 700;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
 }
 
 /* Mobile Adjustments */
@@ -367,5 +624,20 @@ h1 {
 
     .hero-emoji-main {
         font-size: 3rem;
+    }
+
+    .room-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+
+    .badge {
+        align-self: flex-start;
+    }
+
+    .room-names {
+        max-width: 100%;
+        white-space: normal;
     }
 }
