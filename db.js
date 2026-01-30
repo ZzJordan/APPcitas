@@ -8,17 +8,15 @@ const db = new sqlite3.Database(dbPath);
 
 const initDb = async () => {
     return new Promise((resolve, reject) => {
-        db.serialize(async () => {
-            // Create cupidos table
+        db.serialize(() => {
+            // 1. Table: cupidos
             db.run(`CREATE TABLE IF NOT EXISTS cupidos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE,
                 password TEXT
-            )`, (err) => {
-                if (err) reject(err);
-            });
+            )`);
 
-            // Create rooms table
+            // 2. Table: rooms (CON TODO EL ESQUEMA ACTUALIZADO)
             db.run(`CREATE TABLE IF NOT EXISTS rooms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cupido_id INTEGER,
@@ -31,70 +29,54 @@ const initDb = async () => {
                 linkA_session TEXT,
                 linkB_session TEXT,
                 status TEXT DEFAULT 'pendiente',
+                active_since INTEGER,
+                total_active_seconds INTEGER DEFAULT 0,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
             )`, (err) => {
-                if (err) reject(err);
+                if (err) {
+                    console.error("Error creating rooms table:", err);
+                    return;
+                }
 
-                // Add columns if they don't exist (for existing DBs)
-                db.run("ALTER TABLE rooms ADD COLUMN linkA_session TEXT", () => { });
-                db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
+                // Migraciones manuales por si la tabla ya existía sin estas columnas
+                // SQLite no soporta "ADD COLUMN IF NOT EXISTS", así que ignoramos errores si ya existen
                 db.run("ALTER TABLE rooms ADD COLUMN active_since INTEGER", () => { });
                 db.run("ALTER TABLE rooms ADD COLUMN total_active_seconds INTEGER DEFAULT 0", () => { });
+                db.run("ALTER TABLE rooms ADD COLUMN linkA_session TEXT", () => { });
+                db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
             });
 
-            // Create messages table
+            // 3. Table: messages
             db.run(`CREATE TABLE IF NOT EXISTS messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 room_id INTEGER,
-                sender TEXT, -- 'A' or 'B'
+                sender TEXT, 
                 text TEXT,
                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (room_id) REFERENCES rooms(id)
-            )`, (err) => {
-                if (err) reject(err);
-            });
+            )`);
 
-            // Create user_rooms table
+            // 4. Table: user_rooms
             db.run(`CREATE TABLE IF NOT EXISTS user_rooms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 cupido_id INTEGER,
                 room_id INTEGER,
-                role TEXT, -- 'A' or 'B'
+                role TEXT,
                 accessed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (cupido_id) REFERENCES cupidos(id),
                 FOREIGN KEY (room_id) REFERENCES rooms(id),
                 UNIQUE(cupido_id, room_id)
-            )`, (err) => {
-                if (err) reject(err);
-            });
+            )`);
 
-            // Check if default user exists
-            db.get("SELECT * FROM cupidos WHERE username = 'cupido1'", async (err, row) => {
-                if (err) {
-                    console.error("Error checking for default user:", err);
-                    return;
-                }
-
-                if (!row && process.env.NODE_ENV !== 'production') {
+            // 5. Default Users (Solo en desarrollo o si no existen)
+            db.get("SELECT id FROM cupidos LIMIT 1", async (err, row) => {
+                if (!row) {
                     const hashedPassword = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || '1234', 10);
-                    db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", ['cupido1', hashedPassword], (err) => {
-                        if (err) console.error("Error creating default user:", err);
-                        else console.log("Default user 'cupido1' created.");
-                    });
+                    db.run("INSERT OR IGNORE INTO cupidos (username, password) VALUES (?, ?)", ['cupido1', hashedPassword]);
+                    db.run("INSERT OR IGNORE INTO cupidos (username, password) VALUES (?, ?)", ['cupido2', hashedPassword]);
+                    console.log("✅ Default users created safely.");
                 }
-
-                // Check cupido2
-                db.get("SELECT id FROM cupidos WHERE username = 'cupido2'", async (err, row2) => {
-                    if (!row2 && process.env.NODE_ENV !== 'production') {
-                        const hashedPassword = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || '1234', 10);
-                        db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", ['cupido2', hashedPassword], (err) => {
-                            if (err) console.error("Error creating cupido2:", err);
-                            else console.log("Default user 'cupido2' created.");
-                        });
-                    }
-                });
-
                 resolve();
             });
         });
