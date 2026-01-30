@@ -392,6 +392,18 @@
 
 
                 data.messages.forEach(m => addMessage(m, m.sender === myRole));
+
+                // Identify user for global presence (Blinder Dashboard status)
+                try {
+                    const userRes = await fetch('/api/user'); // new endpoint needed or check if /api/chat-info returns it
+                    if (userRes.ok) {
+                        const userData = await userRes.json();
+                        if (userData.userId) {
+                            socket.emit('join-user', { userId: userData.userId });
+                        }
+                    }
+                } catch (e) { console.log("Not logged in for presence tracking"); }
+
                 socket.emit('join-room', { link });
                 scrollToBottom();
 
