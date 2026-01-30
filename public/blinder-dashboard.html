@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Blinder Dashboard | Mis Matches</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .reveal-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            border-radius: 32px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .reveal-timer {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin: 1.5rem 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .lock-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: var(--border);
+            border-radius: 3px;
+            margin: 2rem 0;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .level-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="nav">
+            <h1 style="text-align: left; font-size: 1.5rem;">Mi Perfil Blinder</h1>
+            <div class="nav-actions">
+                <button onclick="logout()" class="btn-main btn-glass"
+                    style="padding: 0.5rem 1rem; font-size: 0.8rem;">Salir</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="reveal-card">
+                <div class="lock-icon" id="revealIcon">🧬</div>
+                <h2 id="revealStatus">Progreso de Revelación</h2>
+                <div class="reveal-timer" id="timer">00:00:00</div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <div class="level-info">
+                    <span id="label1">Básico (Ready)</span>
+                    <span id="label2">Visual (15m)</span>
+                    <span id="label3">Full (30m)</span>
+                </div>
+            </div>
+
+            <div class="room-card">
+                <h3 style="margin-bottom: 1rem;">Mi Cupido</h3>
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <div
+                        style="width: 50px; height: 50px; border-radius: 25px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                        🎭</div>
+                    <div>
+                        <p style="font-weight: 700;" id="cupidoName">Cargando...</p>
+                        <p style="font-size: 0.8rem; color: var(--text-dim);">Tu guía en este proceso</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 2rem; text-align: center;">
+                <button onclick="shareLink()" class="btn-main" style="width: 100%;">
+                    <span>🤝 Invitar a más amigos</span>
+                </button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let createdAt = null;
+
+        async function loadDashboard() {
+            try {
+                const res = await fetch('/api/blinder/dashboard');
+                const data = await res.json();
+                createdAt = new Date(data.created_at);
+                document.getElementById('cupidoName').innerText = data.cupido_name;
+                updateRevealInfo();
+                setInterval(updateRevealInfo, 1000);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function updateRevealInfo() {
+            if (!createdAt) return;
+            const now = new Date();
+            const diffMs = now - createdAt;
+            const diffMin = diffMs / 1000 / 60;
+
+            // Timer for next level
+            let targetMin = 0;
+            if (diffMin < 15) targetMin = 15;
+            else if (diffMin < 30) targetMin = 30;
+            else targetMin = 30;
+
+            const remainingMs = Math.max(0, (targetMin * 60 * 1000) - diffMs);
+            const h = Math.floor(remainingMs / 3600000);
+            const m = Math.floor((remainingMs % 3600000) / 60000);
+            const s = Math.floor((remainingMs % 60000) / 1000);
+
+            document.getElementById('timer').innerText =
+                `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+
+            // Progress bar
+            const totalRange = 30;
+            const progress = Math.min(100, (diffMin / totalRange) * 100);
+            document.getElementById('progressFill').style.width = `${progress}%`;
+
+            // Status Updates
+            const icon = document.getElementById('revealIcon');
+            const status = document.getElementById('revealStatus');
+            if (diffMin >= 30) {
+                icon.innerText = '🔥';
+                status.innerText = '¡Revelación Completa!';
+                document.getElementById('timer').innerText = "FULL ACCESS";
+            } else if (diffMin >= 15) {
+                icon.innerText = '📸';
+                status.innerText = 'Nivel 2: Identidad Visible';
+            } else {
+                icon.innerText = '🧬';
+                status.innerText = 'Nivel 1: Datos Básicos';
+            }
+        }
+
+        async function shareLink() {
+            const res = await fetch('/api/cupido/invite');
+            const data = await res.json();
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Únete a Cupido\'s Project',
+                    text: 'Te invito a descubrir tus matches. ¡Es gratis y viral!',
+                    url: data.url
+                });
+            } else {
+                prompt("Copia tu link de invitación:", data.url);
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            location.href = '/login';
+        }
+
+        loadDashboard();
+    </script>
+</body>
+
+</html>

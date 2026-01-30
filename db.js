@@ -50,7 +50,33 @@ const initDb = () => {
                     db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
                 });
 
-                // 3. Table: solteros (New Feature)
+                // 3. Table: invite_tokens
+                db.run(`CREATE TABLE IF NOT EXISTS invite_tokens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cupido_id INTEGER,
+                    token TEXT UNIQUE,
+                    expires_at DATETIME,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
+                )`);
+
+                // 4. Table: blinder_profiles
+                db.run(`CREATE TABLE IF NOT EXISTS blinder_profiles (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER UNIQUE,
+                    cupido_id INTEGER,
+                    full_name TEXT,
+                    age INTEGER,
+                    city TEXT,
+                    tagline TEXT,
+                    photo_url TEXT,
+                    tel TEXT,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES cupidos(id),
+                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
+                )`);
+
+                // 5. Table: solteros
                 db.run(`CREATE TABLE IF NOT EXISTS solteros (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     cupido_id INTEGER,
@@ -63,7 +89,7 @@ const initDb = () => {
                     FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
                 )`);
 
-                // 4. Table: messages
+                // 6. Table: messages
                 db.run(`CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     room_id INTEGER,

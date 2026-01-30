@@ -160,10 +160,19 @@ app.get('/cupido-dashboard', isAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'cupido-dashboard.html'));
 });
 
-app.get('/blinder-matches', isAuthenticated, (req, res) => {
+app.get('/blinder-dashboard', isAuthenticated, (req, res) => {
   if (req.session.userRole !== 'blinder') return res.redirect('/dashboard');
-  res.sendFile(path.join(__dirname, 'public', 'blinder-matches.html'));
+  res.sendFile(path.join(__dirname, 'public', 'blinder-dashboard.html'));
 });
+
+app.get('/join/blinder/:token', (req, res) => {
+  const { token } = req.params;
+  db.get("SELECT * FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], (err, row) => {
+    if (err || !row) return res.status(404).send("Invitación inválida o expirada.");
+    res.sendFile(path.join(__dirname, 'public', 'join-blinder.html'));
+  });
+});
+
 
 
 // API
@@ -252,13 +261,86 @@ app.post('/api/cupido/contacts', isAuthenticated, (req, res) => {
   );
 });
 
-app.get('/api/cupido/solteros', isAuthenticated, (req, res) => {
+// FEATURE: CUPIDO INVITE & BLINDER REVEAL
+app.get('/api/cupido/invite', isAuthenticated, (req, res) => {
   if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
-  db.all("SELECT * FROM solteros WHERE cupido_id = ? ORDER BY created_at DESC", [req.session.userId], (err, rows) => {
+  const token = crypto.randomUUID();
+  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
+  db.run("INSERT INTO invite_tokens (cupido_id, token, expires_at) VALUES (?, ?, ?)", [req.session.userId, token, expires], function (err) {
     if (err) return res.status(500).json({ error: "Error" });
-    res.json(rows);
+    const host = req.get('host');
+    const protocol = req.protocol;
+    const url = `${protocol}://${host}/join/blinder/${token}`;
+    res.json({ token, url });
   });
 });
+
+app.post('/api/blinder/register-join', async (req, res) => {
+  const { username, password, token, fullName, age, city, tagline, photo, tel } = req.body;
+
+  db.get("SELECT cupido_id FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], async (err, invite) => {
+    if (err || !invite) return res.status(400).json({ error: "Token inválido" });
+
+    try {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, 'blinder')", [username, hashedPassword], function (err) {
+          if (err) {
+            db.run("ROLLBACK");
+            return res.status(400).json({ error: "Usuario ya existe" });
+          }
+          const userId = this.lastID;
+          db.run(
+            `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, invite.cupido_id, fullName, age, city, tagline, photo || '', tel],
+            function (err) {
+              if (err) {
+                db.run("ROLLBACK");
+                return res.status(500).json({ error: "Error de perfil" });
+              }
+              db.run("COMMIT");
+              req.session.userId = userId;
+              req.session.username = username;
+              req.session.userRole = 'blinder';
+              res.status(201).json({ message: "OK", role: 'blinder' });
+            }
+          );
+        });
+      });
+    } catch (err) { res.status(500).json({ error: "Server error" }); }
+  });
+});
+
+function getRevealLevel(createdAt) {
+  const diff = (Date.now() - new Date(createdAt).getTime()) / 1000 / 60; // minutes
+  if (diff >= 30) return 3; // Bio, Tel, Age
+  if (diff >= 15) return 2; // Photo
+  return 1; // Name, Tagline
+}
+
+app.get('/api/blinder/dashboard', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'blinder') return res.status(403).json({ error: "No" });
+  db.get(`
+    SELECT c.username as cupido_name, p.created_at
+    FROM blinder_profiles p JOIN cupidos c ON p.cupido_id = c.id
+    WHERE p.user_id = ?`, [req.session.userId], (err, data) => {
+    if (err || !data) return res.status(404).json({ error: "Not found" });
+    const level = getRevealLevel(data.created_at);
+    res.json({ ...data, revealLevel: level });
+  });
+});
+
+app.get('/api/cupido/blinders', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No" });
+  db.all(`SELECT p.*, c.username FROM blinder_profiles p JOIN cupidos c ON p.user_id = c.id WHERE p.cupido_id = ?`, [req.session.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Error" });
+    const enriched = rows.map(r => ({ ...r, revealLevel: getRevealLevel(r.created_at) }));
+    res.json(enriched);
+  });
+});
+
 
 
 app.get('/api/rooms', isAuthenticated, (req, res) => {

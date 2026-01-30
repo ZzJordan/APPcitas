@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Unirse como Blinder | Cupido's Project</title>
+    <link rel="stylesheet" href="/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .join-container {
+            max-width: 450px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        .photo-preview {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: var(--glass);
+            margin: 0 auto 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px dashed var(--border);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        .photo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+
+<body class="auth-page">
+    <div class="join-container premium-card">
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <div style="font-size: 3rem;">💌</div>
+            <h1>¡Te han invitado!</h1>
+            <p class="subtitle">Crea tu perfil de Blinder para descubrir tus matches.</p>
+        </div>
+
+        <form id="joinForm">
+            <div class="photo-preview" id="photoResult" onclick="document.getElementById('photoInput').click()">
+                <span id="photoPlaceholder">📸 Foto</span>
+                <img id="profileImg" style="display: none;">
+            </div>
+            <input type="file" id="photoInput" accept="image/*" capture="user" style="display: none;">
+
+            <div class="input-group">
+                <label>Nombre Completo</label>
+                <input type="text" id="fullName" placeholder="Tu nombre" required>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <div class="input-group" style="flex: 1;">
+                    <label>Edad</label>
+                    <input type="number" id="age" placeholder="25" required>
+                </div>
+                <div class="input-group" style="flex: 2;">
+                    <label>Ciudad</label>
+                    <input type="text" id="city" placeholder="Madrid" required>
+                </div>
+            </div>
+
+            <div class="input-group">
+                <label>Frase Graciosa (Bio)</label>
+                <input type="text" id="tagline" placeholder="Ej: Experto en pizza con piña" required>
+            </div>
+
+            <div class="input-group">
+                <label>Teléfono (Privado)</label>
+                <input type="tel" id="tel" placeholder="+34..." required>
+            </div>
+
+            <div style="border-top: 1px solid var(--border); margin: 2rem 0; padding-top: 1rem;">
+                <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">Configura tu cuenta master:
+                </p>
+                <div class="input-group">
+                    <label>Usuario Master</label>
+                    <input type="text" id="username" placeholder="usuario123" required>
+                </div>
+                <div class="input-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-main" id="submitBtn" style="width: 100%;">Crear mi Perfil y Ver Mis
+                Matches</button>
+            <div id="errorMessage" class="error"></div>
+        </form>
+    </div>
+
+    <script>
+        const token = window.location.pathname.split('/').pop();
+        const photoInput = document.getElementById('photoInput');
+        const profileImg = document.getElementById('profileImg');
+        const photoPlaceholder = document.getElementById('photoPlaceholder');
+        let base64Photo = '';
+
+        photoInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    base64Photo = event.target.result;
+                    profileImg.src = base64Photo;
+                    profileImg.style.display = 'block';
+                    photoPlaceholder.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        document.getElementById('joinForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const errEl = document.getElementById('errorMessage');
+
+            btn.disabled = true;
+            btn.innerText = 'Creando Perfil...';
+            errEl.style.display = 'none';
+
+            const payload = {
+                token,
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                fullName: document.getElementById('fullName').value,
+                age: document.getElementById('age').value,
+                city: document.getElementById('city').value,
+                tagline: document.getElementById('tagline').value,
+                tel: document.getElementById('tel').value,
+                photo: base64Photo
+            };
+
+            try {
+                const res = await fetch('/api/blinder/register-join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    location.href = '/blinder-dashboard';
+                } else {
+                    const data = await res.json();
+                    errEl.innerText = data.error || 'Error al unirse';
+                    errEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerText = 'Crear mi Perfil y Ver Mis Matches';
+                }
+            } catch (err) {
+                errEl.innerText = 'Error de conexión';
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = 'Crear mi Perfil y Ver Mis Matches';
+            }
+        };
+    </script>
+</body>
+
+</html>
