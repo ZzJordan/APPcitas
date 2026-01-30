@@ -38,13 +38,11 @@
 
 <body class="auth-page">
     <div class="join-container premium-card">
-        <div style="text-align: center; margin-bottom: 2rem;">
+        <div class="text-center mb-2">
             <div id="join-emoji" style="font-size: 3rem; transition: all 0.5s ease;">✨</div>
             <h1 id="join-title">Tu Perfil Blinder</h1>
             <p id="join-subtitle" class="subtitle">Crea tu perfil para descubrir y gestionar tus conexiones.</p>
         </div>
-
-
 
         <form id="joinForm">
             <div class="photo-preview" id="photoResult" onclick="document.getElementById('photoInput').click()">
@@ -58,12 +56,12 @@
                 <input type="text" id="fullName" placeholder="Tu nombre" required>
             </div>
 
-            <div style="display: flex; gap: 1rem;">
-                <div class="input-group" style="flex: 1;">
+            <div class="flex-gap-1">
+                <div class="input-group flex-1">
                     <label>Edad</label>
                     <input type="number" id="age" placeholder="25" required>
                 </div>
-                <div class="input-group" style="flex: 2;">
+                <div class="input-group flex-2">
                     <label>Ciudad</label>
                     <input type="text" id="city" placeholder="Madrid" required>
                 </div>
@@ -79,8 +77,8 @@
                 <input type="tel" id="tel" placeholder="+34..." required>
             </div>
 
-            <div style="border-top: 1px solid var(--border); margin: 2rem 0; padding-top: 1rem;">
-                <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">Configura tu cuenta:</p>
+            <div class="glass-border-top mt-2 mb-2 pt-1" style="border-top: 1px solid var(--border);">
+                <p class="fs-small mb-1" style="color: var(--text-dim);">Configura tu cuenta:</p>
                 <div class="input-group">
                     <label>Usuario</label>
                     <input type="text" id="username" placeholder="usuario123" required>
@@ -91,10 +89,10 @@
                 </div>
             </div>
 
-            <button type="submit" class="btn-main" id="submitBtn" style="width: 100%;">Crear mi Perfil y Ver Mis
-                Conexiones</button>
+            <button type="submit" class="btn-main w-full" id="submitBtn">Crear mi Perfil y Ver Mis Conexiones</button>
             <div id="errorMessage" class="error"></div>
         </form>
+
     </div>
 
     <script>

@@ -60,12 +60,10 @@
 <body>
     <div class="app-container">
         <header class="nav">
-            <h1 style="text-align: left; font-size: 1.5rem;">Mi Perfil Blinder</h1>
+            <h1 class="text-left" style="font-size: 1.5rem;">Mi Perfil Blinder</h1>
             <div class="nav-actions">
-                <button onclick="deleteAccount()" class="btn-main"
-                    style="background: #ef4444; padding: 0.5rem 1rem; font-size: 0.8rem;">Borrar Perfil</button>
-                <button onclick="logout()" class="btn-main btn-glass"
-                    style="padding: 0.5rem 1rem; font-size: 0.8rem;">Salir</button>
+                <button onclick="deleteAccount()" class="btn-main btn-danger fs-small">Borrar Perfil</button>
+                <button onclick="logout()" class="btn-main btn-glass fs-small">Salir</button>
             </div>
         </header>
 
@@ -87,26 +85,27 @@
             </div>
 
             <div class="room-card">
-                <h3 style="margin-bottom: 1rem;">Mi Cupido</h3>
+                <h3 class="mb-1">Mi Cupido</h3>
 
-                <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div
-                        style="width: 50px; height: 50px; border-radius: 25px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
+                <div class="flex-gap-1" style="align-items: center;">
+                    <div class="hero-emoji"
+                        style="width: 50px; height: 50px; border-radius: 25px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin: 0;">
                         🎭</div>
                     <div>
-                        <p style="font-weight: 700;" id="cupidoName">Cargando...</p>
-                        <p style="font-size: 0.8rem; color: var(--text-dim);">Tu guía en este proceso</p>
+                        <p class="font-800" id="cupidoName">Cargando...</p>
+                        <p class="fs-small" style="color: var(--text-dim);">Tu guía en este proceso</p>
                     </div>
                 </div>
             </div>
 
-            <div style="margin-top: 2rem; text-align: center;">
-                <button onclick="shareLink()" class="btn-main" style="width: 100%;">
+            <div class="text-center mt-2">
+                <button onclick="shareLink()" class="btn-main w-full">
                     <span>🤝 Invitar a más amigos</span>
                 </button>
             </div>
         </main>
     </div>
+
 
     <script>
         let createdAt = null;

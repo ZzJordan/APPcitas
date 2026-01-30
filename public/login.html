@@ -10,62 +10,8 @@
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* Role Selector Styles mirrored from index.html */
-        .role-selector-container {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 6px;
-            border-radius: 20px;
-            display: flex;
-            position: relative;
-            margin: 0 auto 2.5rem;
-            width: 280px;
-            border: 1px solid var(--border);
-            backdrop-filter: blur(10px);
-        }
-
-        .role-option {
-            flex: 1;
-            padding: 12px 0;
-            text-align: center;
-            font-weight: 700;
-            color: var(--text-dim);
-            cursor: pointer;
-            z-index: 1;
-            transition: color 0.3s ease;
-            font-size: 0.95rem;
-        }
-
-        .role-option.active {
-            color: white;
-        }
-
-        .selector-bg {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            width: calc(50% - 6px);
-            height: calc(100% - 12px);
-            background: var(--primary-gradient);
-            border-radius: 16px;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 4px 15px rgba(255, 77, 109, 0.3);
-        }
-
-        [data-role="blinder"] .selector-bg {
-            transform: translateX(100%);
-        }
-
-        .content-section {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .hidden {
-            display: none;
-            opacity: 0;
-            transform: translateY(10px);
-        }
     </style>
+
 </head>
 
 
@@ -76,11 +22,8 @@
     <div class="container premium-card">
         <!-- View: Login -->
         <div id="loginView">
-            <div id="hero-emoji"
-                style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center; transition: all 0.5s ease;">🛡️</div>
-            <h1
-                style="text-align: center; margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                Cupido's Project</h1>
+            <div id="hero-emoji" class="hero-emoji" style="transition: all 0.5s ease; font-size: 3.5rem;">🛡️</div>
+            <h1 class="primary-text-gradient text-center mb-1">Cupido's Project</h1>
 
             <div class="role-selector-container" id="role-selector">
                 <div class="selector-bg"></div>
@@ -88,69 +31,64 @@
                 <div class="role-option" onclick="setRole('blinder')">BLINDER</div>
             </div>
 
-            <div id="cupido-login-section" class="content-section">
-                <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Acceso exclusivo para Cupidos</p>
-                <form id="loginForm">
-                    <div class="input-group">
-                        <label>Usuario Cupido</label>
-                        <input type="text" id="username" placeholder="Tu usuario" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Contraseña</label>
-                        <input type="password" id="password" placeholder="••••••••" required>
-                    </div>
-                    <button type="submit" class="btn-main" id="loginBtn" style="width: 100%; margin-top: 1rem;">Acceder
-                        al Panel</button>
-                    <div id="errorMessage" class="error"></div>
-                </form>
+            <div class="content-sections-wrapper">
+                <div id="cupido-login-section" class="content-section">
+                    <p class="subtitle text-center mb-2">Acceso Exclusivo Cupido</p>
+                    <form id="loginForm">
+                        <div class="input-group">
+                            <label>Usuario Cupido</label>
+                            <input type="text" id="username" placeholder="Tu usuario" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Contraseña</label>
+                            <input type="password" id="password" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn-main w-full mt-1" id="loginBtn">Entrar al Panel Cupido</button>
+                        <div id="errorMessage" class="error"></div>
+                    </form>
 
-                <div style="margin-top: 2rem; text-align: center;">
-                    <p style="color: var(--text-dim); font-size: 0.9rem;">
-                        ¿Eres un nuevo Cupido? <a href="javascript:void(0)" onclick="showRegister()"
-                            style="color: var(--primary); font-weight: 700;">Únete al proyecto</a>
-                    </p>
+                    <div class="text-center mt-2">
+                        <p style="color: var(--text-dim); font-size: 0.9rem;">
+                            ¿Eres nuevo cupido? <a href="javascript:void(0)" onclick="showRegister()" class="font-800"
+                                style="color: var(--primary);">Únete al proyecto</a>
+                        </p>
+                    </div>
+                </div>
+
+                <div id="blinder-login-section" class="content-section hidden">
+                    <p class="subtitle text-center mb-2">Acceso Exclusivo Blinder</p>
+
+                    <form id="blinderLoginForm">
+                        <div class="input-group">
+                            <label>Usuario Blinder</label>
+                            <input type="text" id="blinderUsername" placeholder="Tu usuario" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Contraseña</label>
+                            <input type="password" id="blinderPassword" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="btn-main w-full mt-1">Entrar al Panel Blinder</button>
+                        <div id="blinderErrorMessage" class="error"></div>
+                    </form>
+
+                    <div class="text-center mt-2 pt-1 glass-border-top" style="border-top: 1px solid var(--border);">
+                        <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.2rem;">¿Eres nuevo? Únete
+                            al proyecto:</p>
+                        <a href="/join/blinder/profile" class="btn-main btn-glass w-full" style="font-size: 0.95rem;">
+                            Crear mi Perfil Blinder &rarr;
+                        </a>
+                    </div>
                 </div>
             </div>
 
-            <div id="blinder-login-section" class="content-section hidden">
-                <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Acceso Exclusivo Blinder</p>
-
-                <!-- Existing Blinder Login -->
-                <form id="blinderLoginForm">
-                    <div class="input-group">
-                        <label>Usuario Blinder</label>
-                        <input type="text" id="blinderUsername" placeholder="Tu usuario" required>
-                    </div>
-                    <div class="input-group">
-                        <label>Contraseña</label>
-                        <input type="password" id="blinderPassword" placeholder="••••••••" required>
-                    </div>
-                    <button type="submit" class="btn-main" style="width: 100%; margin-top: 1rem;">Entrar al Panel
-                        Blinder</button>
-                    <div id="blinderErrorMessage" class="error"></div>
-                </form>
-
-                <div
-                    style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center;">
-                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.2rem;">¿Eres nuevo? Únete al
-                        proyecto:</p>
-                    <a href="/join/blinder/profile" class="btn-main btn-glass" style="width: 100%; font-size: 0.95rem;">
-                        Crear mi Perfil Blinder &rarr;
-                    </a>
-                </div>
-
-            </div>
 
         </div>
 
 
-        <!-- View: Register -->
         <div id="registerView" style="display: none;">
-            <div style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center;">✨</div>
-            <h1
-                style="text-align: center; margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
-                Registro Cupido</h1>
-            <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Crea tu perfil profesional</p>
+            <div class="hero-emoji">✨</div>
+            <h1 class="primary-text-gradient text-center mb-1">Registro Cupido</h1>
+            <p class="subtitle text-center mb-2">Crea tu perfil profesional</p>
 
             <form id="registerForm">
                 <div class="input-group">
@@ -170,18 +108,18 @@
                     <input type="password" id="regPassword" placeholder="••••••••" required>
                 </div>
 
-                <button type="submit" class="btn-main" id="registerBtn" style="width: 100%; margin-top: 1rem;">Registrar
-                    Cupido</button>
+                <button type="submit" class="btn-main w-full mt-1" id="registerBtn">Registrar Cupido</button>
                 <div id="regError" class="error"></div>
             </form>
 
-            <div style="margin-top: 2rem; text-align: center;">
+            <div class="text-center mt-2">
                 <p style="color: var(--text-dim); font-size: 0.9rem;">
-                    ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()"
-                        style="color: var(--primary); font-weight: 700;">Inicia Sesión</a>
+                    ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()" class="font-800"
+                        style="color: var(--primary);">Inicia Sesión</a>
                 </p>
             </div>
         </div>
+
     </div>
 
     <script>
@@ -208,8 +146,9 @@
                 cupidoSection.classList.add('hidden');
                 blinderSection.classList.remove('hidden');
                 emoji.innerText = '✨';
-                emoji.style.transform = 'scale(1.1) rotate(15deg)';
+                emoji.style.transform = 'scale(1) rotate(15deg)';
             }
+
         }
 
         function showRegister() {

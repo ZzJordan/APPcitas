@@ -15,27 +15,26 @@
 <body>
     <div class="app-container">
         <header class="nav">
-            <h1 style="text-align: left; font-size: 1.8rem;">Hola, Blinder 👋</h1>
+            <h1 class="text-left fs-h1">Hola, Blinder 👋</h1>
             <div class="nav-actions">
-                <button onclick="logout()" class="btn-main btn-glass"
-                    style="padding: 0.6rem 1rem; font-size: 0.8rem;">Salir</button>
+                <button onclick="logout()" class="btn-main btn-glass fs-small">Salir</button>
             </div>
         </header>
 
-        <main style="text-align: center; margin-top: 4rem;">
-            <div style="font-size: 4rem; margin-bottom: 2rem;">🔍</div>
-            <h2 style="margin-bottom: 1rem;">Buscando tu match ideal...</h2>
+        <main class="text-center mt-2">
+            <div class="hero-emoji">🔍</div>
+            <h2 class="mb-1">Buscando tu match ideal...</h2>
             <p style="color: var(--text-dim); padding: 0 2rem;">Tu Cupido está trabajando para encontrarte la mejor
                 conexión. ¡Vuelve pronto para ver tus sugerencias!</p>
 
-            <div
-                style="margin-top: 3rem; padding: 2rem; background: var(--glass); border-radius: 24px; border: 1px solid var(--border);">
-                <p style="font-size: 0.9rem; font-weight: 600;">¿Tienes un código de invitación?</p>
-                <button onclick="location.href='/login'" class="btn-main" style="margin-top: 1.5rem; width: 100%;">Ir al
-                    chat directo</button>
+            <div class="p-2 mt-2"
+                style="background: var(--glass); border-radius: 24px; border: 1px solid var(--border);">
+                <p class="font-800" style="font-size: 0.9rem;">¿Tienes un código de invitación?</p>
+                <button onclick="location.href='/login'" class="btn-main w-full mt-1">Ir al chat directo</button>
             </div>
         </main>
     </div>
+
 
     <script>
         async function logout() {

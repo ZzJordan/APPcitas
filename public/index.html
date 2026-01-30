@@ -29,72 +29,6 @@
             min-width: 250px;
         }
 
-        h1 {
-            font-size: clamp(2.5rem, 8vw, 4rem);
-            margin-bottom: 0.5rem;
-            background: var(--primary-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            font-weight: 800;
-        }
-
-        /* Role Selector Styles */
-        .role-selector-container {
-            background: rgba(255, 255, 255, 0.05);
-            padding: 6px;
-            border-radius: 20px;
-            display: flex;
-            position: relative;
-            margin: 2.5rem 0;
-            width: 280px;
-            border: 1px solid var(--border);
-            backdrop-filter: blur(10px);
-        }
-
-        .role-option {
-            flex: 1;
-            padding: 12px 0;
-            text-align: center;
-            font-weight: 700;
-            color: var(--text-dim);
-            cursor: pointer;
-            z-index: 1;
-            transition: color 0.3s ease;
-            font-size: 0.95rem;
-        }
-
-        .role-option.active {
-            color: white;
-        }
-
-        .selector-bg {
-            position: absolute;
-            top: 6px;
-            left: 6px;
-            width: calc(50% - 6px);
-            height: calc(100% - 12px);
-            background: var(--primary-gradient);
-            border-radius: 16px;
-            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 4px 15px rgba(255, 77, 109, 0.3);
-        }
-
-        [data-role="blinder"] .selector-bg {
-            transform: translateX(100%);
-        }
-
-        .content-section {
-            transition: opacity 0.3s ease, transform 0.3s ease;
-            max-width: 500px;
-        }
-
-        .hidden {
-            display: none;
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -107,6 +41,7 @@
             }
         }
     </style>
+
 </head>
 
 <body>
@@ -114,8 +49,8 @@
     <div class="blob blob-2"></div>
 
     <div class="container hero">
-        <div id="hero-emoji" style="font-size: 5rem; margin-bottom: 1rem; transition: all 0.5s ease;">💘</div>
-        <h1>Cupido's Project</h1>
+        <div id="hero-emoji" class="hero-emoji" style="transition: all 0.5s ease; font-size: 5rem;">🛡️</div>
+        <h1 class="primary-text-gradient">Cupido's Project</h1>
 
         <div class="role-selector-container" id="role-selector">
             <div class="selector-bg"></div>
@@ -123,26 +58,29 @@
             <div class="role-option" onclick="setRole('blinder')">BLINDER</div>
         </div>
 
-        <div id="cupido-content" class="content-section">
-            <p class="subtitle" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: white;">Panel
-                de Gestión</p>
-            <p style="color: var(--text-dim); line-height: 1.6;">
-                La plataforma exclusiva donde los cupidos modernos gestionan encuentros mágicos y coordinan a sus
-                solteros con total discreción.
-            </p>
-            <a href="/login" class="btn-main">Acceso Cupido &rarr;</a>
-        </div>
+        <div class="content-sections-wrapper">
+            <div id="cupido-content" class="content-section">
+                <p class="subtitle white-text font-800 fs-large mb-1">Panel de Gestión</p>
+                <p class="mb-1" style="color: var(--text-dim); line-height: 1.6;">
+                    La plataforma exclusiva donde los cupidos modernos gestionan encuentros mágicos y coordinan a sus
+                    solteros con total discreción.
+                </p>
+                <a href="/login?role=cupido" class="btn-main">Acceso Cupido &rarr;</a>
+            </div>
 
-        <div id="blinder-content" class="content-section hidden">
-            <p class="subtitle" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; color: white;">Tu
-                Perfil Privado</p>
-            <p style="color: var(--text-dim); line-height: 1.6;">
-                ¿Has sido invitado a una conexión? Accede para gestionar tu perfil, ver tus chats activos y descubrir
-                quién está esperando para conocerte.
-            </p>
-            <a href="/login" class="btn-main">Acceso Blinder &rarr;</a>
+            <div id="blinder-content" class="content-section hidden">
+                <p class="subtitle white-text font-800 fs-large mb-1">Tu Perfil Privado</p>
+                <p class="mb-1" style="color: var(--text-dim); line-height: 1.6;">
+                    ¿Has sido invitado a una conexión? Accede para gestionar tu perfil, ver tus chats activos y
+                    descubrir
+                    quién está esperando para conocerte.
+                </p>
+                <a href="/login?role=blinder" class="btn-main">Acceso Blinder &rarr;</a>
+            </div>
         </div>
     </div>
+
+
 
     <script>
         function setRole(role) {
@@ -162,13 +100,13 @@
             if (role === 'cupido') {
                 cupidoContent.classList.remove('hidden');
                 blinderContent.classList.add('hidden');
-                emoji.innerText = '💘';
+                emoji.innerText = '🛡️';
                 emoji.style.transform = 'scale(1) rotate(0deg)';
             } else {
                 cupidoContent.classList.add('hidden');
                 blinderContent.classList.remove('hidden');
                 emoji.innerText = '✨';
-                emoji.style.transform = 'scale(1.1) rotate(15deg)';
+                emoji.style.transform = 'scale(1) rotate(15deg)';
             }
         }
 

@@ -3,8 +3,8 @@
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Chat Privado | Cupido's Project</title>
     <link rel="stylesheet" href="/style.css">
@@ -269,20 +269,17 @@
         <!-- Error Overlay -->
         <div id="error-overlay" class="premium-overlay">
             <div class="premium-card">
-                <div style="font-size: 4rem; margin-bottom: 1.5rem;">🔒</div>
-                <h2 style="color: white; margin-bottom: 1rem; font-size: 1.8rem; font-weight: 800;">Acceso Restringido
-                </h2>
-                <p id="error-msg"
-                    style="color: var(--text-dim); line-height: 1.6; margin-bottom: 2rem; font-size: 1rem;">
+                <div class="hero-emoji">🔒</div>
+                <h2 class="white-text font-800 mb-1" style="font-size: 1.8rem;">Acceso Restringido</h2>
+                <p id="error-msg" class="subtitle mb-2" style="font-size: 1rem;">
                     Este enlace ya ha sido utilizado o ha caducado.
                 </p>
                 <div id="action-buttons">
-                    <button id="request-new-btn" onclick="requestNewLink()" class="btn-action"
-                        style="background: var(--primary-gradient); color: white;">
+                    <button id="request-new-btn" onclick="requestNewLink()" class="btn-action btn-main"
+                        style="margin-top: 0;">
                         Pedir nuevo link
                     </button>
-                    <button onclick="window.location.reload()" class="btn-action"
-                        style="background: rgba(255,255,255,0.05); color: white; border: 1px solid var(--border); margin-top: 0.8rem;">
+                    <button onclick="window.location.reload()" class="btn-action btn-glass mt-1">
                         Reintentar
                     </button>
                 </div>
@@ -292,35 +289,37 @@
         <!-- Guest Entry Overlay -->
         <div id="guest-overlay" class="premium-overlay">
             <div class="premium-card">
-                <div style="font-size: 4rem; margin-bottom: 1.5rem;">✨</div>
-                <h2 style="color: white; margin-bottom: 0.5rem; font-size: 2.2rem; font-weight: 800;">Hola</h2>
-                <p style="color: var(--text-dim); margin-bottom: 2.5rem; font-size: 1.1rem;">Tu conversación privada
-                    está lista.</p>
-                <button onclick="enterChat()" class="btn-action"
-                    style="background: var(--primary-gradient); color: white; padding: 1.2rem; font-size: 1.1rem; border-radius: 22px;">
+                <div class="hero-emoji">✨</div>
+                <h2 class="white-text font-800 mb-1" style="font-size: 2.2rem;">Hola</h2>
+                <p class="subtitle mb-2" style="font-size: 1.1rem; margin-bottom: 2.5rem;">Tu conversación privada está
+                    lista.</p>
+                <button onclick="enterChat()" class="btn-action btn-main"
+                    style="padding: 1.2rem; font-size: 1.1rem; border-radius: 22px;">
                     Entrar al Chat
                 </button>
             </div>
         </div>
 
+
         <!-- Chat Header -->
         <div class="chat-header">
-            <button class="back-btn" onclick="location.href='/dashboard'">
+            <button class="back-btn" onclick="location.href='/dashboard'" title="Volver al dashboard">
                 <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                     <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                 </svg>
             </button>
             <div class="avatar" id="otherAvatar" style="width: 40px; height: 40px; font-size: 1.1rem;">?</div>
-            <div style="flex: 1; min-width: 0;">
-                <div id="otherNameDisplay"
-                    style="font-weight: 700; font-size: 1.05rem; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <div class="flex-1" style="min-width: 0;">
+                <div id="otherNameDisplay" class="white-text"
+                    style="font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     Cargando...
                 </div>
-                <div id="otherStatusDisplay" style="font-size: 0.8rem; color: #ef4444; font-weight: 600;">
+                <div id="otherStatusDisplay" class="font-800" style="font-size: 0.8rem; color: #ef4444;">
                     • Desconectado
                 </div>
             </div>
         </div>
+
 
 
         <!-- Messages Area -->
@@ -329,12 +328,13 @@
         <!-- Input Area -->
         <form class="input-area" id="chat-form">
             <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
-            <button type="submit" class="send-btn">
+            <button type="submit" class="send-btn" title="Enviar mensaje">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                     <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z" />
                 </svg>
             </button>
         </form>
+
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
