@@ -677,6 +677,10 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('typing', ({ room_id, sender, isTyping }) => {
+    socket.to(`room_${room_id}`).emit('display-typing', { sender, isTyping });
+  });
+
   socket.on('disconnect', () => {
     // Room Status Update
     if (socket.room_id && socket.sender && roomStatus[socket.room_id]) {

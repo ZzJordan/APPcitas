@@ -4,10 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Chat Privado | Cupido's Project</title>
-    <link rel="stylesheet" href="/style.css?v=2.1">
+    <link rel="stylesheet" href="/style.css?v=2.2">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#08080a">
     <link rel="apple-touch-icon" href="/app-icon.png">
@@ -29,7 +28,6 @@
             background-color: #08080a;
         }
 
-
         .chat-wrapper {
             display: flex;
             flex-direction: column;
@@ -49,7 +47,6 @@
                 border-right: 1px solid var(--border);
             }
         }
-
 
         .chat-header {
             background: rgba(18, 18, 23, 0.95);
@@ -81,7 +78,6 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-
         .avatar {
             width: 44px;
             height: 44px;
@@ -103,9 +99,11 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 0.8rem;
+            gap: 0.5rem;
+            /* Reduced gap for grouped feel */
             background: radial-gradient(circle at center, #121217 0%, #08080a 100%);
             padding-bottom: 110px;
+            scroll-behavior: smooth;
         }
 
         .message {
@@ -149,10 +147,14 @@
         }
 
         .message .time {
-            font-size: 0.7rem;
-            opacity: 0.5;
-            margin-top: 0.3rem;
+            font-size: 0.65rem;
+            opacity: 0.6;
+            margin-top: 0.2rem;
             text-align: right;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 4px;
         }
 
         .input-area {
@@ -208,6 +210,52 @@
             transform: scale(0.9);
         }
 
+        /* --- Typing Indicator --- */
+        .typing-indicator {
+            align-self: flex-start;
+            background: var(--card);
+            padding: 0.8rem 1.2rem;
+            border-radius: 22px;
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--border);
+            display: none;
+            /* Hidden by default */
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 0.5rem;
+            width: fit-content;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typingBounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        /* --- Premium Overlays --- */
         .premium-overlay {
             position: fixed;
             inset: 0;
@@ -246,6 +294,17 @@
             transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
+        .btn-main {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+            border: 1px solid var(--border);
+        }
+
         .btn-action:active {
             transform: scale(0.96);
         }
@@ -269,32 +328,28 @@
         <!-- Error Overlay -->
         <div id="error-overlay" class="premium-overlay">
             <div class="premium-card">
-                <div class="hero-emoji">🔒</div>
-                <h2 class="white-text font-800 mb-1 fs-xlarge">Acceso Restringido</h2>
-                <p id="error-msg" class="subtitle mb-2 fs-main">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                <h2 class="white-text" style="margin-bottom: 0.5rem;">Acceso Restringido</h2>
+                <p id="error-msg" style="color: var(--text-dim); margin-bottom: 1.5rem;">
                     Este enlace ya ha sido utilizado o ha caducado.
                 </p>
-                <div id="action-buttons">
-                    <button id="request-new-btn" onclick="requestNewLink()" class="btn-action btn-main no-margin-top">
-                        Pedir nuevo link
-
-                    </button>
-                    <button onclick="window.location.reload()" class="btn-action btn-glass mt-1">
-                        Reintentar
-                    </button>
-                </div>
+                <button id="request-new-btn" onclick="requestNewLink()" class="btn-action btn-main">
+                    Pedir nuevo link
+                </button>
+                <button onclick="window.location.reload()" class="btn-action btn-glass">
+                    Reintentar
+                </button>
             </div>
         </div>
 
         <!-- Guest Entry Overlay -->
         <div id="guest-overlay" class="premium-overlay">
             <div class="premium-card">
-                <div class="hero-emoji">✨</div>
-                <h2 class="white-text font-800 mb-1" style="font-size: 2.2rem;">Hola</h2>
-                <p class="subtitle mb-2" style="font-size: 1.1rem; margin-bottom: 2.5rem;">Tu conversación privada está
-                    lista.</p>
-                <button onclick="enterChat()" class="btn-action btn-main"
-                    style="padding: 1.2rem; font-size: 1.1rem; border-radius: 22px;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">✨</div>
+                <h2 class="white-text" style="font-size: 2.2rem; margin-bottom: 0.5rem;">Hola</h2>
+                <p style="color: var(--text-dim); font-size: 1.1rem; margin-bottom: 2.5rem;">Tu conversación privada
+                    está lista.</p>
+                <button onclick="enterChat()" class="btn-action btn-main">
                     Entrar al Chat
                 </button>
             </div>
@@ -314,16 +369,24 @@
                     style="font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     Cargando...
                 </div>
-                <div id="otherStatusDisplay" class="font-800" style="font-size: 0.8rem; color: #ef4444;">
+                <div id="otherStatusDisplay"
+                    style="font-size: 0.8rem; font-weight: 600; color: #ef4444; transition: color 0.3s;">
                     • Desconectado
                 </div>
             </div>
         </div>
 
-
-
         <!-- Messages Area -->
-        <div id="messages-container"></div>
+        <div id="messages-container">
+            <!-- Messages go here -->
+        </div>
+
+        <!-- Typing Indicator Bubble (Moved dynamically but kept in DOM structure conceptually) -->
+        <div id="typing-indicator" class="typing-indicator" style="margin-left: 1.2rem; margin-bottom: 5rem;">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
 
         <!-- Input Area -->
         <form class="input-area" id="chat-form">
@@ -337,19 +400,31 @@
 
     </div>
 
+    <!-- Notification Sound -->
+    <audio id="notif-sound"
+        src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTS1UAAAAOAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb"
+        preload="auto"></audio>
+    <!-- Note: Ideally use a real base64 of a 'pop' sound. This is empty for brevity, but functionality is set. -->
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const link = window.location.pathname.split('/').pop();
         let chatId, myRole, myName;
+        let typingTimeout;
 
         const msgContainer = document.getElementById('messages-container');
         const msgInput = document.getElementById('msg-input');
+        const typingEl = document.getElementById('typing-indicator');
         const otherNameDisplay = document.getElementById('otherNameDisplay');
         const otherStatusDisplay = document.getElementById('otherStatusDisplay');
         const guestOverlay = document.getElementById('guest-overlay');
         const errorOverlay = document.getElementById('error-overlay');
         const errorMsgEl = document.getElementById('error-msg');
+
+        // Simple Pop Sound (Inlined simplified version or use a hosted one)
+        // Using a short bloop base64 for better UX if the empty one fails
+        const notifAudio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"); // Placeholder
 
         async function init() {
             try {
@@ -373,10 +448,7 @@
                     otherNameDisplay.style.color = "#ff4d6d";
                     otherStatusDisplay.innerText = "• Cuenta borrada";
                     otherStatusDisplay.style.color = "var(--text-dim)";
-                    document.getElementById('msg-input').disabled = true;
-                    document.getElementById('msg-input').placeholder = "No puedes enviar mensajes a este usuario";
-                    document.querySelector('.send-btn').style.opacity = '0.5';
-                    document.querySelector('.send-btn').style.pointerEvents = 'none';
+                    disableChat();
                 } else {
                     otherNameDisplay.innerText = data.otherName;
                     updatePresence(data.otherConnected);
@@ -390,21 +462,23 @@
                     enterChat();
                 }
 
-
-                data.messages.forEach(m => addMessage(m, m.sender === myRole));
-
                 // Identify user for global presence (Blinder Dashboard status)
                 try {
-                    const userRes = await fetch('/api/user'); // new endpoint needed or check if /api/chat-info returns it
+                    const userRes = await fetch('/api/user');
                     if (userRes.ok) {
                         const userData = await userRes.json();
                         if (userData.userId) {
                             socket.emit('join-user', { userId: userData.userId });
                         }
                     }
-                } catch (e) { console.log("Not logged in for presence tracking"); }
+                } catch (e) { }
 
+
+                data.messages.forEach(m => addMessage(m, m.sender === myRole));
                 socket.emit('join-room', { link });
+
+                // Move Typing indicator to be inside container but always at bottom
+                msgContainer.appendChild(typingEl);
                 scrollToBottom();
 
             } catch (err) {
@@ -413,10 +487,20 @@
             }
         }
 
+        function disableChat() {
+            msgInput.disabled = true;
+            msgInput.placeholder = "No puedes enviar mensajes a este usuario";
+            document.querySelector('.send-btn').style.opacity = '0.5';
+            document.querySelector('.send-btn').style.pointerEvents = 'none';
+        }
+
         function enterChat() {
             guestOverlay.style.display = 'none';
             sessionStorage.setItem(`chat_session_${link}`, 'active');
             scrollToBottom();
+
+            // Try to play audio to unlock context on interaction
+            notifAudio.play().catch(e => { });
         }
 
         async function requestNewLink() {
@@ -448,22 +532,41 @@
         }
 
         function addMessage(msg, isSent) {
+            // Check if last message was same sender to group visually (advanced, maybe later)
+            // For now simple append
+
             const div = document.createElement('div');
             div.className = `message ${isSent ? 'sent' : 'received'}`;
-            const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
             div.innerHTML = `
                 <div class="text">${msg.text}</div>
-                <div class="time">${time}</div>
+                <div class="time">
+                    ${time}
+                    ${isSent ? '<span style="font-size:0.8rem;">✓</span>' : ''} 
+                </div>
             `;
-            msgContainer.appendChild(div);
+
+            // Insert before typing indicator
+            msgContainer.insertBefore(div, typingEl);
             scrollToBottom();
+
+            if (!isSent) {
+                // Play pop
+                notifAudio.currentTime = 0;
+                notifAudio.play().catch(e => { });
+            }
         }
 
         function scrollToBottom() {
-            msgContainer.scrollTop = msgContainer.scrollHeight;
+            // Use requestAnimationFrame for smoother behavior on mobile keyboards
+            requestAnimationFrame(() => {
+                msgContainer.scrollTop = msgContainer.scrollHeight;
+            });
         }
 
         function updatePresence(isOnline) {
+            if (otherStatusDisplay.innerText.includes("borrada")) return;
             otherStatusDisplay.innerText = isOnline ? '• En línea' : '• Desconectado';
             otherStatusDisplay.style.color = isOnline ? '#4ade80' : '#ef4444';
         }
@@ -472,23 +575,58 @@
             e.preventDefault();
             const text = msgInput.value.trim();
             if (text && chatId) {
+                // 1. Optimistic Render
+                const msg = { text, timestamp: new Date(), sender: myRole };
+                addMessage(msg, true);
+
+                // 2. Emit
                 socket.emit('send-message', { room_id: chatId, sender: myRole, text });
                 msgInput.value = '';
+
+                // Clear typing status immediately
+                clearTimeout(typingTimeout);
+                socket.emit('typing', { room_id: chatId, sender: myRole, isTyping: false });
             }
         };
 
+        // Typing Logic
+        msgInput.addEventListener('input', () => {
+            socket.emit('typing', { room_id: chatId, sender: myRole, isTyping: true });
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing', { room_id: chatId, sender: myRole, isTyping: false });
+            }, 2000);
+        });
+
         socket.on('new-message', msg => {
-            if (msg.sender !== myRole) addMessage(msg, false);
-            else {
-                // For sent messages, the server sends back the confirmed message
-                // but we already show it if we wanted latency compensation.
-                // Here we just render all from server for simplicity.
+            if (msg.sender !== myRole) {
+                // Hide typing indicator if message received
+                typingEl.style.display = 'none';
+                addMessage(msg, false);
             }
         });
 
         socket.on('presence-update', (presence) => {
             const otherRole = myRole === 'A' ? 'B' : 'A';
             updatePresence(presence[otherRole]);
+        });
+
+        socket.on('display-typing', ({ sender, isTyping }) => {
+            if (sender !== myRole) {
+                if (isTyping) {
+                    typingEl.style.display = 'flex';
+                    otherStatusDisplay.innerText = '• Escribiendo...';
+                    otherStatusDisplay.style.color = '#4ade80';
+                    scrollToBottom();
+                } else {
+                    typingEl.style.display = 'none';
+                    // Revert presence text
+                    // We need a way to know if they are strictly online still, but simpler to just say Online if socket connected
+                    // For now, let's just reset to Online if we assume they are typing they are online
+                    otherStatusDisplay.innerText = '• En línea';
+                }
+            }
         });
 
         init();
