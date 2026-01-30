@@ -356,11 +356,12 @@ app.post('/api/user/delete-account', isAuthenticated, (req, res) => {
     if (role === 'blinder') {
       db.run("DELETE FROM blinder_profiles WHERE user_id = ?", [userId]);
       db.run("DELETE FROM cupidos WHERE id = ?", [userId]);
+      // Note: We keep the room record so the other person can see 'User Deleted'
+      // but we could also nullify user_a_id/user_b_id if we want.
     } else {
-      // Cupido: delete everything he created
       db.run("DELETE FROM invite_tokens WHERE cupido_id = ?", [userId]);
       db.run("DELETE FROM solteros WHERE cupido_id = ?", [userId]);
-      db.run("DELETE FROM blinder_profiles WHERE cupido_id = ?", [userId]); // (Optional: depends on business logic, here we delete their connection to him)
+      db.run("DELETE FROM blinder_profiles WHERE cupido_id = ?", [userId]);
       db.run("DELETE FROM user_rooms WHERE cupido_id = ?", [userId]);
       db.run("DELETE FROM rooms WHERE cupido_id = ?", [userId]);
       db.run("DELETE FROM cupidos WHERE id = ?", [userId]);
@@ -373,6 +374,7 @@ app.post('/api/user/delete-account', isAuthenticated, (req, res) => {
     });
   });
 });
+
 
 
 
@@ -444,20 +446,35 @@ app.get('/chat/:link', (req, res) => {
 
 app.get('/api/chat-info/:link', (req, res) => {
   const { link } = req.params;
-  db.get(`SELECT id as room_id, friendA_name, friendB_name, linkA, linkB, cupido_id FROM rooms WHERE linkA = ? OR linkB = ?`, [link, link], (err, room) => {
+  db.get(`SELECT id as room_id, friendA_name, friendB_name, linkA, linkB, cupido_id, user_a_id, user_b_id FROM rooms WHERE linkA = ? OR linkB = ?`, [link, link], (err, room) => {
     if (err || !room) return res.status(404).json({ error: "No" });
     const sender = (link === room.linkA) ? 'A' : 'B';
     const otherRole = (sender === 'A') ? 'B' : 'A';
+    const otherUserId = (sender === 'A') ? room.user_b_id : room.user_a_id;
     const statusObj = roomStatus[room.room_id] || { A: null, B: null };
-    db.all("SELECT sender, text, timestamp FROM messages WHERE room_id = ? ORDER BY timestamp ASC", [room.room_id], (err, messages) => {
-      res.json({
-        room_id: room.room_id, sender, myName: sender === 'A' ? room.friendA_name : room.friendB_name,
-        otherName: sender === 'A' ? room.friendB_name : room.friendA_name, otherRole,
-        otherConnected: !!statusObj[otherRole], isLoggedIn: !!req.session.userId, messages: messages || []
+
+    // Check if other user still exists if they were linked
+    const checkUser = otherUserId ? "SELECT id FROM cupidos WHERE id = ?" : "SELECT 1 WHERE 1=0";
+    db.get(checkUser, [otherUserId], (err, userExists) => {
+      const isOtherDeleted = otherUserId && !userExists;
+
+      db.all("SELECT sender, text, timestamp FROM messages WHERE room_id = ? ORDER BY timestamp ASC", [room.room_id], (err, messages) => {
+        res.json({
+          room_id: room.room_id,
+          sender,
+          myName: sender === 'A' ? room.friendA_name : room.friendB_name,
+          otherName: isOtherDeleted ? "Usuario Eliminado" : (sender === 'A' ? room.friendB_name : room.friendA_name),
+          otherRole,
+          otherConnected: !!statusObj[otherRole],
+          otherDeleted: isOtherDeleted,
+          isLoggedIn: !!req.session.userId,
+          messages: messages || []
+        });
       });
     });
   });
 });
+
 
 // Socket.io initialization
 io.on('connection', (socket) => {

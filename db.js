@@ -35,12 +35,17 @@ const initDb = () => {
                     linkB TEXT UNIQUE,
                     linkA_session TEXT,
                     linkB_session TEXT,
+                    user_a_id INTEGER,
+                    user_b_id INTEGER,
                     status TEXT DEFAULT 'pendiente',
                     active_since INTEGER,
                     total_active_seconds INTEGER DEFAULT 0,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
-                )`, (err) => {
+                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id),
+                    FOREIGN KEY (user_a_id) REFERENCES cupidos(id),
+                    FOREIGN KEY (user_b_id) REFERENCES cupidos(id)
+                )
+`, (err) => {
                     if (err) console.error("❌ Error creating rooms table:", err);
 
                     // Manual migrations
@@ -48,7 +53,10 @@ const initDb = () => {
                     db.run("ALTER TABLE rooms ADD COLUMN total_active_seconds INTEGER DEFAULT 0", () => { });
                     db.run("ALTER TABLE rooms ADD COLUMN linkA_session TEXT", () => { });
                     db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
+                    db.run("ALTER TABLE rooms ADD COLUMN user_a_id INTEGER", () => { });
+                    db.run("ALTER TABLE rooms ADD COLUMN user_b_id INTEGER", () => { });
                 });
+
 
                 // 3. Table: invite_tokens
                 db.run(`CREATE TABLE IF NOT EXISTS invite_tokens (

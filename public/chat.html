@@ -331,15 +331,28 @@
                 myRole = data.sender;
                 myName = data.myName;
 
-                otherNameDisplay.innerText = data.otherName;
-                document.getElementById('otherAvatar').innerText = data.otherName[0];
-                updatePresence(data.otherConnected);
+                if (data.otherDeleted) {
+                    otherNameDisplay.innerText = "Usuario Eliminado";
+                    otherNameDisplay.style.color = "#ff4d6d";
+                    otherStatusDisplay.innerText = "• Cuenta borrada";
+                    otherStatusDisplay.style.color = "var(--text-dim)";
+                    document.getElementById('msg-input').disabled = true;
+                    document.getElementById('msg-input').placeholder = "No puedes enviar mensajes a este usuario";
+                    document.querySelector('.send-btn').style.opacity = '0.5';
+                    document.querySelector('.send-btn').style.pointerEvents = 'none';
+                } else {
+                    otherNameDisplay.innerText = data.otherName;
+                    updatePresence(data.otherConnected);
+                }
+
+                document.getElementById('otherAvatar').innerText = data.otherDeleted ? "✖" : (data.otherName ? data.otherName[0] : "?");
 
                 if (!data.isLoggedIn && !storedSession) {
                     guestOverlay.style.display = 'flex';
                 } else {
                     enterChat();
                 }
+
 
                 data.messages.forEach(m => addMessage(m, m.sender === myRole));
                 socket.emit('join-room', { link });
