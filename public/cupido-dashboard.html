@@ -4,48 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Cupido Dashboard | Gestión de Solteros</title>
+    <title>Cupido Dashboard | Gestión de Matches</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        .contact-list {
-            display: grid;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .contact-card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            padding: 1.2rem;
-            border-radius: 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .contact-info h3 {
-            font-size: 1.1rem;
-            margin-bottom: 0.2rem;
-        }
-
-        .contact-info p {
-            color: var(--text-dim);
-            font-size: 0.85rem;
-        }
-
-        .import-section {
-            text-align: center;
-            padding: 2rem;
-            background: var(--glass);
-            border: 2px dashed var(--border);
-            border-radius: 24px;
-            margin-bottom: 2rem;
-        }
-    </style>
 </head>
 
 <body>
@@ -61,52 +25,41 @@
         </header>
 
         <main>
-            <div class="import-section" id="importSection">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📱</div>
-                <h2 style="margin-bottom: 0.5rem; font-size: 1.4rem;">Importar Amigos Solteros</h2>
-                <p style="color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Accede a tus contactos para
-                    crear una lista de matches potenciales.</p>
-                <button id="importBtn" class="btn-main" style="width: 100%;">
-                    <span>Importar Contactos Móvil</span>
-                </button>
-                <p id="supportMsg" style="font-size: 0.75rem; color: var(--primary); margin-top: 1rem; display: none;">
-                    API de contactos no soportada. Usa el modo manual.</p>
-            </div>
-
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('rooms')">Mis Salas</button>
                 <button class="tab-btn" onclick="switchTab('blinders')">Mis Blinders</button>
-                <button class="tab-btn" onclick="switchTab('solteros')">Solteros</button>
             </div>
 
             <div id="roomsView">
                 <div id="roomsList">
                     <!-- Salas load here -->
+                    <div style="text-align: center; color: var(--text-dim); padding: 3rem;">
+                        Cargando salas...
+                    </div>
                 </div>
             </div>
 
             <div id="blindersView" style="display: none;">
-                <div class="import-section" style="padding: 1.5rem; margin-bottom: 2rem;">
+                <div class="import-section"
+                    style="padding: 2rem; margin-bottom: 2rem; background: var(--glass); border: 2px dashed var(--border); border-radius: 24px; text-align: center;">
                     <h3>Generar Invitación Viral</h3>
-                    <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">Comparte este link por
-                        WhatsApp para que tus amigos se unan.</p>
-                    <button onclick="generateInvite()" class="btn-main" style="width: 100%;">Generar Link de
-                        Invitación</button>
-                    <div id="inviteResult" style="margin-top: 1rem; display: none;">
+                    <p style="font-size: 0.9rem; color: var(--text-dim); margin-bottom: 1.5rem; margin-top: 0.5rem;">
+                        Crea un enlace para que tus amigos se unan como Blindres.</p>
+                    <button id="inviteBtn" onclick="generateInvite()" class="btn-main" style="width: 100%;">
+                        <span>Generar Link de Invitación</span>
+                    </button>
+                    <div id="inviteResult" style="margin-top: 1.5rem; display: none;">
                         <input type="text" id="inviteUrl" readonly
-                            style="width: 100%; padding: 0.8rem; border-radius: 12px; border: 1px solid var(--border); background: var(--glass); color: white; margin-bottom: 0.5rem;">
-                        <button onclick="copyInvite()" class="btn-main btn-glass"
-                            style="width: 100%; font-size: 0.8rem;">Copiar Link</button>
+                            style="width: 100%; padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border); background: var(--glass); color: white; margin-bottom: 0.8rem; text-align: center; font-size: 0.85rem;">
+                        <button onclick="copyInvite()" class="btn-main btn-glass" style="width: 100%;">Copiar y
+                            Compartir</button>
                     </div>
                 </div>
                 <div id="blindersList">
                     <!-- Blinders load here -->
-                </div>
-            </div>
-
-            <div id="solterosView" style="display: none;">
-                <div class="contact-list" id="solterosList">
-                    <!-- Solteros load here -->
+                    <div style="text-align: center; color: var(--text-dim); padding: 3rem;">
+                        Cargando blinders...
+                    </div>
                 </div>
             </div>
         </main>
@@ -115,13 +68,11 @@
     <script>
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
-        const solterosList = document.getElementById('solterosList');
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('roomsView').style.display = 'none';
             document.getElementById('blindersView').style.display = 'none';
-            document.getElementById('solterosView').style.display = 'none';
 
             if (tab === 'rooms') {
                 document.querySelector('[onclick="switchTab(\'rooms\')"]').classList.add('active');
@@ -131,10 +82,6 @@
                 document.querySelector('[onclick="switchTab(\'blinders\')"]').classList.add('active');
                 document.getElementById('blindersView').style.display = 'block';
                 loadBlinders();
-            } else if (tab === 'solteros') {
-                document.querySelector('[onclick="switchTab(\'solteros\')"]').classList.add('active');
-                document.getElementById('solterosView').style.display = 'block';
-                loadSolteros();
             }
         }
 
@@ -149,12 +96,18 @@
                             <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}">${r.status}</div>
                         </div>
                         <div class="link-pills">
-                            <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">A</div>
-                            <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">B</div>
+                            <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
+                                <span>Rol A</span>
+                                <span>Copiar</span>
+                            </div>
+                            <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
+                                <span>Rol B</span>
+                                <span>Copiar</span>
+                            </div>
                         </div>
                     </div>
                 `).join('');
-                if (data.owned.length === 0) roomsList.innerHTML = '<p style="text-align:center; padding: 2rem;">No hay salas activas.</p>';
+                if (data.owned.length === 0) roomsList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">No hay salas activas todavía.</p>';
             } catch (err) { console.error(err); }
         }
 
@@ -164,58 +117,62 @@
                 const blinders = await res.json();
                 blindersList.innerHTML = blinders.map(b => `
                     <div class="room-card">
-                        <div style="display: flex; align-items: center; gap: 1rem;">
-                            <div style="width: 60px; height: 60px; border-radius: 30px; overflow: hidden; background: var(--glass);">
-                                ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '👤'}
+                        <div style="display: flex; align-items: center; gap: 1.2rem;">
+                            <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
+                                ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
                             </div>
                             <div style="flex:1;">
-                                <div style="font-weight: 700;">${b.full_name} (${b.age})</div>
-                                <div style="font-size: 0.8rem; color: var(--text-dim); font-style: italic;">"${b.tagline}"</div>
+                                <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
                             </div>
-                            <div class="badge badge-activo">Lvl ${b.revealLevel}</div>
+                            <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
                         </div>
                     </div>
                 `).join('');
-                if (blinders.length === 0) blindersList.innerHTML = '<p style="text-align:center; padding: 2rem;">No tienes blinders invitados por ahora.</p>';
+                if (blinders.length === 0) blindersList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">Aún no tienes blinders invitados.</p>';
             } catch (err) { console.error(err); }
         }
 
         async function generateInvite() {
-            const res = await fetch('/api/cupido/invite');
-            const data = await res.json();
-            const urlEl = document.getElementById('inviteUrl');
-            urlEl.value = data.url;
-            document.getElementById('inviteResult').style.display = 'block';
+            const btn = document.getElementById('inviteBtn');
+            btn.disabled = true;
+            btn.innerText = "Generando...";
+
+            try {
+                const res = await fetch('/api/cupido/invite');
+                const data = await res.json();
+                const urlEl = document.getElementById('inviteUrl');
+                urlEl.value = data.url;
+                document.getElementById('inviteResult').style.display = 'block';
+                btn.innerText = "¡Link Generado!";
+            } catch (err) {
+                alert("Error al generar invitación");
+                btn.disabled = false;
+                btn.innerText = "Generar Link de Invitación";
+            }
         }
 
         function copyInvite() {
             const url = document.getElementById('inviteUrl').value;
-            navigator.clipboard.writeText(url);
-            alert("Cupido: Link viral copiado.");
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Únete a Cupido\'s Project',
+                    text: 'Te invito a descubrir tus matches. ¡Únete a mi red!',
+                    url: url
+                }).catch(() => {
+                    navigator.clipboard.writeText(url);
+                    alert("Link copiado al portapapeles.");
+                });
+            } else {
+                navigator.clipboard.writeText(url);
+                alert("Link copiado al portapapeles.");
+            }
         }
 
         function copyUrl(path) {
             const fullUrl = window.location.origin + path;
             navigator.clipboard.writeText(fullUrl);
-            alert("Enlace copiado al portapapeles");
-        }
-
-        // Original Solteros functions kept...
-        async function loadSolteros() {
-            try {
-                const res = await fetch('/api/cupido/solteros');
-                const solteros = await res.json();
-                solterosList.innerHTML = solteros.map(s => `
-                    <div class="contact-card">
-                        <div class="contact-info">
-                            <h3>${s.name}</h3>
-                            <p>📞 ****${s.tel_last4} • 📍 ${s.city || 'Desconocida'}</p>
-                        </div>
-                        <div class="badge badge-pendiente">Soltero/a</div>
-                    </div>
-                `).join('');
-                if (solteros.length === 0) solterosList.innerHTML = '<p style="text-align:center; padding: 2rem;">No hay solteros guardados.</p>';
-            } catch (err) { console.error(err); }
+            alert("Enlace de chat copiado");
         }
 
         async function logout() {
@@ -223,59 +180,8 @@
             location.href = '/login';
         }
 
-        const importBtn = document.getElementById('importBtn');
-        const supportMsg = document.getElementById('supportMsg'); // Added to reference the support message
-        const supportsContacts = ('contacts' in navigator && 'select' in navigator.contacts);
-
-        if (!supportsContacts) {
-            if (supportMsg) { // Check if element exists before trying to set its style
-                supportMsg.style.display = 'block';
-                supportMsg.innerText = "Modo manual: Tu navegador no soporta importación directa.";
-            }
-        }
-
-        if (importBtn) {
-            importBtn.onclick = async () => {
-                if (supportsContacts) {
-                    try {
-                        importBtn.disabled = true; // Disable button during import
-                        importBtn.innerText = "Guardando..."; // Change text
-                        const contacts = await navigator.contacts.select(['name', 'tel'], { multiple: true });
-                        if (contacts.length > 0) {
-                            for (const c of contacts) {
-                                const name = c.name[0] || 'Sin nombre';
-                                const tel = c.tel[0] || '';
-                                if (tel) {
-                                    await fetch('/api/cupido/contacts', {
-                                        method: 'POST',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ name, tel })
-                                    });
-                                }
-                            }
-                            alert(`¡${contacts.length} contactos importados con éxito!`);
-                            loadSolteros();
-                        }
-                    } catch (e) {
-                        console.error("Error importando contactos:", e);
-                        alert("Error al importar contactos.");
-                    } finally {
-                        importBtn.disabled = false; // Re-enable button
-                        importBtn.innerText = "Importar Contactos Móvil"; // Restore text
-                    }
-                } else {
-                    const name = prompt("Nombre del amigo/a soltero/a:");
-                    const tel = prompt("Teléfono (para el match):");
-                    if (name && tel) {
-                        const res = await fetch('/api/cupido/contacts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, tel }) });
-                        if (res.ok) loadSolteros();
-                    }
-                }
-            };
-        }
-
         // Initial Load
-        switchTab('rooms'); // Load rooms by default
+        switchTab('rooms');
     </script>
 </body>
 
