@@ -12,6 +12,9 @@ const morgan = require('morgan');
 const compression = require('compression');
 const crypto = require('crypto');
 
+const app = express();
+const server = http.createServer(app);
+
 // Error Handling to prevent silent crashes
 process.on('uncaughtException', (err) => {
   console.error('❌ CRITICAL: Uncaught Exception:', err);
@@ -20,8 +23,10 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ CRITICAL: Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-const app = express();
-const server = http.createServer(app);
+server.on('error', (err) => {
+  console.error('❌ SERVER ERROR:', err);
+});
+
 
 // Initialize Socket.io with broad CORS for production flexibility
 const io = socketIo(server, {
@@ -35,8 +40,12 @@ const io = socketIo(server, {
 app.set('trust proxy', 1);
 
 // FAST Health Check - Moved to top to respond before heavy middleware
-app.get('/healthz', (req, res) => res.status(200).send('OK'));
+app.get('/healthz', (req, res) => {
+  console.log('💓 Health Check triggered');
+  res.status(200).send('OK');
+});
 app.get('/ping', (req, res) => res.status(200).send('pong'));
+
 
 // Production Security, Logging, and Performance
 app.use(morgan('dev')); // 'dev' is better for live debugging
@@ -67,7 +76,7 @@ app.use(session({
   store: new SQLiteStore({
     db: 'sessions.sqlite',
     table: 'sessions',
-    dir: './'
+    dir: path.join(__dirname)
   }),
   secret: process.env.SESSION_SECRET || 'cupidos-project-2026',
   resave: false,
@@ -320,13 +329,24 @@ io.on('connection', (socket) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // START
-const port = process.env.PORT || 8080; // Try 8080 as fallback
+const port = parseInt(process.env.PORT, 10) || 8080;
 (async () => {
+  console.log("🌀 Starting server process...");
   try {
     await initDb();
-    db.run("UPDATE rooms SET active_since = NULL");
+    console.log("✅ initDb() completed.");
+
+    db.run("UPDATE rooms SET active_since = NULL", (err) => {
+      if (err) console.error("⚠️ Error clearing active_since:", err);
+    });
+
     server.listen(port, '0.0.0.0', () => {
       console.log(`🚀 Cupido's Project LIVE on PORT ${port}`);
+      console.log(`🔗 Interface available on http://0.0.0.0:${port}`);
     });
-  } catch (err) { console.error("FATAL STARTUP ERROR:", err); }
+  } catch (err) {
+    console.error("FATAL STARTUP ERROR:", err);
+    process.exit(1);
+  }
 })();
+
