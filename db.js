@@ -16,10 +16,16 @@ const initDb = () => {
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE,
                     password TEXT,
+                    email TEXT,
+                    recovery_token TEXT,
+                    token_expires DATETIME,
                     role TEXT DEFAULT 'cupido'
                 )`, (err) => {
                     if (!err) {
                         db.run("ALTER TABLE cupidos ADD COLUMN role TEXT DEFAULT 'cupido'", () => { });
+                        db.run("ALTER TABLE cupidos ADD COLUMN email TEXT", () => { });
+                        db.run("ALTER TABLE cupidos ADD COLUMN recovery_token TEXT", () => { });
+                        db.run("ALTER TABLE cupidos ADD COLUMN token_expires DATETIME", () => { });
                     }
                 });
 

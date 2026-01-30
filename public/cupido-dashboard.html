@@ -9,7 +9,55 @@
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .dropdown-menu {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 0.5rem;
+            display: none;
+            z-index: 100;
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .dropdown-menu.show {
+            display: block;
+            animation: premiumFadeIn 0.3s ease-out;
+        }
+
+        .dropdown-item {
+            padding: 0.8rem 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown-item.danger {
+            color: #ff4d6d;
+        }
+
+        .dropdown-item.danger:hover {
+            background: rgba(255, 77, 109, 0.1);
+        }
+    </style>
+
 </head>
 
 <body>
@@ -17,10 +65,14 @@
         <header class="nav">
             <h1 class="text-left fs-h1">Panel Cupido ✨</h1>
             <div class="nav-actions">
-                <button onclick="deleteAccount()" class="btn-main btn-danger fs-small">Borrar Cuenta</button>
-                <button onclick="location.href='/dashboard'" class="btn-main btn-glass fs-small">Ver Salas</button>
-                <button onclick="logout()" class="btn-main btn-glass fs-small">Salir</button>
+                <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
+                <div id="settingsMenu" class="dropdown-menu">
+                    <div class="dropdown-item" onclick="location.href='/dashboard'">📋 Ver Salas</div>
+                    <div class="dropdown-item" onclick="logout()">🚪 Salir</div>
+                    <div class="dropdown-item danger" onclick="deleteAccount()">⚠️ Borrar Cuenta</div>
+                </div>
             </div>
+
         </header>
 
         <main>
@@ -68,6 +120,18 @@
     <script>
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
+
+        function toggleSettings() {
+            document.getElementById('settingsMenu').classList.toggle('show');
+        }
+
+        window.onclick = function (event) {
+            if (!event.target.matches('.settings-btn')) {
+                const menu = document.getElementById('settingsMenu');
+                if (menu && menu.classList.contains('show')) menu.classList.remove('show');
+            }
+        }
+
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));

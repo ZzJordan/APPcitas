@@ -80,14 +80,18 @@
             </div>
 
             <div class="glass-border-top mt-2 mb-2 pt-1">
-                <p class="fs-small mb-1 text-dim">Configura tu cuenta:</p>
+                <p class="fs-small mb-1 text-dim">Configura tu cuenta (Requerido para el acceso):</p>
                 <div class="input-group">
-                    <label>Usuario</label>
-                    <input type="text" id="username" placeholder="usuario123" required>
+                    <label>Usuario (mín. 4 caracteres)</label>
+                    <input type="text" id="username" placeholder="usuario123" required minlength="4">
                 </div>
                 <div class="input-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="••••••••" required>
+                    <label>Correo de Recuperación</label>
+                    <input type="email" id="email" placeholder="tu@correo.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Contraseña (mín. 6 caracteres)</label>
+                    <input type="password" id="password" placeholder="••••••••" required minlength="6">
                 </div>
             </div>
 
@@ -139,6 +143,7 @@
                 roomLink,
                 username: document.getElementById('username').value,
                 password: document.getElementById('password').value,
+                email: document.getElementById('email').value,
                 fullName: document.getElementById('fullName').value,
                 age: document.getElementById('age').value,
                 city: document.getElementById('city').value,

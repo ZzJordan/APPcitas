@@ -208,15 +208,78 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/user', isAuthenticated, (req, res) => {
   res.json({ username: req.session.username, userId: req.session.userId, role: req.session.userRole });
 });
+// --- Password Recovery (Functional Mock) ---
+app.post('/api/forgot-password', (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: "Email requerido" });
+
+  db.get("SELECT id, username FROM cupidos WHERE email = ?", [email], (err, user) => {
+    if (err) return res.status(500).json({ error: "Error en el servidor" });
+    if (!user) {
+      // For security, don't reveal if email doesn't exist
+      return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+    }
+
+    const token = crypto.randomBytes(20).toString('hex');
+    const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+
+    db.run("UPDATE cupidos SET recovery_token = ?, token_expires = ? WHERE id = ?", [token, expires, user.id], (err) => {
+      if (err) return res.status(500).json({ error: "Error al generar token" });
+
+      // MOCK EMAIL LOGIC
+      console.log(`-----------------------------------------`);
+      console.log(`📨 MOCK EMAIL TO: ${email}`);
+      console.log(`SUBJECT: Recuperación de contraseña - Cupido's Project`);
+      console.log(`CONTENT: Hola ${user.username}, haz click aquí para resetear tu contraseña:`);
+      console.log(`${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`);
+      console.log(`-----------------------------------------`);
+
+      res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+    });
+  });
+});
+
+app.post('/api/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ error: "Datos incompletos" });
+  if (newPassword.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+
+  db.get(
+    "SELECT id FROM cupidos WHERE recovery_token = ? AND token_expires > DATETIME('now')",
+    [token],
+    async (err, user) => {
+      if (err) return res.status(500).json({ error: "Error en el servidor" });
+      if (!user) return res.status(400).json({ error: "Token inválido o expirado" });
+
+      try {
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        db.run(
+          "UPDATE cupidos SET password = ?, recovery_token = NULL, token_expires = NULL WHERE id = ?",
+          [hashedPassword, user.id],
+          (err) => {
+            if (err) return res.status(500).json({ error: "Error al actualizar contraseña" });
+            res.status(200).json({ message: "Contraseña actualizada correctamente" });
+          }
+        );
+      } catch (e) {
+        res.status(500).json({ error: "Error al procesar contraseña" });
+      }
+    }
+  );
+});
 
 
 app.post('/api/register', async (req, res) => {
-  const { username, password, role } = req.body;
+  const { username, password, email, role } = req.body;
   const userRole = role === 'blinder' ? 'blinder' : 'cupido';
-  if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
+
+  if (!username || !password || !email) return res.status(400).json({ error: "Datos incompletos" });
+  if (username.length < 4) return res.status(400).json({ error: "El usuario debe tener al menos 4 caracteres" });
+  if (password.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, ?)", [username, hashedPassword, userRole], function (err) {
+    db.run("INSERT INTO cupidos (username, password, email, role) VALUES (?, ?, ?, ?)", [username, hashedPassword, email, userRole], function (err) {
       if (err) {
         if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "El usuario ya existe" });
         return res.status(500).json({ error: "Error al registrar" });
@@ -242,7 +305,13 @@ app.post('/api/rooms', isAuthenticated, (req, res) => {
     [cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB],
     function (err) {
       if (err) return res.status(500).json({ error: "Error al crear la sala" });
-      res.status(201).json({ id: this.lastID, linkA, linkB });
+      const roomId = this.lastID;
+
+      // Notify potential participants if they are registered users
+      // This is a placeholder for when we have user discovery logic
+      // For now, if user_a_id or user_b_id were passed (future enhancement)
+
+      res.status(201).json({ id: roomId, linkA, linkB });
     }
   );
 });
@@ -282,7 +351,11 @@ app.get('/api/cupido/invite', isAuthenticated, (req, res) => {
 });
 
 app.post('/api/blinder/register-join', async (req, res) => {
-  const { username, password, token, roomLink, fullName, age, city, tagline, photo, tel } = req.body;
+  const { username, password, email, token, roomLink, fullName, age, city, tagline, photo, tel } = req.body;
+
+  if (!username || !password || !email) return res.status(400).json({ error: "Datos incompletos" });
+  if (username.length < 4) return res.status(400).json({ error: "El usuario debe tener al menos 4 caracteres" });
+  if (password.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
 
   db.get("SELECT id FROM blinder_profiles WHERE tel = ?", [tel], (err, existingTel) => {
     if (existingTel) return res.status(400).json({ error: "Este número de teléfono ya está registrado" });
@@ -294,7 +367,7 @@ app.post('/api/blinder/register-join', async (req, res) => {
 
           db.serialize(() => {
             db.run("BEGIN TRANSACTION");
-            db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, 'blinder')", [username, hashedPassword], function (err) {
+            db.run("INSERT INTO cupidos (username, password, email, role) VALUES (?, ?, ?, 'blinder')", [username, hashedPassword, email], function (err) {
               if (err) {
                 db.run("ROLLBACK");
                 return res.status(400).json({ error: "El nombre de usuario ya existe" });
@@ -369,22 +442,54 @@ app.post('/api/blinder/register-join', async (req, res) => {
   });
 });
 
-function getRevealLevel(createdAt) {
-  const diff = (Date.now() - new Date(createdAt).getTime()) / 1000 / 60; // minutes
-  if (diff >= 30) return 3; // Bio, Tel, Age
-  if (diff >= 15) return 2; // Photo
-  return 1; // Name, Tagline
+// Revelation Logic: Based on active seconds in a specific room
+function getRoomRevealLevel(activeSeconds) {
+  const minutes = activeSeconds / 60;
+  if (minutes >= 30) return 3; // Full (30m)
+  if (minutes >= 15) return 2; // Visual (15m)
+  return 1; // Basic (Ready)
 }
 
 app.get('/api/blinder/dashboard', isAuthenticated, (req, res) => {
-  if (req.session.userRole !== 'blinder') return res.status(403).json({ error: "No" });
-  db.get(`
-    SELECT c.username as cupido_name, p.created_at
-    FROM blinder_profiles p JOIN cupidos c ON p.cupido_id = c.id
-    WHERE p.user_id = ?`, [req.session.userId], (err, data) => {
-    if (err || !data) return res.status(404).json({ error: "Not found" });
-    const level = getRevealLevel(data.created_at);
-    res.json({ ...data, revealLevel: level });
+  if (req.session.userRole !== 'blinder') return res.status(403).json({ error: "No autorizado" });
+
+  const userId = req.session.userId;
+
+  // Get all rooms where this user participates
+  db.all(`
+    SELECT r.id as room_id, r.friendA_name, r.friendB_name, r.status, r.active_since, r.total_active_seconds, 
+           c.username as cupido_name, r.linkA, r.linkB, r.user_a_id, r.user_b_id
+    FROM rooms r
+    JOIN cupidos c ON r.cupido_id = c.id
+    WHERE r.user_a_id = ? OR r.user_b_id = ?
+  `, [userId, userId], (err, rooms) => {
+    if (err) return res.status(500).json({ error: "Error al cargar dashboard" });
+
+    // Process rooms to calculate individual progress
+    const processedRooms = rooms.map(room => {
+      let currentActiveSeconds = room.total_active_seconds || 0;
+      if (room.active_since) {
+        currentActiveSeconds += Math.floor((Date.now() - room.active_since) / 1000);
+      }
+
+      const roleLetter = (room.user_a_id === userId) ? 'A' : 'B';
+      const myName = roleLetter === 'A' ? room.friendA_name : room.friendB_name;
+      const otherName = roleLetter === 'A' ? room.friendB_name : room.friendA_name;
+      const myLink = roleLetter === 'A' ? room.linkA : room.linkB;
+
+      return {
+        room_id: room.room_id,
+        cupido_name: room.cupido_name,
+        other_name: otherName,
+        my_name: myName,
+        status: room.status,
+        active_seconds: currentActiveSeconds,
+        reveal_level: getRoomRevealLevel(currentActiveSeconds),
+        link: myLink
+      };
+    });
+
+    res.json({ rooms: processedRooms });
   });
 });
 
@@ -527,7 +632,9 @@ app.get('/api/chat-info/:link', (req, res) => {
 
 // Socket.io initialization
 io.on('connection', (socket) => {
+  socket.on('join-user', ({ userId }) => { socket.join(`user_${userId}`); });
   socket.on('join-dashboard', ({ cupido_id }) => { socket.join(`dashboard_${cupido_id}`); });
+
   socket.on('join-room', ({ link }) => {
     db.get("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = ? OR linkB = ?", [link, link], (err, room) => {
       if (err || !room) return;

@@ -4,55 +4,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Blinder Dashboard | Mis Vínculos</title>
+    <title>Blinder Dashboard | Mis Chispazos</title>
     <link rel="stylesheet" href="/style.css">
-
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
-        .reveal-card {
+        .chispazo-card {
             background: var(--card);
             border: 1px solid var(--border);
-            padding: 2rem;
-            border-radius: 32px;
-            margin-bottom: 2rem;
-            text-align: center;
-        }
-
-        .reveal-timer {
-            font-size: 2.5rem;
-            font-weight: 800;
-            color: var(--primary);
-            margin: 1.5rem 0;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .lock-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        .progress-bar {
-            height: 6px;
-            background: var(--border);
-            border-radius: 3px;
-            margin: 2rem 0;
+            border-radius: 28px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
             overflow: hidden;
         }
 
-        .progress-fill {
-            height: 100%;
-            background: var(--primary-gradient);
-            width: 0%;
-            transition: width 0.5s ease;
+        .chispazo-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px -10px rgba(255, 77, 109, 0.2);
         }
 
-        .level-info {
+        .reveal-mini-timer {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: var(--glass);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 0.5rem;
+            display: none;
+            z-index: 100;
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .dropdown-menu.show {
+            display: block;
+            animation: premiumFadeIn 0.3s ease-out;
+        }
+
+        .dropdown-item {
+            padding: 0.8rem 1.2rem;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.2s;
+            white-space: nowrap;
             display: flex;
-            justify-content: space-between;
-            font-size: 0.75rem;
-            color: var(--text-dim);
-            font-weight: 600;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dropdown-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .dropdown-item.danger {
+            color: #ff4d6d;
+        }
+
+        .dropdown-item.danger:hover {
+            background: rgba(255, 77, 109, 0.1);
         }
     </style>
 </head>
@@ -60,110 +79,153 @@
 <body>
     <div class="app-container">
         <header class="nav">
-            <h1 class="text-left fs-h1">Mi Perfil Blinder</h1>
+            <h1 class="text-left fs-h1">Mis Chispazos ✨</h1>
             <div class="nav-actions">
-                <button onclick="deleteAccount()" class="btn-main btn-danger fs-small">Borrar Perfil</button>
-                <button onclick="logout()" class="btn-main btn-glass fs-small">Salir</button>
+                <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
+                <div id="settingsMenu" class="dropdown-menu">
+                    <div class="dropdown-item" onclick="logout()">🚪 Salir</div>
+                    <div class="dropdown-item danger" onclick="deleteAccount()">⚠️ Borrar Perfil</div>
+                </div>
             </div>
         </header>
 
         <main>
-            <div class="reveal-card">
-                <div class="lock-icon" id="revealIcon">🧬</div>
-                <h2 id="revealStatus">Progreso de Revelación</h2>
-                <div class="reveal-timer" id="timer">00:00:00</div>
-
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-
-                <div class="level-info">
-                    <span id="label1">Básico (Ready)</span>
-                    <span id="label2">Visual (15m)</span>
-                    <span id="label3">Full (30m)</span>
-                </div>
+            <div id="noChispazos" class="text-center p-3 hidden">
+                <div class="hero-emoji">🌵</div>
+                <h2 class="mb-1">Aún no hay chispazos</h2>
+                <p class="text-dim mb-2">Tu Cupido está trabajando en encontrarte el match ideal. ¡Recibirás una
+                    notificación cuando suceda!</p>
+                <button onclick="shareLink()" class="btn-main w-full">🤝 Invitar a más amigos</button>
             </div>
 
-            <div class="room-card">
-                <h3 class="mb-1">Mi Cupido</h3>
-
-                <div class="flex-center-y gap-1">
-                    <div class="hero-emoji-small bg-primary-grad p-1 circle"
-                        style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center;">
-                        🎭</div>
-                    <div>
-                        <p class="font-800" id="cupidoName">Cargando...</p>
-                        <p class="fs-small text-dim">Tu guía en este proceso</p>
-                    </div>
-                </div>
-            </div>
-
-
-            <div class="text-center mt-2">
-                <button onclick="shareLink()" class="btn-main w-full">
-                    <span>🤝 Invitar a más amigos</span>
-                </button>
+            <div id="chispazosContainer" class="chispazos-grid">
+                <!-- Chispazos load here -->
             </div>
         </main>
     </div>
 
+    <div id="notification" class="toast">¡Nuevo chispazo detectado! ⚡</div>
 
+    <script src="/socket.io/socket.io.js"></script>
     <script>
-        let createdAt = null;
+        const socket = io();
+        let activeRooms = [];
 
-        async function loadDashboard() {
-            try {
-                const res = await fetch('/api/blinder/dashboard');
-                const data = await res.json();
-                createdAt = new Date(data.created_at);
-                document.getElementById('cupidoName').innerText = data.cupido_name;
-                updateRevealInfo();
-                setInterval(updateRevealInfo, 1000);
-            } catch (err) {
-                console.error(err);
+        function toggleSettings() {
+            document.getElementById('settingsMenu').classList.toggle('show');
+        }
+
+        // Close menu when clicking outside
+        window.onclick = function (event) {
+            if (!event.target.matches('.settings-btn')) {
+                const menu = document.getElementById('settingsMenu');
+                if (menu.classList.contains('show')) menu.classList.remove('show');
             }
         }
 
-        function updateRevealInfo() {
-            if (!createdAt) return;
-            const now = new Date();
-            const diffMs = now - createdAt;
-            const diffMin = diffMs / 1000 / 60;
+        async function loadDashboard() {
+            try {
+                // Get user info for socket notifications
+                const userRes = await fetch('/api/user');
+                const userData = await userRes.json();
+                if (userData.userId) {
+                    socket.emit('join-user', { userId: userData.userId });
+                }
 
-            // Timer for next level
-            let targetMin = 0;
-            if (diffMin < 15) targetMin = 15;
-            else if (diffMin < 30) targetMin = 30;
-            else targetMin = 30;
+                const res = await fetch('/api/blinder/dashboard');
+                const data = await res.json();
 
-            const remainingMs = Math.max(0, (targetMin * 60 * 1000) - diffMs);
-            const h = Math.floor(remainingMs / 3600000);
-            const m = Math.floor((remainingMs % 3600000) / 60000);
-            const s = Math.floor((remainingMs % 60000) / 1000);
-
-            document.getElementById('timer').innerText =
-                `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-
-            // Progress bar
-            const totalRange = 30;
-            const progress = Math.min(100, (diffMin / totalRange) * 100);
-            document.getElementById('progressFill').style.width = `${progress}%`;
-
-            // Status Updates
-            const icon = document.getElementById('revealIcon');
-            const status = document.getElementById('revealStatus');
-            if (diffMin >= 30) {
-                icon.innerText = '🔥';
-                status.innerText = '¡Revelación Completa!';
-                document.getElementById('timer').innerText = "ACCESO TOTAL";
-            } else if (diffMin >= 15) {
-
-                icon.innerText = '📸';
-                status.innerText = 'Nivel 2: Identidad Visible';
-            } else {
-                icon.innerText = '🧬';
-                status.innerText = 'Nivel 1: Datos Básicos';
+                if (!data.rooms || data.rooms.length === 0) {
+                    document.getElementById('noChispazos').classList.remove('hidden');
+                    document.getElementById('chispazosContainer').classList.add('hidden');
+                } else {
+                    document.getElementById('noChispazos').classList.add('hidden');
+                    const container = document.getElementById('chispazosContainer');
+                    container.classList.remove('hidden');
+                    activeRooms = data.rooms;
+                    renderRooms();
+                }
+            } catch (err) {
+                console.error("Error al cargar dashboard:", err);
             }
+        }
+
+        function renderRooms() {
+            const container = document.getElementById('chispazosContainer');
+            container.innerHTML = activeRooms.map(room => `
+                <div class="chispazo-card" id="room-${room.room_id}">
+                    <div class="flex-center-y mb-1">
+                        <div class="dot-pulse" style="display: ${room.status === 'activo' ? 'inline-block' : 'none'}"></div>
+                        <span class="fs-small text-dim">${room.status.toUpperCase()}</span>
+                    </div>
+                    
+                    <h3 class="mb-0">Match con ${room.other_name}</h3>
+                    <p class="fs-small text-dim mb-1">Guía: ${room.cupido_name}</p>
+
+                    <div class="text-center py-1">
+                        <div class="reveal-mini-timer" id="timer-${room.room_id}">00:00:00</div>
+                        <div class="progress-bar mt-1">
+                            <div class="progress-fill" id="progress-${room.room_id}" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="level-info mb-2">
+                        <span>Básico</span>
+                        <span>Visual</span>
+                        <span>Full</span>
+                    </div>
+
+                    <button onclick="location.href='/chat/${room.link}'" class="btn-main w-full btn-glass">
+                        💬 Entrar al Chat
+                    </button>
+                </div>
+            `).join('');
+
+            // Start individual timers
+            updateAllTimers();
+            setInterval(updateAllTimers, 1000);
+        }
+
+        function updateAllTimers() {
+            activeRooms.forEach(room => {
+                const timerEl = document.getElementById(`timer-${room.room_id}`);
+                const progressEl = document.getElementById(`progress-${room.room_id}`);
+                if (!timerEl || !progressEl) return;
+
+                // Simple increment for client-side display (assuming 1s interval)
+                room.active_seconds = (room.active_seconds || 0) + 1;
+
+                const diffMin = room.active_seconds / 60;
+                let targetMin = 0;
+                if (diffMin < 15) targetMin = 15;
+                else if (diffMin < 30) targetMin = 30;
+                else targetMin = 30;
+
+                const remainingSec = Math.max(0, (targetMin * 60) - room.active_seconds);
+                const h = Math.floor(remainingSec / 3600);
+                const m = Math.floor((remainingSec % 3600) / 60);
+                const s = Math.floor(remainingSec % 60);
+
+                if (diffMin >= 30) {
+                    timerEl.innerText = "ACCESO TOTAL 🔥";
+                    progressEl.style.width = "100%";
+                } else {
+                    timerEl.innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                    progressEl.style.width = `${Math.min(100, (diffMin / 30) * 100)}%`;
+                }
+            });
+        }
+
+        // Notifications logic
+        socket.on('new-chispazo', (data) => {
+            showNotification();
+            loadDashboard(); // Reload to show the new match
+        });
+
+        function showNotification() {
+            const toast = document.getElementById('notification');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
         }
 
         async function shareLink() {
@@ -180,9 +242,13 @@
             }
         }
 
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            location.href = '/login';
+        }
 
         async function deleteAccount() {
-            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu perfil? Esta acción no se puede deshacer.")) {
+            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu perfil? Esta acción no se puede deshacer y perderás todos tus chispazos.")) {
                 const res = await fetch('/api/user/delete-account', { method: 'POST' });
                 if (res.ok) {
                     alert("Perfil borrado con éxito.");
@@ -191,12 +257,6 @@
                     alert("Error al borrar el perfil.");
                 }
             }
-        }
-
-        async function logout() {
-
-            await fetch('/api/logout', { method: 'POST' });
-            location.href = '/login';
         }
 
         loadDashboard();
