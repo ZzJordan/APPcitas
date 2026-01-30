@@ -329,9 +329,21 @@ io.on('connection', (socket) => {
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 // START
-const port = parseInt(process.env.PORT, 10) || 8080;
+const rawPort = process.env.PORT;
+const port = parseInt(rawPort, 10) || 8080;
+
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received: Closing server...');
+  server.close(() => {
+    console.log('👋 Server closed.');
+    process.exit(0);
+  });
+});
+
 (async () => {
   console.log("🌀 Starting server process...");
+  console.log(`ENV PORT check: ${rawPort ? 'Found: ' + rawPort : 'Not found, using fallback'}`);
+
   try {
     await initDb();
     console.log("✅ initDb() completed.");
@@ -343,10 +355,10 @@ const port = parseInt(process.env.PORT, 10) || 8080;
     server.listen(port, '0.0.0.0', () => {
       console.log(`🚀 Cupido's Project LIVE on PORT ${port}`);
       console.log(`🔗 Interface available on http://0.0.0.0:${port}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (err) {
     console.error("FATAL STARTUP ERROR:", err);
     process.exit(1);
   }
 })();
-
