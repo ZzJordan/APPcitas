@@ -279,38 +279,42 @@ app.get('/api/cupido/invite', isAuthenticated, (req, res) => {
 app.post('/api/blinder/register-join', async (req, res) => {
   const { username, password, token, fullName, age, city, tagline, photo, tel } = req.body;
 
-  db.get("SELECT cupido_id FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], async (err, invite) => {
-    if (err || !invite) return res.status(400).json({ error: "Token inválido" });
+  db.get("SELECT id FROM blinder_profiles WHERE tel = ?", [tel], (err, existingTel) => {
+    if (existingTel) return res.status(400).json({ error: "Este número de teléfono ya está registrado" });
 
-    try {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      db.serialize(() => {
-        db.run("BEGIN TRANSACTION");
-        db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, 'blinder')", [username, hashedPassword], function (err) {
-          if (err) {
-            db.run("ROLLBACK");
-            return res.status(400).json({ error: "Usuario ya existe" });
-          }
-          const userId = this.lastID;
-          db.run(
-            `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [userId, invite.cupido_id, fullName, age, city, tagline, photo || '', tel],
-            function (err) {
-              if (err) {
-                db.run("ROLLBACK");
-                return res.status(500).json({ error: "Error de perfil" });
-              }
-              db.run("COMMIT");
-              req.session.userId = userId;
-              req.session.username = username;
-              req.session.userRole = 'blinder';
-              res.status(201).json({ message: "OK", role: 'blinder' });
+    db.get("SELECT cupido_id FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], async (err, invite) => {
+      if (err || !invite) return res.status(400).json({ error: "Token inválido o expirado" });
+
+      try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        db.serialize(() => {
+          db.run("BEGIN TRANSACTION");
+          db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, 'blinder')", [username, hashedPassword], function (err) {
+            if (err) {
+              db.run("ROLLBACK");
+              return res.status(400).json({ error: "El nombre de usuario ya existe" });
             }
-          );
+            const userId = this.lastID;
+            db.run(
+              `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+              [userId, invite.cupido_id, fullName, age, city, tagline, photo || '', tel],
+              function (err) {
+                if (err) {
+                  db.run("ROLLBACK");
+                  return res.status(500).json({ error: "Error al crear el perfil" });
+                }
+                db.run("COMMIT");
+                req.session.userId = userId;
+                req.session.username = username;
+                req.session.userRole = 'blinder';
+                res.status(201).json({ message: "OK", role: 'blinder' });
+              }
+            );
+          });
         });
-      });
-    } catch (err) { res.status(500).json({ error: "Server error" }); }
+      } catch (err) { res.status(500).json({ error: "Error interno del servidor" }); }
+    });
   });
 });
 
@@ -341,6 +345,35 @@ app.get('/api/cupido/blinders', isAuthenticated, (req, res) => {
     res.json(enriched);
   });
 });
+
+app.post('/api/user/delete-account', isAuthenticated, (req, res) => {
+  const userId = req.session.userId;
+  const role = req.session.userRole;
+
+  db.serialize(() => {
+    db.run("BEGIN TRANSACTION");
+
+    if (role === 'blinder') {
+      db.run("DELETE FROM blinder_profiles WHERE user_id = ?", [userId]);
+      db.run("DELETE FROM cupidos WHERE id = ?", [userId]);
+    } else {
+      // Cupido: delete everything he created
+      db.run("DELETE FROM invite_tokens WHERE cupido_id = ?", [userId]);
+      db.run("DELETE FROM solteros WHERE cupido_id = ?", [userId]);
+      db.run("DELETE FROM blinder_profiles WHERE cupido_id = ?", [userId]); // (Optional: depends on business logic, here we delete their connection to him)
+      db.run("DELETE FROM user_rooms WHERE cupido_id = ?", [userId]);
+      db.run("DELETE FROM rooms WHERE cupido_id = ?", [userId]);
+      db.run("DELETE FROM cupidos WHERE id = ?", [userId]);
+    }
+
+    db.run("COMMIT", (err) => {
+      if (err) return res.status(500).json({ error: "Error al borrar cuenta" });
+      req.session.destroy();
+      res.json({ message: "Cuenta borrada con éxito" });
+    });
+  });
+});
+
 
 
 

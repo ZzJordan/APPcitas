@@ -62,6 +62,8 @@
         <header class="nav">
             <h1 style="text-align: left; font-size: 1.5rem;">Mi Perfil Blinder</h1>
             <div class="nav-actions">
+                <button onclick="deleteAccount()" class="btn-main"
+                    style="background: #ef4444; padding: 0.5rem 1rem; font-size: 0.8rem;">Borrar Perfil</button>
                 <button onclick="logout()" class="btn-main btn-glass"
                     style="padding: 0.5rem 1rem; font-size: 0.8rem;">Salir</button>
             </div>
@@ -179,7 +181,20 @@
         }
 
 
+        async function deleteAccount() {
+            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu perfil? Esta acción no se puede deshacer.")) {
+                const res = await fetch('/api/user/delete-account', { method: 'POST' });
+                if (res.ok) {
+                    alert("Perfil borrado con éxito.");
+                    location.href = '/login';
+                } else {
+                    alert("Error al borrar el perfil.");
+                }
+            }
+        }
+
         async function logout() {
+
             await fetch('/api/logout', { method: 'POST' });
             location.href = '/login';
         }

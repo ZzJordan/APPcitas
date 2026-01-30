@@ -17,8 +17,11 @@
         <header class="nav">
             <h1 style="text-align: left; font-size: 1.8rem;">Panel Cupido ✨</h1>
             <div class="nav-actions">
+                <button onclick="deleteAccount()" class="btn-main"
+                    style="background: #ef4444; padding: 0.6rem 1rem; font-size: 0.8rem;">Borrar Cuenta</button>
                 <button onclick="location.href='/dashboard'" class="btn-main btn-glass"
                     style="padding: 0.6rem 1rem; font-size: 0.8rem;">Ver Salas</button>
+
                 <button onclick="logout()" class="btn-main btn-glass"
                     style="padding: 0.6rem 1rem; font-size: 0.8rem;">Salir</button>
             </div>
@@ -178,7 +181,20 @@
             alert("Enlace de chat copiado");
         }
 
+        async function deleteAccount() {
+            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu cuenta? Se eliminarán todas tus salas, tokens y blinders vinculados. Esta acción es definitiva.")) {
+                const res = await fetch('/api/user/delete-account', { method: 'POST' });
+                if (res.ok) {
+                    alert("Cuenta eliminada correctamente.");
+                    location.href = '/login';
+                } else {
+                    alert("Error al eliminar la cuenta.");
+                }
+            }
+        }
+
         async function logout() {
+
             await fetch('/api/logout', { method: 'POST' });
             location.href = '/login';
         }
