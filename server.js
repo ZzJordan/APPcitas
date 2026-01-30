@@ -1,15 +1,19 @@
 const express = require('express');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const bcrypt = require('bcrypt');
 const path = require('path');
 const { db, initDb } = require('./db');
 const http = require('http');
-const socketIo = require('socket.io'); // Changed from { Server } to socketIo
+const socketIo = require('socket.io');
+const helmet = require('helmet');
+const morgan = require('morgan');
+const compression = require('compression');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server); // Changed to use socketIo directly
-const crypto = require('crypto');
+const io = socketIo(server);
 
 function getFingerprint(req) {
   const ua = req.headers['user-agent'] || '';
@@ -27,16 +31,43 @@ function getFingerprint(req) {
   }
 })();
 
-// Middleware
+// Production Security, Logging, and Performance
+app.use(morgan('combined'));
+app.use(compression());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.socket.io"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https:*"],
+      connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
+      scriptSrcAttr: ["'unsafe-inline'"],
+    },
+  },
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  etag: true
+}));
+
+// Health Check
+app.get('/healthz', (req, res) => res.sendStatus(200));
 
 app.use(session({
-  secret: 'cupidos-project-2026',
+  store: new SQLiteStore({ db: 'sessions.sqlite', dir: './' }),
+  secret: process.env.SESSION_SECRET || 'cupidos-project-2026',
   resave: false,
   saveUninitialized: true,
-  cookie: { maxAge: 24 * 60 * 60 * 1000, secure: process.env.NODE_ENV === 'production' }
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax'
+  }
 }));
 
 // Auth Middleware
