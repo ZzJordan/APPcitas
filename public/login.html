@@ -10,7 +10,64 @@
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Role Selector Styles mirrored from index.html */
+        .role-selector-container {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 6px;
+            border-radius: 20px;
+            display: flex;
+            position: relative;
+            margin: 0 auto 2.5rem;
+            width: 280px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .role-option {
+            flex: 1;
+            padding: 12px 0;
+            text-align: center;
+            font-weight: 700;
+            color: var(--text-dim);
+            cursor: pointer;
+            z-index: 1;
+            transition: color 0.3s ease;
+            font-size: 0.95rem;
+        }
+
+        .role-option.active {
+            color: white;
+        }
+
+        .selector-bg {
+            position: absolute;
+            top: 6px;
+            left: 6px;
+            width: calc(50% - 6px);
+            height: calc(100% - 12px);
+            background: var(--primary-gradient);
+            border-radius: 16px;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 15px rgba(255, 77, 109, 0.3);
+        }
+
+        [data-role="blinder"] .selector-bg {
+            transform: translateX(100%);
+        }
+
+        .content-section {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .hidden {
+            display: none;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+    </style>
 </head>
+
 
 <body class="auth-page">
     <div class="blob blob-1"></div>
@@ -19,42 +76,60 @@
     <div class="container premium-card">
         <!-- View: Login -->
         <div id="loginView">
-            <div style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center;">🛡️</div>
+            <div id="hero-emoji"
+                style="font-size: 3.5rem; margin-bottom: 1rem; text-align: center; transition: all 0.5s ease;">🛡️</div>
             <h1
                 style="text-align: center; margin-bottom: 0.5rem; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
                 Cupido's Project</h1>
-            <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Acceso exclusivo para Cupidos</p>
 
-            <form id="loginForm">
-                <div class="input-group">
-                    <label>Usuario Cupido</label>
-                    <input type="text" id="username" placeholder="Tu usuario" required>
-                </div>
-                <div class="input-group">
-                    <label>Contraseña</label>
-                    <input type="password" id="password" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="btn-main" id="loginBtn" style="width: 100%; margin-top: 1rem;">Acceder al
-                    Panel</button>
-                <div id="errorMessage" class="error"></div>
-            </form>
-
-            <div style="margin-top: 2rem; text-align: center;">
-                <p style="color: var(--text-dim); font-size: 0.9rem;">
-                    ¿Eres un nuevo Cupido? <a href="javascript:void(0)" onclick="showRegister()"
-                        style="color: var(--primary); font-weight: 700;">Únete al proyecto</a>
-                </p>
+            <div class="role-selector-container" id="role-selector">
+                <div class="selector-bg"></div>
+                <div class="role-option active" onclick="setRole('cupido')">CUPIDO</div>
+                <div class="role-option" onclick="setRole('blinder')">BLINDER</div>
             </div>
 
-            <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid var(--border); text-align: center;">
-                <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.5rem;">Invitados & Amigos:</p>
+            <div id="cupido-login-section" class="content-section">
+                <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Acceso exclusivo para Cupidos</p>
+                <form id="loginForm">
+                    <div class="input-group">
+                        <label>Usuario Cupido</label>
+                        <input type="text" id="username" placeholder="Tu usuario" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-main" id="loginBtn" style="width: 100%; margin-top: 1rem;">Acceder
+                        al Panel</button>
+                    <div id="errorMessage" class="error"></div>
+                </form>
+
+                <div style="margin-top: 2rem; text-align: center;">
+                    <p style="color: var(--text-dim); font-size: 0.9rem;">
+                        ¿Eres un nuevo Cupido? <a href="javascript:void(0)" onclick="showRegister()"
+                            style="color: var(--primary); font-weight: 700;">Únete al proyecto</a>
+                    </p>
+                </div>
+            </div>
+
+            <div id="blinder-login-section" class="content-section hidden">
+                <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Invitados & Amigos</p>
                 <form id="linkForm" style="display: flex; gap: 0.8rem; flex-direction: column;">
-                    <input type="text" id="chatLink" placeholder="Pega tu código de invitación"
-                        style="padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border); background: var(--glass); color: white; outline: none;">
+                    <div class="input-group" style="margin-bottom: 0.5rem;">
+                        <label>Código o Enlace</label>
+                        <input type="text" id="chatLink" placeholder="Pega tu código de invitación"
+                            style="padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border); background: var(--glass); color: white; outline: none;">
+                    </div>
                     <button type="submit" class="btn-main btn-glass">Acceder a la Conversación</button>
                 </form>
+                <div style="margin-top: 2rem; text-align: center;">
+                    <p style="color: var(--text-dim); font-size: 0.85rem;">
+                        Si ya tienes cuenta, selecciona <b>Cupido</b> arriba para iniciar sesión.
+                    </p>
+                </div>
             </div>
         </div>
+
 
         <!-- View: Register -->
         <div id="registerView" style="display: none;">
@@ -97,6 +172,33 @@
     </div>
 
     <script>
+        function setRole(role) {
+            const selector = document.getElementById('role-selector');
+            const cupidoSection = document.getElementById('cupido-login-section');
+            const blinderSection = document.getElementById('blinder-login-section');
+            const emoji = document.getElementById('hero-emoji');
+            const options = document.querySelectorAll('.role-option');
+
+            selector.setAttribute('data-role', role);
+
+            options.forEach(opt => {
+                if (opt.innerText.toLowerCase() === role) opt.classList.add('active');
+                else opt.classList.remove('active');
+            });
+
+            if (role === 'cupido') {
+                cupidoSection.classList.remove('hidden');
+                blinderSection.classList.add('hidden');
+                emoji.innerText = '🛡️';
+                emoji.style.transform = 'scale(1) rotate(0deg)';
+            } else {
+                cupidoSection.classList.add('hidden');
+                blinderSection.classList.remove('hidden');
+                emoji.innerText = '✨';
+                emoji.style.transform = 'scale(1.1) rotate(15deg)';
+            }
+        }
+
         function showRegister() {
             document.getElementById('loginView').style.display = 'none';
             document.getElementById('registerView').style.display = 'block';
@@ -107,6 +209,7 @@
         }
         window.showRegister = showRegister;
         window.showLogin = showLogin;
+
 
         document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
