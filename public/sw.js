@@ -4,7 +4,10 @@ const ASSETS = [
     '/index.html',
     '/login.html',
     '/dashboard.html',
+    '/cupido-dashboard.html',
+    '/blinder-matches.html',
     '/chat.html',
+
     '/style.css',
     '/manifest.json',
     '/app-icon.png',

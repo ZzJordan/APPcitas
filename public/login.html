@@ -70,9 +70,18 @@
                     <input type="text" id="regUsername" placeholder="Ej: cupido_master" required>
                 </div>
                 <div class="input-group">
+                    <label>Tipo de Perfil</label>
+                    <select id="regRole"
+                        style="width: 100%; padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border); background: var(--glass); color: white; outline: none; margin-bottom: 1rem;">
+                        <option value="cupido">Cupido (Creador de matches)</option>
+                        <option value="blinder">Blinder (Buscador de matches)</option>
+                    </select>
+                </div>
+                <div class="input-group">
                     <label>Contraseña Maestra</label>
                     <input type="password" id="regPassword" placeholder="••••••••" required>
                 </div>
+
                 <button type="submit" class="btn-main" id="registerBtn" style="width: 100%; margin-top: 1rem;">Registrar
                     Cupido</button>
                 <div id="regError" class="error"></div>
@@ -118,10 +127,16 @@
                 });
 
                 if (res.ok) {
+                    const data = await res.json();
                     btn.innerText = '¡Correcto!';
                     btn.style.background = '#4ade80';
-                    setTimeout(() => location.href = '/dashboard', 500);
+                    setTimeout(() => {
+                        if (data.role === 'blinder') location.href = '/blinder-matches';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
+                        else location.href = '/dashboard';
+                    }, 500);
                 } else {
+
                     const data = await res.json();
                     errEl.innerText = data.error || 'Acceso denegado';
                     errEl.style.display = 'block';
@@ -148,17 +163,25 @@
             errEl.style.display = 'none';
 
             try {
+                const role = document.getElementById('regRole').value;
                 const res = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: user, password: pass })
+                    body: JSON.stringify({ username: user, password: pass, role: role })
                 });
 
+
                 if (res.ok) {
+                    const data = await res.json();
                     btn.innerText = '¡Registrado!';
                     btn.style.background = '#4ade80';
-                    setTimeout(() => location.href = '/dashboard', 500);
+                    setTimeout(() => {
+                        if (data.role === 'blinder') location.href = '/blinder-matches';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
+                        else location.href = '/dashboard';
+                    }, 500);
                 } else {
+
                     const data = await res.json();
                     errEl.innerText = data.error || 'Error al registrar';
                     errEl.style.display = 'block';

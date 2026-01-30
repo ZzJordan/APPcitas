@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Cupido Dashboard | Gestión de Solteros</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff4d6d">
+    <link rel="apple-touch-icon" href="/app-icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .contact-list {
+            display: grid;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .contact-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 1.2rem;
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .contact-info h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .contact-info p {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+        }
+
+        .import-section {
+            text-align: center;
+            padding: 2rem;
+            background: var(--glass);
+            border: 2px dashed var(--border);
+            border-radius: 24px;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="nav">
+            <h1 style="text-align: left; font-size: 1.8rem;">Panel Cupido ✨</h1>
+            <div class="nav-actions">
+                <button onclick="location.href='/dashboard'" class="btn-main btn-glass"
+                    style="padding: 0.6rem 1rem; font-size: 0.8rem;">Ver Salas</button>
+                <button onclick="logout()" class="btn-main btn-glass"
+                    style="padding: 0.6rem 1rem; font-size: 0.8rem;">Salir</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="import-section" id="importSection">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">📱</div>
+                <h2 style="margin-bottom: 0.5rem; font-size: 1.4rem;">Importar Amigos Solteros</h2>
+                <p style="color: var(--text-dim); margin-bottom: 1.5rem; font-size: 0.9rem;">Accede a tus contactos para
+                    crear una lista de matches potenciales.</p>
+                <button id="importBtn" class="btn-main" style="width: 100%;">
+                    <span>Importar Contactos Móvil</span>
+                </button>
+                <p id="supportMsg" style="font-size: 0.75rem; color: var(--primary); margin-top: 1rem; display: none;">
+                    API de contactos no soportada. Usa el modo manual.</p>
+            </div>
+
+            <div class="tabs">
+                <button class="tab-btn active">Lista de Solteros</button>
+            </div>
+
+            <div id="contactList" class="contact-list">
+                <!-- Solteros list will load here -->
+                <div style="text-align: center; color: var(--text-dim); padding: 3rem;">
+                    Cargando amigos solteros...
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const importBtn = document.getElementById('importBtn');
+        const contactList = document.getElementById('contactList');
+        const supportMsg = document.getElementById('supportMsg');
+
+        // Check for Contact Picker API support
+        const supportsContacts = ('contacts' in navigator && 'select' in navigator.contacts);
+        if (!supportsContacts) {
+            supportMsg.style.display = 'block';
+            supportMsg.innerText = "Modo manual: Tu navegador no soporta importación directa.";
+        }
+
+        importBtn.onclick = async () => {
+            if (supportsContacts) {
+                try {
+                    const props = ['name', 'tel'];
+                    const options = { multiple: true };
+                    const contacts = await navigator.contacts.select(props, options);
+
+                    if (contacts.length > 0) {
+                        importBtn.disabled = true;
+                        importBtn.innerText = "Guardando...";
+
+                        for (const contact of contacts) {
+                            const name = contact.name[0] || 'Sin nombre';
+                            const tel = contact.tel[0] || '';
+                            if (tel) {
+                                await fetch('/api/cupido/contacts', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ name, tel })
+                                });
+                            }
+                        }
+
+                        alert(`¡${contacts.length} contactos importados con éxito!`);
+                        loadSolteros();
+                    }
+                } catch (err) {
+                    console.error("Error importando contactos:", err);
+                    alert("No se pudieron importar los contactos.");
+                } finally {
+                    importBtn.disabled = false;
+                    importBtn.innerText = "Importar Contactos Móvil";
+                }
+            } else {
+                // Fallback: Manual addition
+                const name = prompt("Nombre del amigo/a soltero/a:");
+                const tel = prompt("Teléfono (para el match):");
+                if (name && tel) {
+                    const res = await fetch('/api/cupido/contacts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, tel })
+                    });
+                    if (res.ok) loadSolteros();
+                }
+            }
+        };
+
+        async function loadSolteros() {
+            try {
+                const res = await fetch('/api/cupido/solteros');
+                const solteros = await res.json();
+
+                if (solteros.length === 0) {
+                    contactList.innerHTML = '<div style="text-align: center; color: var(--text-dim); padding: 3rem;">Aún no has añadido amigos solteros.</div>';
+                    return;
+                }
+
+                contactList.innerHTML = solteros.map(s => `
+                    <div class="contact-card">
+                        <div class="contact-info">
+                            <h3>${s.name}</h3>
+                            <p>📞 ****${s.tel_last4} • 📍 ${s.city || 'Desconocida'}</p>
+                        </div>
+                        <div class="badge badge-pendiente">Soltero/a</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                contactList.innerHTML = '<div style="text-align: center; color: #ef4444; padding: 3rem;">Error al cargar la lista.</div>';
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            location.href = '/login';
+        }
+
+        // Initial load
+        loadSolteros();
+    </script>
+</body>
+
+</html>

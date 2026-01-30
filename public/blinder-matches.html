@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Blinder | Encontrando Matches</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#ff4d6d">
+    <link rel="apple-touch-icon" href="/app-icon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="nav">
+            <h1 style="text-align: left; font-size: 1.8rem;">Hola, Blinder 👋</h1>
+            <div class="nav-actions">
+                <button onclick="logout()" class="btn-main btn-glass"
+                    style="padding: 0.6rem 1rem; font-size: 0.8rem;">Salir</button>
+            </div>
+        </header>
+
+        <main style="text-align: center; margin-top: 4rem;">
+            <div style="font-size: 4rem; margin-bottom: 2rem;">🔍</div>
+            <h2 style="margin-bottom: 1rem;">Buscando tu match ideal...</h2>
+            <p style="color: var(--text-dim); padding: 0 2rem;">Tu Cupido está trabajando para encontrarte la mejor
+                conexión. ¡Vuelve pronto para ver tus sugerencias!</p>
+
+            <div
+                style="margin-top: 3rem; padding: 2rem; background: var(--glass); border-radius: 24px; border: 1px solid var(--border);">
+                <p style="font-size: 0.9rem; font-weight: 600;">¿Tienes un código de invitación?</p>
+                <button onclick="location.href='/login'" class="btn-main" style="margin-top: 1.5rem; width: 100%;">Ir al
+                    chat directo</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            location.href = '/login';
+        }
+    </script>
+</body>
+
+</html>

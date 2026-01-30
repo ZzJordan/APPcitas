@@ -15,8 +15,13 @@ const initDb = () => {
                 db.run(`CREATE TABLE IF NOT EXISTS cupidos (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     username TEXT UNIQUE,
-                    password TEXT
-                )`);
+                    password TEXT,
+                    role TEXT DEFAULT 'cupido'
+                )`, (err) => {
+                    if (!err) {
+                        db.run("ALTER TABLE cupidos ADD COLUMN role TEXT DEFAULT 'cupido'", () => { });
+                    }
+                });
 
                 // 2. Table: rooms
                 db.run(`CREATE TABLE IF NOT EXISTS rooms (
@@ -45,17 +50,30 @@ const initDb = () => {
                     db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
                 });
 
-                // 3. Table: messages
+                // 3. Table: solteros (New Feature)
+                db.run(`CREATE TABLE IF NOT EXISTS solteros (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cupido_id INTEGER,
+                    name TEXT,
+                    tel_hash TEXT,
+                    tel_last4 TEXT,
+                    city TEXT,
+                    age INTEGER,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
+                )`);
+
+                // 4. Table: messages
                 db.run(`CREATE TABLE IF NOT EXISTS messages (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     room_id INTEGER,
-                    sender TEXT, 
+                    sender TEXT,
                     text TEXT,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (room_id) REFERENCES rooms(id)
                 )`);
 
-                // 4. Table: user_rooms
+                // 5. Table: user_rooms
                 db.run(`CREATE TABLE IF NOT EXISTS user_rooms (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     cupido_id INTEGER,
@@ -67,7 +85,7 @@ const initDb = () => {
                     UNIQUE(cupido_id, room_id)
                 )`);
 
-                // 5. Default Users
+                // 6. Default Users
                 db.get("SELECT id FROM cupidos LIMIT 1", async (err, row) => {
                     if (err) {
                         console.error("❌ Error checking users:", err);
@@ -77,8 +95,8 @@ const initDb = () => {
                         try {
                             const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
                             const hashedPassword = await bcrypt.hash(pass, 10);
-                            db.run("INSERT OR IGNORE INTO cupidos (username, password) VALUES (?, ?)", ['cupido1', hashedPassword]);
-                            db.run("INSERT OR IGNORE INTO cupidos (username, password) VALUES (?, ?)", ['cupido2', hashedPassword]);
+                            db.run("INSERT OR IGNORE INTO cupidos (username, password, role) VALUES (?, ?, ?)", ['cupido1', hashedPassword, 'cupido']);
+                            db.run("INSERT OR IGNORE INTO cupidos (username, password, role) VALUES (?, ?, ?)", ['cupido2', hashedPassword, 'cupido']);
                             console.log("✅ Default users created safely.");
                         } catch (hashErr) {
                             console.error("❌ Error hashing password:", hashErr);

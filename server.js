@@ -150,7 +150,21 @@ const isAuthenticated = (req, res, next) => {
 // Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
-app.get('/dashboard', isAuthenticated, (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/dashboard', isAuthenticated, (req, res) => {
+  if (req.session.userRole === 'blinder') return res.redirect('/blinder-matches');
+  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+app.get('/cupido-dashboard', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'cupido') return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'public', 'cupido-dashboard.html'));
+});
+
+app.get('/blinder-matches', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'blinder') return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'public', 'blinder-matches.html'));
+});
+
 
 // API
 app.post('/api/login', (req, res) => {
@@ -162,12 +176,14 @@ app.post('/api/login', (req, res) => {
     if (match) {
       req.session.userId = user.id;
       req.session.username = user.username;
-      res.status(200).json({ message: "Login exitoso" });
+      req.session.userRole = user.role || 'cupido';
+      res.status(200).json({ message: "Login exitoso", role: req.session.userRole });
     } else {
       res.status(401).json({ error: "Contraseña incorrecta" });
     }
   });
 });
+
 
 app.post('/api/logout', (req, res) => {
   req.session.destroy();
@@ -175,27 +191,32 @@ app.post('/api/logout', (req, res) => {
 });
 
 app.get('/api/user', isAuthenticated, (req, res) => {
-  res.json({ username: req.session.username, userId: req.session.userId });
+  res.json({ username: req.session.username, userId: req.session.userId, role: req.session.userRole });
 });
 
+
 app.post('/api/register', async (req, res) => {
-  const { username, password } = req.body;
+  const { username, password, role } = req.body;
+  const userRole = role === 'blinder' ? 'blinder' : 'cupido';
   if (!username || !password) return res.status(400).json({ error: "Datos incompletos" });
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.run("INSERT INTO cupidos (username, password) VALUES (?, ?)", [username, hashedPassword], function (err) {
+    db.run("INSERT INTO cupidos (username, password, role) VALUES (?, ?, ?)", [username, hashedPassword, userRole], function (err) {
       if (err) {
         if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "El usuario ya existe" });
         return res.status(500).json({ error: "Error al registrar" });
       }
       req.session.userId = this.lastID;
       req.session.username = username;
-      res.status(201).json({ message: "Registro exitoso" });
+      req.session.userRole = userRole;
+      res.status(201).json({ message: "Registro exitoso", role: userRole });
     });
   } catch (err) { res.status(500).json({ error: "Error en el servidor" }); }
 });
 
+
 app.post('/api/rooms', isAuthenticated, (req, res) => {
+  // Solo cupidos pueden crear salas (o blinders si se permite, pero por ahora seguimos lógica previa)
   const { friendA_name, friendB_name, noteA, noteB } = req.body;
   const cupido_id = req.session.userId;
   const linkA = crypto.randomUUID();
@@ -210,6 +231,35 @@ app.post('/api/rooms', isAuthenticated, (req, res) => {
     }
   );
 });
+
+// FEATURE: CUPIDO CONTACTS
+app.post('/api/cupido/contacts', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
+  const { name, tel, city, age } = req.body;
+  if (!name || !tel) return res.status(400).json({ error: "Nombre y teléfono requeridos" });
+
+  // Privacy: Hash the phone number
+  const tel_hash = crypto.createHash('sha256').update(tel).digest('hex');
+  const tel_last4 = tel.slice(-4);
+
+  db.run(
+    "INSERT INTO solteros (cupido_id, name, tel_hash, tel_last4, city, age) VALUES (?, ?, ?, ?, ?, ?)",
+    [req.session.userId, name, tel_hash, tel_last4, city || 'Desconocida', age || 0],
+    function (err) {
+      if (err) return res.status(500).json({ error: "Error al guardar contacto" });
+      res.status(201).json({ id: this.lastID, message: "Contacto guardado" });
+    }
+  );
+});
+
+app.get('/api/cupido/solteros', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
+  db.all("SELECT * FROM solteros WHERE cupido_id = ? ORDER BY created_at DESC", [req.session.userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Error" });
+    res.json(rows);
+  });
+});
+
 
 app.get('/api/rooms', isAuthenticated, (req, res) => {
   const userId = req.session.userId;
