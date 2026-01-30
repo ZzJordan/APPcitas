@@ -146,17 +146,21 @@
                 });
 
                 if (res.ok) {
-                    location.href = '/blinder-dashboard';
+                    btn.innerText = '¡Perfil Creado! Redirigiendo...';
+                    setTimeout(() => {
+                        location.href = '/blinder-dashboard';
+                    }, 1000);
                 } else {
                     const data = await res.json();
-                    errEl.innerText = data.error || 'Error al unirse';
+                    errEl.innerText = data.error || 'Error al crear perfil';
                     errEl.style.display = 'block';
                     btn.disabled = false;
                     btn.innerText = 'Crear mi Perfil y Ver Mis Conexiones';
                 }
 
             } catch (err) {
-                errEl.innerText = 'Error de conexión';
+                console.error("Fetch Error:", err);
+                errEl.innerText = 'Error de respuesta del servidor (Posible foto muy pesada)';
                 errEl.style.display = 'block';
                 btn.disabled = false;
                 btn.innerText = 'Crear mi Perfil y Ver Mis Conexiones';
