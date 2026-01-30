@@ -113,21 +113,36 @@
             </div>
 
             <div id="blinder-login-section" class="content-section hidden">
-                <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Invitados & Amigos</p>
-                <form id="linkForm" style="display: flex; gap: 0.8rem; flex-direction: column;">
-                    <div class="input-group" style="margin-bottom: 0.5rem;">
-                        <label>Código o Enlace</label>
+                <p class="subtitle" style="text-align: center; margin-bottom: 2rem;">Acceso Exclusivo Blinder</p>
+
+                <!-- Existing Blinder Login -->
+                <form id="blinderLoginForm">
+                    <div class="input-group">
+                        <label>Usuario Blinder</label>
+                        <input type="text" id="blinderUsername" placeholder="Tu usuario" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="blinderPassword" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-main" style="width: 100%; margin-top: 1rem;">Entrar al Panel
+                        Blinder</button>
+                    <div id="blinderErrorMessage" class="error"></div>
+                </form>
+
+                <div
+                    style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center;">
+                    <p style="color: var(--text-dim); font-size: 0.85rem; margin-bottom: 1.2rem;">¿Eres nuevo? Únete al
+                        proyecto:</p>
+                    <form id="linkForm" style="display: flex; gap: 0.8rem; flex-direction: column;">
                         <input type="text" id="chatLink" placeholder="Pega tu código de invitación"
                             style="padding: 1.1rem; border-radius: 18px; border: 1px solid var(--border); background: var(--glass); color: white; outline: none;">
-                    </div>
-                    <button type="submit" class="btn-main btn-glass">Acceder a la Conversación</button>
-                </form>
-                <div style="margin-top: 2rem; text-align: center;">
-                    <p style="color: var(--text-dim); font-size: 0.85rem;">
-                        Si ya tienes cuenta, selecciona <b>Cupido</b> arriba para iniciar sesión.
-                    </p>
+                        <button type="submit" class="btn-main btn-glass" style="font-size: 0.9rem;">Crear mi Perfil
+                            &rarr;</button>
+                    </form>
                 </div>
             </div>
+
         </div>
 
 
@@ -234,12 +249,11 @@
                     btn.innerText = '¡Correcto!';
                     btn.style.background = '#4ade80';
                     setTimeout(() => {
-                        if (data.role === 'blinder') location.href = '/blinder-matches';
+                        if (data.role === 'blinder') location.href = '/blinder-dashboard';
                         else if (data.role === 'cupido') location.href = '/cupido-dashboard';
                         else location.href = '/dashboard';
                     }, 500);
                 } else {
-
                     const data = await res.json();
                     errEl.innerText = data.error || 'Acceso denegado';
                     errEl.style.display = 'block';
@@ -253,6 +267,49 @@
                 btn.innerText = 'Acceder al Panel';
             }
         };
+
+        document.getElementById('blinderLoginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const user = document.getElementById('blinderUsername').value;
+            const pass = document.getElementById('blinderPassword').value;
+            const errEl = document.getElementById('blinderErrorMessage');
+
+            btn.disabled = true;
+            btn.innerText = 'Verificando...';
+            errEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    btn.innerText = '¡Correcto!';
+                    btn.style.background = '#4ade80';
+                    setTimeout(() => {
+                        if (data.role === 'blinder') location.href = '/blinder-dashboard';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
+                        else location.href = '/dashboard';
+                    }, 500);
+                } else {
+                    const data = await res.json();
+                    errEl.innerText = data.error || 'Acceso denegado';
+                    errEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerText = 'Entrar al Panel Blinder';
+                }
+            } catch (err) {
+                errEl.innerText = 'Error de conexión';
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = 'Entrar al Panel Blinder';
+            }
+        };
+
 
         document.getElementById('registerForm').onsubmit = async (e) => {
             e.preventDefault();
