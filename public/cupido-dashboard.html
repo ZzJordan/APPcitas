@@ -123,6 +123,27 @@
         </main>
     </div>
 
+    <!-- Create Room Modal -->
+    <div id="roomModal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
+        <div class="premium-card" style="max-width: 90%; width: 400px; margin: 0; position: relative;">
+            <span class="close-modal" onclick="closeModal()"
+                style="position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer;">&times;</span>
+            <h2 style="margin-bottom: 2rem; text-align: center; font-weight: 700;">Nueva Conexión</h2>
+            <form id="createRoomForm">
+                <div class="input-group">
+                    <label>Persona A</label>
+                    <input type="text" id="friendA" required placeholder="Ej: Juan">
+                </div>
+                <div class="input-group">
+                    <label>Persona B</label>
+                    <input type="text" id="friendB" required placeholder="Ej: Sonia">
+                </div>
+                <button type="submit" class="btn-main w-full mt-1">Crear Sala</button>
+            </form>
+        </div>
+    </div>
+
     <script>
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
