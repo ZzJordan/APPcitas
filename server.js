@@ -92,7 +92,8 @@ app.use(session({
 }));
 
 // --- Presence Logic ---
-const roomStatus = {};
+const roomStatus = {}; // roomId -> { A: socketId, B: socketId } (Para chats)
+const connectedBlinders = new Map(); // userId -> { socketId, cupidoId } (Para presencia global)
 
 function updateAndNotifyStatus(room_id, cupido_id) {
   if (!room_id || !cupido_id) return;
@@ -497,7 +498,11 @@ app.get('/api/cupido/blinders', isAuthenticated, (req, res) => {
   if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No" });
   db.all(`SELECT p.*, c.username FROM blinder_profiles p JOIN cupidos c ON p.user_id = c.id WHERE p.cupido_id = ?`, [req.session.userId], (err, rows) => {
     if (err) return res.status(500).json({ error: "Error" });
-    const enriched = rows.map(r => ({ ...r, revealLevel: getRevealLevel(r.created_at) }));
+    const enriched = rows.map(r => ({
+      ...r,
+      revealLevel: getRevealLevel(r.created_at),
+      isConnected: connectedBlinders.has(r.user_id)
+    }));
     res.json(enriched);
   });
 });
@@ -632,7 +637,23 @@ app.get('/api/chat-info/:link', (req, res) => {
 
 // Socket.io initialization
 io.on('connection', (socket) => {
-  socket.on('join-user', ({ userId }) => { socket.join(`user_${userId}`); });
+  socket.on('join-user', ({ userId }) => {
+    socket.userId = userId;
+    socket.join(`user_${userId}`);
+
+    // Check if is Blinder and track presence
+    db.get("SELECT cupido_id FROM blinder_profiles WHERE user_id = ?", [userId], (err, row) => {
+      if (row && row.cupido_id) {
+        socket.isBlinder = true;
+        socket.blinderCupidoId = row.cupido_id;
+        connectedBlinders.set(userId, { socketId: socket.id, cupidoId: row.cupido_id });
+
+        // Notify Cupido
+        io.to(`dashboard_${row.cupido_id}`).emit('blinder-status', { blinderId: userId, isConnected: true });
+      }
+    });
+  });
+
   socket.on('join-dashboard', ({ cupido_id }) => { socket.join(`dashboard_${cupido_id}`); });
 
   socket.on('join-room', ({ link }) => {
@@ -657,9 +678,18 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    // Room Status Update
     if (socket.room_id && socket.sender && roomStatus[socket.room_id]) {
       roomStatus[socket.room_id][socket.sender] = null;
       updateAndNotifyStatus(socket.room_id, socket.cupido_id);
+    }
+
+    // Blinder Presence Update
+    if (socket.isBlinder && socket.userId) {
+      connectedBlinders.delete(socket.userId);
+      if (socket.blinderCupidoId) {
+        io.to(`dashboard_${socket.blinderCupidoId}`).emit('blinder-status', { blinderId: socket.userId, isConnected: false });
+      }
     }
   });
 });
