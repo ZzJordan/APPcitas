@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Panel Cupido | Gestión Integral</title>
-    <link rel="stylesheet" href="/style.css?v=2.2">
+    <title>Cupido Dashboard | Gestión de Conexiones</title>
+    <link rel="stylesheet" href="/style.css?v=2.1">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
@@ -57,30 +57,31 @@
             background: rgba(255, 77, 109, 0.1);
         }
     </style>
+
 </head>
 
 <body>
     <div class="app-container">
         <header class="nav">
-            <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/dashboard'">Panel Cupido ✨
-            </h1>
+            <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/cupido-dashboard'">Panel
+                Cupido ✨</h1>
             <div class="nav-actions">
                 <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
                 <div id="settingsMenu" class="dropdown-menu">
+                    <div class="dropdown-item" onclick="location.href='/dashboard'">📋 Ver Salas</div>
                     <div class="dropdown-item" onclick="logout()">🚪 Salir</div>
                     <div class="dropdown-item danger" onclick="deleteAccount()">⚠️ Borrar Cuenta</div>
                 </div>
             </div>
+
         </header>
 
         <main>
             <div class="tabs">
                 <button class="tab-btn active" onclick="switchTab('rooms')">Mis Salas</button>
                 <button class="tab-btn" onclick="switchTab('blinders')">Mis Blinders</button>
-                <button class="tab-btn" onclick="switchTab('history')">Histórico</button>
             </div>
 
-            <!-- ROOMS VIEW -->
             <div id="roomsView">
                 <div class="p-2 mb-2 glass-dashed text-center">
                     <button onclick="openModal()" class="btn-main w-full">
@@ -95,7 +96,7 @@
                 </div>
             </div>
 
-            <!-- BLINDERS VIEW -->
+
             <div id="blindersView" style="display: none;">
                 <div class="import-section glass-dashed p-2 mb-2 text-center">
                     <h3>Generar Invitación Viral</h3>
@@ -117,17 +118,7 @@
                         Cargando blinders...
                     </div>
                 </div>
-            </div>
 
-            <!-- HISTORY VIEW -->
-            <div id="historyView" style="display: none;">
-                <div id="recentsList" class="card-grid">
-                    <!-- History loads here -->
-                </div>
-                <div id="noChatsMsg" style="padding: 5rem; text-align: center; display: none;">
-                    <div style="font-size: 3rem; margin-bottom: 1rem;">💬</div>
-                    <p style="color: var(--text-dim); font-size: 1.1rem;">No hay registros históricos aún.</p>
-                </div>
             </div>
         </main>
     </div>
@@ -153,90 +144,15 @@
         </div>
     </div>
 
-    <!-- Room Details Modal -->
-    <div id="roomDetailsModal" class="modal"
-        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center;">
-        <div class="premium-card" style="max-width: 90%; width: 400px; margin: 0; position: relative;">
-            <span class="close-modal" onclick="closeDetailsModal()"
-                style="position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer;">&times;</span>
-            <h2 id="detailRoomTitle" style="margin-bottom: 0.5rem; text-align: center; font-weight: 700;">Detalles de la
-                Sala</h2>
-            <div id="detailRoomStatus" class="badge max-auto mb-2" style="width: fit-content;">ACTIVO</div>
-
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <div style="font-size: 2.5rem; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums;"
-                    id="detailTimer">00:00:00</div>
-                <div class="text-dim fs-small">Tiempo de Conexión</div>
-            </div>
-
-            <div class="link-pills mb-2">
-                <div class="pill" id="btnLinkA" onclick="">
-                    <span id="labelLinkA">Persona A</span>
-                    <span>Copiar Link</span>
-                </div>
-                <div class="pill" id="btnLinkB" onclick="">
-                    <span id="labelLinkB">Persona B</span>
-                    <span>Copiar Link</span>
-                </div>
-            </div>
-
-            <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
-                <button id="btnDeleteRoom" class="btn-main w-full btn-danger" onclick="">Borrar Proyecto</button>
-            </div>
-        </div>
-    </div>
-
-
-    <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
 
-        let activeTimers = {};
-        let roomTotals = {};
-        let allRoomsData = []; // Store rooms locally for details view
-        let timerInterval = null;
-
-        // --- Modals ---
+        // Modal Logic
         function openModal() { document.getElementById('roomModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('roomModal').style.display = 'none'; }
-
-        function openDetailsModal(roomId) {
-            const room = allRoomsData.find(r => r.id === roomId);
-            if (!room) return;
-
-            document.getElementById('detailRoomTitle').innerText = `${room.friendA_name} & ${room.friendB_name}`;
-            const badge = document.getElementById('detailRoomStatus');
-            badge.className = `badge badge-${room.status.toLowerCase().replace(' ', '')} max-auto mb-2`;
-            badge.innerText = room.status;
-
-            // Setup Links
-            document.getElementById('labelLinkA').innerText = room.friendA_name;
-            document.getElementById('labelLinkB').innerText = room.friendB_name;
-            document.getElementById('btnLinkA').onclick = () => copyUrl('/chat/' + room.linkA);
-            document.getElementById('btnLinkB').onclick = () => copyUrl('/chat/' + room.linkB);
-
-            // Delete Logic
-            document.getElementById('btnDeleteRoom').onclick = () => deleteRoom(room.id);
-
-            // Timer Setup (Initial)
-            updateDetailTimer(roomId);
-
-            // Store current viewing room for live timer updates
-            window.currentViewingRoomId = roomId;
-
-            document.getElementById('roomDetailsModal').style.display = 'flex';
-        }
-
-        function closeDetailsModal() {
-            document.getElementById('roomDetailsModal').style.display = 'none';
-            window.currentViewingRoomId = null;
-        }
-
         window.openModal = openModal;
         window.closeModal = closeModal;
-        window.closeDetailsModal = closeDetailsModal;
 
         // Prevent Back Navigation
         history.pushState(null, null, location.href);
@@ -260,7 +176,6 @@
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('roomsView').style.display = 'none';
             document.getElementById('blindersView').style.display = 'none';
-            document.getElementById('historyView').style.display = 'none';
 
             if (tab === 'rooms') {
                 document.querySelector('[onclick="switchTab(\'rooms\')"]').classList.add('active');
@@ -270,65 +185,32 @@
                 document.querySelector('[onclick="switchTab(\'blinders\')"]').classList.add('active');
                 document.getElementById('blindersView').style.display = 'block';
                 loadBlinders();
-            } else if (tab === 'history') {
-                document.querySelector('[onclick="switchTab(\'history\')"]').classList.add('active');
-                document.getElementById('historyView').style.display = 'block';
-                loadRecents();
             }
-        }
-
-        function formatTime(seconds) {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-        }
-
-        function updateDetailTimer(roomId) {
-            // Logic to calculate current time
-            const now = Date.now();
-            let elapsed = roomTotals[roomId] || 0;
-            if (activeTimers[roomId]) {
-                elapsed += Math.floor((now - activeTimers[roomId]) / 1000);
-            }
-            document.getElementById('detailTimer').innerText = formatTime(elapsed);
         }
 
         async function loadRooms() {
             try {
                 const res = await fetch('/api/rooms');
                 const data = await res.json();
-                allRoomsData = data.owned || []; // Save for modal usage
-
-                // Initialize timers
-                activeTimers = {};
-                roomTotals = {};
-                allRoomsData.forEach(r => {
-                    roomTotals[r.id] = r.total_active_seconds || 0;
-                    if (r.active_since) activeTimers[r.id] = r.active_since;
-                });
-
-                roomsList.innerHTML = allRoomsData.map(r => `
-                    <div class="room-card" onclick="openDetailsModal(${r.id})" style="cursor: pointer;">
-                        <div class="room-header" style="margin-bottom: 0;">
+                roomsList.innerHTML = data.owned.map(r => `
+                    <div class="room-card">
+                        <div class="room-header">
                             <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
                             <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}">${r.status}</div>
                         </div>
-                        <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 0.5rem;">
-                            Clic para ver detalles y opciones
+                        <div class="link-pills">
+                            <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
+                                <span>Rol A</span>
+                                <span>Copiar</span>
+                            </div>
+                            <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
+                                <span>Rol B</span>
+                                <span>Copiar</span>
+                            </div>
                         </div>
                     </div>
                 `).join('');
-
-                if (allRoomsData.length === 0) roomsList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">No hay salas activas todavía.</p>';
-
-                // Start Timer Loop if not started
-                if (!timerInterval) timerInterval = setInterval(() => {
-                    if (window.currentViewingRoomId) {
-                        updateDetailTimer(window.currentViewingRoomId);
-                    }
-                }, 1000);
-
+                if (data.owned.length === 0) roomsList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">No hay salas activas todavía.</p>';
             } catch (err) { console.error(err); }
         }
 
@@ -336,7 +218,7 @@
         async function loadBlinders() {
             try {
                 const res = await fetch('/api/cupido/blinders');
-                constblindners = await res.json();
+                const blinders = await res.json();
                 blindersList.innerHTML = blinders.map(b => `
                     <div class="room-card">
                         <div style="display: flex; align-items: center; gap: 1.2rem;">
@@ -353,33 +235,6 @@
                 `).join('');
                 if (blinders.length === 0) blindersList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">Aún no tienes blinders invitados.</p>';
             } catch (err) { console.error(err); }
-        }
-
-        async function loadRecents() {
-            try {
-                const res = await fetch('/api/rooms');
-                const data = await res.json();
-                const accessed = data.accessed || [];
-                const list = document.getElementById('recentsList');
-                const msg = document.getElementById('noChatsMsg');
-
-                if (accessed.length === 0) {
-                    msg.style.display = 'block';
-                    list.innerHTML = '';
-                } else {
-                    msg.style.display = 'none';
-                    list.innerHTML = accessed.map(room => {
-                        const link = (room.accessed_role === 'A') ? room.linkA : room.linkB;
-                        const name = (room.accessed_role === 'A') ? room.friendB_name : room.friendA_name;
-                        return `
-                        <div class="room-card" onclick="location.href='/chat/${link}'" style="cursor: pointer;">
-                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Conexión con ${name}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-dim);">Último acceso: ${new Date(room.accessed_at).toLocaleString()}</div>
-                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.2;">💖</div>
-                        </div>`;
-                    }).join('');
-                }
-            } catch (e) { console.error("Recents Error:", e); }
         }
 
 
@@ -404,8 +259,19 @@
 
         function copyInvite() {
             const url = document.getElementById('inviteUrl').value;
-            navigator.clipboard.writeText(url);
-            alert("Link copiado al portapapeles.");
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Únete a Cupido\'s Project',
+                    text: 'Te invito a descubrir tus conexiones. ¡Únete a mi red!',
+                    url: url
+                }).catch(() => {
+                    navigator.clipboard.writeText(url);
+                    alert("Link copiado al portapapeles.");
+                });
+            } else {
+                navigator.clipboard.writeText(url);
+                alert("Link copiado al portapapeles.");
+            }
         }
 
 
@@ -423,18 +289,6 @@
                     location.href = '/login';
                 } else {
                     alert("Error al eliminar la cuenta.");
-                }
-            }
-        }
-
-        async function deleteRoom(id) {
-            if (confirm("⚠️ ¿Estás seguro de que quieres borrar este Proyecto? Se eliminarán todos los mensajes.")) {
-                const res = await fetch(`/api/rooms/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    closeDetailsModal();
-                    await loadRooms();
-                } else {
-                    alert("No se pudo eliminar el proyecto");
                 }
             }
         }
@@ -478,47 +332,6 @@
 
         // Initial Load
         switchTab('rooms');
-
-        // Load User for Socket setup if needed
-        async function init() {
-            try {
-                const userRes = await fetch('/api/user');
-                const userData = await userRes.json();
-                if (userData.userId) {
-                    socket.emit('join-user', { userId: userData.userId });
-                    // Also join dashboard room if that logic still exists on server
-                    socket.emit('join-dashboard', { cupido_id: userData.userId });
-                }
-            } catch (e) { }
-        }
-        init();
-
-        socket.on('status-change', ({ room_id, status }) => {
-            // Refresh logic - easiest way is to reload rooms
-            loadRooms();
-            // Also update modal if open
-            if (window.currentViewingRoomId == room_id) {
-                const badge = document.getElementById('detailRoomStatus');
-                if (badge) {
-                    badge.className = `badge badge-${status.toLowerCase().replace(' ', '')} max-auto mb-2`;
-                    badge.innerText = status;
-                }
-            }
-        });
-
-        socket.on('time-update', ({ room_id, active_since, added_seconds }) => {
-            if (active_since) activeTimers[room_id] = active_since;
-            else {
-                delete activeTimers[room_id];
-                if (added_seconds && roomTotals[room_id] !== undefined) {
-                    roomTotals[room_id] += added_seconds;
-                }
-            }
-            if (window.currentViewingRoomId == room_id) {
-                updateDetailTimer(room_id);
-            }
-        });
-
     </script>
 </body>
 
