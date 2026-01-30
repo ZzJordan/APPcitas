@@ -19,8 +19,8 @@
     <div class="app-container">
         <div class="nav">
             <div class="nav-info">
-                <h1
-                    style="background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
+                <h1 onclick="location.href='/dashboard'"
+                    style="cursor: pointer; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">
                     Cupido's Project</h1>
                 <p class="subtitle" style="text-align: left; margin-bottom: 0;">Panel de Gestión: <span id="cupidoName"
                         style="color: var(--primary); font-weight: 600;">...</span> 💘</p>
@@ -115,6 +115,12 @@
         function closeModal() { document.getElementById('roomModal').style.display = 'none'; }
         window.openModal = openModal;
         window.closeModal = closeModal;
+
+        // Prevent Back Navigation
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            history.go(1);
+        };
 
         function switchTab(e, tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

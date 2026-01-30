@@ -63,7 +63,8 @@
 <body>
     <div class="app-container">
         <header class="nav">
-            <h1 class="text-left fs-h1">Panel Cupido ✨</h1>
+            <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/cupido-dashboard'">Panel
+                Cupido ✨</h1>
             <div class="nav-actions">
                 <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
                 <div id="settingsMenu" class="dropdown-menu">
@@ -83,7 +84,7 @@
 
             <div id="roomsView">
                 <div class="p-2 mb-2 glass-dashed text-center">
-                    <button onclick="location.href='/dashboard'" class="btn-main w-full">
+                    <button onclick="openModal()" class="btn-main w-full">
                         <span>+ Nueva Conexión</span>
                     </button>
                 </div>
@@ -125,6 +126,18 @@
     <script>
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
+
+        // Modal Logic
+        function openModal() { document.getElementById('roomModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('roomModal').style.display = 'none'; }
+        window.openModal = openModal;
+        window.closeModal = closeModal;
+
+        // Prevent Back Navigation
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            history.go(1);
+        };
 
         function toggleSettings() {
             document.getElementById('settingsMenu').classList.toggle('show');
@@ -264,6 +277,37 @@
             await fetch('/api/logout', { method: 'POST' });
             location.href = '/login';
         }
+
+        // Form Logic
+        document.getElementById('createRoomForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            const friendA = document.getElementById('friendA').value;
+            const friendB = document.getElementById('friendB').value;
+
+            btn.disabled = true;
+            btn.innerText = 'Creando...';
+
+            try {
+                const res = await fetch('/api/rooms', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ friendA_name: friendA, friendB_name: friendB })
+                });
+                if (res.ok) {
+                    closeModal();
+                    await loadRooms();
+                    e.target.reset();
+                } else {
+                    alert("Error al crear la conexión");
+                }
+            } catch (e) {
+                alert("Error de red");
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Crear Sala';
+            }
+        };
 
         // Initial Load
         switchTab('rooms');

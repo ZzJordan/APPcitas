@@ -79,7 +79,8 @@
 <body>
     <div class="app-container">
         <header class="nav">
-            <h1 class="text-left fs-h1">Mis Chispazos ✨</h1>
+            <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/blinder-dashboard'">Mis
+                Chispazos ✨</h1>
             <div class="nav-actions">
                 <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
                 <div id="settingsMenu" class="dropdown-menu">
@@ -110,6 +111,12 @@
     <script>
         const socket = io();
         let activeRooms = [];
+
+        // Prevent Back Navigation
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            history.go(1);
+        };
 
         function toggleSettings() {
             document.getElementById('settingsMenu').classList.toggle('show');
