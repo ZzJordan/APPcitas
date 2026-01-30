@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Cupido's Project | Acceso Privado</title>
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css?v=1.3">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
@@ -93,7 +93,8 @@
             selector.setAttribute('data-role', role);
 
             options.forEach(opt => {
-                if (opt.innerText.toLowerCase() === role) opt.classList.add('active');
+                const optText = opt.textContent.trim().toLowerCase();
+                if (optText === role.toLowerCase()) opt.classList.add('active');
                 else opt.classList.remove('active');
             });
 
