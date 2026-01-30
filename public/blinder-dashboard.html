@@ -4,8 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Blinder Dashboard | Mis Matches</title>
+    <title>Blinder Dashboard | Mis Vínculos</title>
     <link rel="stylesheet" href="/style.css">
+
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         .reveal-card {
@@ -85,6 +86,7 @@
 
             <div class="room-card">
                 <h3 style="margin-bottom: 1rem;">Mi Cupido</h3>
+
                 <div style="display: flex; align-items: center; gap: 1rem;">
                     <div
                         style="width: 50px; height: 50px; border-radius: 25px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">
@@ -151,8 +153,9 @@
             if (diffMin >= 30) {
                 icon.innerText = '🔥';
                 status.innerText = '¡Revelación Completa!';
-                document.getElementById('timer').innerText = "FULL ACCESS";
+                document.getElementById('timer').innerText = "ACCESO TOTAL";
             } else if (diffMin >= 15) {
+
                 icon.innerText = '📸';
                 status.innerText = 'Nivel 2: Identidad Visible';
             } else {
@@ -167,13 +170,14 @@
             if (navigator.share) {
                 navigator.share({
                     title: 'Únete a Cupido\'s Project',
-                    text: 'Te invito a descubrir tus matches. ¡Es gratis y viral!',
+                    text: 'Te invito a descubrir tus conexiones. ¡Es gratis y viral!',
                     url: data.url
                 });
             } else {
                 prompt("Copia tu link de invitación:", data.url);
             }
         }
+
 
         async function logout() {
             await fetch('/api/logout', { method: 'POST' });

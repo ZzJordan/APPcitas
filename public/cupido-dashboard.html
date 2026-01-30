@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Cupido Dashboard | Gestión de Matches</title>
+    <title>Cupido Dashboard | Gestión de Conexiones</title>
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#ff4d6d">
@@ -111,6 +111,7 @@
             } catch (err) { console.error(err); }
         }
 
+
         async function loadBlinders() {
             try {
                 const res = await fetch('/api/cupido/blinders');
@@ -132,6 +133,7 @@
                 if (blinders.length === 0) blindersList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">Aún no tienes blinders invitados.</p>';
             } catch (err) { console.error(err); }
         }
+
 
         async function generateInvite() {
             const btn = document.getElementById('inviteBtn');
@@ -157,7 +159,7 @@
             if (navigator.share) {
                 navigator.share({
                     title: 'Únete a Cupido\'s Project',
-                    text: 'Te invito a descubrir tus matches. ¡Únete a mi red!',
+                    text: 'Te invito a descubrir tus conexiones. ¡Únete a mi red!',
                     url: url
                 }).catch(() => {
                     navigator.clipboard.writeText(url);
@@ -168,6 +170,7 @@
                 alert("Link copiado al portapapeles.");
             }
         }
+
 
         function copyUrl(path) {
             const fullUrl = window.location.origin + path;
