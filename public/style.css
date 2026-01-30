@@ -27,10 +27,16 @@
     -webkit-tap-highlight-color: transparent;
 }
 
+html {
+    height: -webkit-fill-available;
+}
+
 body {
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+    min-height: 100dvh;
+    height: -webkit-fill-available;
     overflow-x: hidden;
     line-height: 1.6;
     background-image:
@@ -87,7 +93,10 @@ body {
     align-items: center;
     justify-content: center;
     min-height: 100vh;
+    min-height: 100dvh;
     padding: 1rem;
+    position: relative;
+    width: 100%;
 }
 
 /* Common Button Styles */
@@ -267,12 +276,7 @@ h1 {
 }
 
 .content-section.hidden {
-    opacity: 0;
-    visibility: hidden;
-    transform: translateY(15px);
-    pointer-events: none;
-    position: absolute;
-    /* Extra safety for layout ghosting */
+    display: none !important;
 }
 
 /* Utilities */
