@@ -100,9 +100,10 @@ body {
     width: 100%;
     max-width: 420px;
     border: 1px solid var(--border);
-    backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
+    backdrop-filter: blur(30px);
     box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.5);
+
     animation: premiumFadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -287,9 +288,10 @@ h1 {
     padding: 1.5rem;
     border-radius: 24px;
     border: 1px solid var(--border);
-    backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
     transition: transform 0.3s ease, border-color 0.3s ease;
+
     animation: premiumFadeIn 0.5s ease-out;
 }
 
@@ -417,9 +419,10 @@ h1 {
     position: fixed;
     inset: 0;
     background: rgba(0, 0, 0, 0.85);
-    backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
     z-index: 2000;
+
     padding: 1.5rem;
     align-items: center;
     justify-content: center;
@@ -594,6 +597,21 @@ h1 {
     font-size: 0.8rem;
 }
 
+.text-dim {
+    color: var(--text-dim) !important;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.hero-emoji-small {
+    font-size: 3rem;
+    text-align: center;
+    transition: all 0.5s ease;
+}
+
+
 .fs-main {
     font-size: 1rem;
 }
@@ -625,4 +643,34 @@ h1 {
     background: var(--glass);
     color: white;
     outline: none;
+}
+.px-2 {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+
+.glass-border-all {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+}
+
+.fs-xlarge {
+    font-size: 1.8rem !important;
+}
+
+.no-margin-top {
+    margin-top: 0 !important;
+}
+
+.px-2 {
+    padding-left: 2rem !important;
+    padding-right: 2rem !important;
+}
+
+.hero-emoji-main {
+    font-size: 5rem;
+    text-align: center;
+    transition: all 0.5s ease;
+    margin-bottom: 1.5rem;
 }

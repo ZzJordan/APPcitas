@@ -34,12 +34,13 @@
             object-fit: cover;
         }
     </style>
+
 </head>
 
 <body class="auth-page">
     <div class="join-container premium-card">
         <div class="text-center mb-2">
-            <div id="join-emoji" style="font-size: 3rem; transition: all 0.5s ease;">✨</div>
+            <div id="join-emoji" class="hero-emoji-small">✨</div>
             <h1 id="join-title">Tu Perfil Blinder</h1>
             <p id="join-subtitle" class="subtitle">Crea tu perfil para descubrir y gestionar tus conexiones.</p>
         </div>
@@ -47,9 +48,10 @@
         <form id="joinForm">
             <div class="photo-preview" id="photoResult" onclick="document.getElementById('photoInput').click()">
                 <span id="photoPlaceholder">📸 Foto</span>
-                <img id="profileImg" style="display: none;">
+                <img id="profileImg" class="hidden" alt="Vista previa de perfil">
             </div>
-            <input type="file" id="photoInput" accept="image/*" capture="user" style="display: none;">
+            <input type="file" id="photoInput" accept="image/*" style="display: none;">
+
 
             <div class="input-group">
                 <label>Nombre Completo</label>
@@ -77,8 +79,8 @@
                 <input type="tel" id="tel" placeholder="+34..." required>
             </div>
 
-            <div class="glass-border-top mt-2 mb-2 pt-1" style="border-top: 1px solid var(--border);">
-                <p class="fs-small mb-1" style="color: var(--text-dim);">Configura tu cuenta:</p>
+            <div class="glass-border-top mt-2 mb-2 pt-1">
+                <p class="fs-small mb-1 text-dim">Configura tu cuenta:</p>
                 <div class="input-group">
                     <label>Usuario</label>
                     <input type="text" id="username" placeholder="usuario123" required>
@@ -88,6 +90,7 @@
                     <input type="password" id="password" placeholder="••••••••" required>
                 </div>
             </div>
+
 
             <button type="submit" class="btn-main w-full" id="submitBtn">Crear mi Perfil y Ver Mis Conexiones</button>
             <div id="errorMessage" class="error"></div>
@@ -111,9 +114,10 @@
                 reader.onload = (event) => {
                     base64Photo = event.target.result;
                     profileImg.src = base64Photo;
-                    profileImg.style.display = 'block';
-                    photoPlaceholder.style.display = 'none';
+                    profileImg.classList.remove('hidden');
+                    photoPlaceholder.classList.add('hidden');
                 };
+
                 reader.readAsDataURL(file);
             }
         };

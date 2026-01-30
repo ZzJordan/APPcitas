@@ -32,32 +32,35 @@
             <div id="roomsView">
                 <div id="roomsList">
                     <!-- Salas load here -->
-                    <div style="text-align: center; color: var(--text-dim); padding: 3rem;">
+                    <div class="text-center text-dim p-3">
                         Cargando salas...
                     </div>
                 </div>
             </div>
 
+
             <div id="blindersView" style="display: none;">
                 <div class="import-section glass-dashed p-2 mb-2 text-center">
                     <h3>Generar Invitación Viral</h3>
-                    <p class="fs-small mb-1 mt-1" style="color: var(--text-dim);">
+                    <p class="fs-small mb-1 mt-1 text-dim">
                         Crea un enlace para que tus amigos se unan como Blindres.</p>
                     <button id="inviteBtn" onclick="generateInvite()" class="btn-main w-full">
                         <span>Generar Link de Invitación</span>
                     </button>
-                    <div id="inviteResult" class="mt-1" style="display: none;">
+                    <div id="inviteResult" class="mt-1 hidden">
                         <input type="text" id="inviteUrl" readonly class="input-glass mb-1 fs-small text-center">
                         <button onclick="copyInvite()" class="btn-main btn-glass w-full">Copiar y Compartir</button>
                     </div>
+
                 </div>
 
                 <div id="blindersList">
                     <!-- Blinders load here -->
-                    <div style="text-align: center; color: var(--text-dim); padding: 3rem;">
+                    <div class="text-center text-dim p-3">
                         Cargando blinders...
                     </div>
                 </div>
+
             </div>
         </main>
     </div>
