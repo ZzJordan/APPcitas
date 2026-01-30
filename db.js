@@ -1,6 +1,6 @@
 require('dotenv').config();
 const sqlite3 = require('sqlite3').verbose();
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const path = require('path');
 
 const dbPath = path.join(__dirname, process.env.DB_PATH || 'database.sqlite');
