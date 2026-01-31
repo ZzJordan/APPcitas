@@ -105,8 +105,22 @@
                         <span>Generar Link de Invitación</span>
                     </button>
                     <div id="inviteResult" class="mt-1 hidden">
-                        <input type="text" id="inviteUrl" readonly class="input-glass mb-1 fs-small text-center">
-                        <button onclick="copyInvite()" class="btn-main btn-glass w-full">Copiar y Compartir</button>
+                        <div style="flex:1;">
+                            <div style="font-size: 0.8rem; margin-bottom: 0.5rem; color: var(--text-dim);">Comparte este
+                                link con tu amigo/a "Blinder":</div>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="inviteUrl" readonly
+                                    style="background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 0.8rem; border-radius: 12px; color: white; width: 100%; outline: none;">
+                                <button onclick="copyInvite()" class="btn-primary"
+                                    style="padding: 0 1.2rem; display: flex; align-items: center; justify-content: center;">
+                                    📋
+                                </button>
+                                <button onclick="showQR()" class="btn-glass"
+                                    style="padding: 0 1.2rem; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                                    📱
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                 </div>
@@ -417,11 +431,35 @@
                 urlEl.value = data.url;
                 document.getElementById('inviteResult').style.display = 'block';
                 btn.innerText = "¡Link Generado!";
+
+                // Pre-fetch QR
+                showQR(data.url, true);
+
             } catch (err) {
                 alert("Error al generar invitación");
                 btn.disabled = false;
                 btn.innerText = "Generar Link de Invitación";
             }
+        }
+
+        async function showQR(text, preloadOnly = false) {
+            const qrImg = document.getElementById('qrImage');
+            const qrContainer = document.getElementById('qrModal');
+            if (!text) text = document.getElementById('inviteUrl').value;
+            if (!text) return alert("Primero genera un link");
+
+            try {
+                const res = await fetch(`/api/utils/qr?text=${encodeURIComponent(text)}`);
+                const data = await res.json();
+                if (data.dataUrl) {
+                    qrImg.src = data.dataUrl;
+                    if (!preloadOnly) qrContainer.style.display = 'flex';
+                }
+            } catch (e) { console.error("QR Error", e); }
+        }
+
+        function closeQR() {
+            document.getElementById('qrModal').style.display = 'none';
         }
 
         function copyInvite() {

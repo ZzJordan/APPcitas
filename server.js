@@ -11,6 +11,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const compression = require('compression');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 
 const app = express();
 const server = http.createServer(app);
@@ -753,6 +754,19 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// Utility: QR Code
+app.get('/api/utils/qr', async (req, res) => {
+  const { text } = req.query;
+  if (!text) return res.status(400).send("No text provided");
+
+  try {
+    const qrData = await QRCode.toDataURL(text);
+    res.json({ dataUrl: qrData });
+  } catch (e) {
+    res.status(500).json({ error: "QR Error" });
+  }
 });
 
 // Fallback
