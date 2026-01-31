@@ -1,156 +1,161 @@
 require('dotenv').config();
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
-const path = require('path');
 
-const dbPath = path.join(__dirname, process.env.DB_PATH || 'database.sqlite');
-const db = new sqlite3.Database(dbPath);
+// Use DATABASE_URL from environment (Railway providing this)
+const connectionString = process.env.DATABASE_URL;
 
-const initDb = () => {
-    console.log("🗄️ Initializing database...");
-    return new Promise((resolve, reject) => {
-        db.serialize(() => {
-            try {
-                // 1. Table: cupidos
-                db.run(`CREATE TABLE IF NOT EXISTS cupidos (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    username TEXT UNIQUE,
-                    password TEXT,
-                    email TEXT,
-                    recovery_token TEXT,
-                    token_expires DATETIME,
-                    role TEXT DEFAULT 'cupido'
-                )`, (err) => {
-                    if (!err) {
-                        db.run("ALTER TABLE cupidos ADD COLUMN role TEXT DEFAULT 'cupido'", () => { });
-                        db.run("ALTER TABLE cupidos ADD COLUMN email TEXT", () => { });
-                        db.run("ALTER TABLE cupidos ADD COLUMN recovery_token TEXT", () => { });
-                        db.run("ALTER TABLE cupidos ADD COLUMN token_expires DATETIME", () => { });
-                    }
-                });
+const pool = new Pool({
+    connectionString,
+    ssl: { rejectUnauthorized: false } // Required for Railway/Heroku
+});
 
-                // 2. Table: rooms
-                db.run(`CREATE TABLE IF NOT EXISTS rooms (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cupido_id INTEGER,
-                    friendA_name TEXT,
-                    friendB_name TEXT,
-                    noteA TEXT,
-                    noteB TEXT,
-                    linkA TEXT UNIQUE,
-                    linkB TEXT UNIQUE,
-                    linkA_session TEXT,
-                    linkB_session TEXT,
-                    user_a_id INTEGER,
-                    user_b_id INTEGER,
-                    status TEXT DEFAULT 'pendiente',
-                    active_since INTEGER,
-                    total_active_seconds INTEGER DEFAULT 0,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id),
-                    FOREIGN KEY (user_a_id) REFERENCES cupidos(id),
-                    FOREIGN KEY (user_b_id) REFERENCES cupidos(id)
-                )
-`, (err) => {
-                    if (err) console.error("❌ Error creating rooms table:", err);
-
-                    // Manual migrations
-                    db.run("ALTER TABLE rooms ADD COLUMN active_since INTEGER", () => { });
-                    db.run("ALTER TABLE rooms ADD COLUMN total_active_seconds INTEGER DEFAULT 0", () => { });
-                    db.run("ALTER TABLE rooms ADD COLUMN linkA_session TEXT", () => { });
-                    db.run("ALTER TABLE rooms ADD COLUMN linkB_session TEXT", () => { });
-                    db.run("ALTER TABLE rooms ADD COLUMN user_a_id INTEGER", () => { });
-                    db.run("ALTER TABLE rooms ADD COLUMN user_b_id INTEGER", () => { });
-                });
-
-
-                // 3. Table: invite_tokens
-                db.run(`CREATE TABLE IF NOT EXISTS invite_tokens (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cupido_id INTEGER,
-                    token TEXT UNIQUE,
-                    expires_at DATETIME,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
-                )`);
-
-                // 4. Table: blinder_profiles
-                db.run(`CREATE TABLE IF NOT EXISTS blinder_profiles (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER UNIQUE,
-                    cupido_id INTEGER,
-                    full_name TEXT,
-                    age INTEGER,
-                    city TEXT,
-                    tagline TEXT,
-                    photo_url TEXT,
-                    tel TEXT,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES cupidos(id),
-                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
-                )`);
-
-                // 5. Table: solteros
-                db.run(`CREATE TABLE IF NOT EXISTS solteros (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cupido_id INTEGER,
-                    name TEXT,
-                    tel_hash TEXT,
-                    tel_last4 TEXT,
-                    city TEXT,
-                    age INTEGER,
-                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
-                )`);
-
-                // 6. Table: messages
-                db.run(`CREATE TABLE IF NOT EXISTS messages (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    room_id INTEGER,
-                    sender TEXT,
-                    text TEXT,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (room_id) REFERENCES rooms(id)
-                )`);
-
-                // 5. Table: user_rooms
-                db.run(`CREATE TABLE IF NOT EXISTS user_rooms (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    cupido_id INTEGER,
-                    room_id INTEGER,
-                    role TEXT,
-                    accessed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (cupido_id) REFERENCES cupidos(id),
-                    FOREIGN KEY (room_id) REFERENCES rooms(id),
-                    UNIQUE(cupido_id, room_id)
-                )`);
-
-                // 6. Default Users
-                db.get("SELECT id FROM cupidos LIMIT 1", async (err, row) => {
-                    if (err) {
-                        console.error("❌ Error checking users:", err);
-                        return resolve(); // Resolve anyway to start server
-                    }
-                    if (!row) {
-                        try {
-                            const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
-                            const hashedPassword = await bcrypt.hash(pass, 10);
-                            db.run("INSERT OR IGNORE INTO cupidos (username, password, role) VALUES (?, ?, ?)", ['cupido1', hashedPassword, 'cupido']);
-                            db.run("INSERT OR IGNORE INTO cupidos (username, password, role) VALUES (?, ?, ?)", ['cupido2', hashedPassword, 'cupido']);
-                            console.log("✅ Default users created safely.");
-                        } catch (hashErr) {
-                            console.error("❌ Error hashing password:", hashErr);
-                        }
-                    }
-                    console.log("✅ Database tables confirmed.");
-                    resolve();
-                });
-            } catch (err) {
-                console.error("❌ Critical error during DB init:", err);
-                reject(err);
-            }
-        });
-    });
+// Helper for param replacement (? -> $1, $2...)
+const query = async (text, params) => {
+    // Basic regex to replace ? with $1, $2, etc. logic might be needed for complexity, 
+    // but for this app simplistic replacement usually works if order is preserved.
+    // actually, most secure way is to manually update queries in server.js.
+    // But for a quick shim:
+    let i = 0;
+    const activeText = text.replace(/\?/g, () => `$${++i}`);
+    return pool.query(activeText, params);
 };
 
-module.exports = { db, initDb };
+const initDb = async () => {
+    console.log("🗄️ Initializing PostgreSQL database...");
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Table: cupidos
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cupidos (
+                id SERIAL PRIMARY KEY,
+                username TEXT UNIQUE,
+                password TEXT,
+                email TEXT,
+                recovery_token TEXT,
+                token_expires TIMESTAMP,
+                role TEXT DEFAULT 'cupido'
+            );
+        `);
+        // Migrations (Add columns if missing - simplified for Postgres with IF NOT EXISTS logic usually involves checking info_schema)
+        // For now, assuming fresh start or standard creates. If columns missing on existing DB, manual migration needed.
+        // We'll skip complex migration checks for this 'init -y' prompt style unless critical.
+
+        // 2. Table: rooms
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS rooms (
+                id SERIAL PRIMARY KEY,
+                cupido_id INTEGER REFERENCES cupidos(id),
+                friendA_name TEXT,
+                friendB_name TEXT,
+                noteA TEXT,
+                noteB TEXT,
+                linkA TEXT UNIQUE,
+                linkB TEXT UNIQUE,
+                linkA_session TEXT,
+                linkB_session TEXT,
+                user_a_id INTEGER REFERENCES cupidos(id),
+                user_b_id INTEGER REFERENCES cupidos(id),
+                status TEXT DEFAULT 'pendiente',
+                active_since BIGINT, 
+                total_active_seconds INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 3. Table: invite_tokens
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS invite_tokens (
+                id SERIAL PRIMARY KEY,
+                cupido_id INTEGER REFERENCES cupidos(id),
+                token TEXT UNIQUE,
+                expires_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 4. Table: blinder_profiles
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS blinder_profiles (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE REFERENCES cupidos(id),
+                cupido_id INTEGER REFERENCES cupidos(id),
+                full_name TEXT,
+                age INTEGER,
+                city TEXT,
+                tagline TEXT,
+                photo_url TEXT,
+                tel TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 5. Table: solteros
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS solteros (
+                id SERIAL PRIMARY KEY,
+                cupido_id INTEGER REFERENCES cupidos(id),
+                name TEXT,
+                tel_hash TEXT,
+                tel_last4 TEXT,
+                city TEXT,
+                age INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 6. Table: messages
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS messages (
+                id SERIAL PRIMARY KEY,
+                room_id INTEGER REFERENCES rooms(id),
+                sender TEXT,
+                text TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // 7. Table: user_rooms
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS user_rooms (
+                id SERIAL PRIMARY KEY,
+                cupido_id INTEGER REFERENCES cupidos(id),
+                room_id INTEGER REFERENCES rooms(id),
+                role TEXT,
+                accessed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(cupido_id, room_id)
+            );
+        `);
+
+        // Default Users
+        const res = await client.query("SELECT id FROM cupidos LIMIT 1");
+        if (res.rowCount === 0) {
+            const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
+            const hashedPassword = await bcrypt.hash(pass, 10);
+
+            await client.query(
+                "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
+                ['cupido1', hashedPassword, 'cupido']
+            );
+            await client.query(
+                "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
+                ['cupido2', hashedPassword, 'cupido']
+            );
+            console.log("✅ Default users created.");
+        }
+
+        await client.query('COMMIT');
+        console.log("✅ Database tables confirmed (PostgreSQL).");
+
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error("❌ DB Init Error:", e);
+        throw e;
+    } finally {
+        client.release();
+    }
+};
+
+module.exports = { pool, query, initDb };

@@ -1,10 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
+const pgSession = require('connect-pg-simple')(session);
 const bcrypt = require('bcryptjs');
 const path = require('path');
-const { db, initDb } = require('./db');
+const { pool, initDb } = require('./db');
 const http = require('http');
 const socketIo = require('socket.io');
 const helmet = require('helmet');
@@ -15,7 +15,7 @@ const crypto = require('crypto');
 const app = express();
 const server = http.createServer(app);
 
-// Error Handling to prevent silent crashes
+// Error Handling
 process.on('uncaughtException', (err) => {
   console.error('❌ CRITICAL: Uncaught Exception:', err);
 });
@@ -27,8 +27,7 @@ server.on('error', (err) => {
   console.error('❌ SERVER ERROR:', err);
 });
 
-
-// Initialize Socket.io with broad CORS for production flexibility
+// Socket.io
 const io = socketIo(server, {
   cors: {
     origin: "*",
@@ -36,19 +35,18 @@ const io = socketIo(server, {
   }
 });
 
-// Trust Proxy is ESSENTIAL for Railway/Heroku/Vercel with 'secure: true' cookies
+// Trust Proxy
 app.set('trust proxy', 1);
 
-// FAST Health Check - Moved to top to respond before heavy middleware
+// Health Check
 app.get('/healthz', (req, res) => {
   console.log('💓 Health Check triggered');
   res.status(200).send('OK');
 });
 app.get('/ping', (req, res) => res.status(200).send('pong'));
 
-
-// Production Security, Logging, and Performance
-app.use(morgan('dev')); // 'dev' is better for live debugging
+// Middleware
+app.use(morgan('dev'));
 app.use(compression());
 app.use(helmet({
   contentSecurityPolicy: {
@@ -72,19 +70,18 @@ app.use(express.static(path.join(__dirname, 'public'), {
   etag: true
 }));
 
-// Session Store (Persistent)
+// Session Store (PostgreSQL)
 app.use(session({
-  store: new SQLiteStore({
-    db: 'sessions.sqlite',
-    table: 'sessions',
-    dir: path.join(__dirname)
+  store: new pgSession({
+    pool: pool,
+    tableName: 'session' // Use different table name to avoid conflicts if needed, but 'session' is standard
   }),
   secret: process.env.SESSION_SECRET || 'cupidos-project-2026',
   resave: false,
-  saveUninitialized: true,
-  name: 'cupido.sid', // Custom cookie name
+  saveUninitialized: false, // Better for compliance
+  name: 'cupido.sid',
   cookie: {
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    maxAge: 30 * 24 * 60 * 60 * 1000,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     httpOnly: true
@@ -92,47 +89,44 @@ app.use(session({
 }));
 
 // --- Presence Logic ---
-const roomStatus = {}; // roomId -> { A: socketId, B: socketId } (Para chats)
-const connectedBlinders = new Map(); // userId -> { socketId, cupidoId } (Para presencia global)
+const roomStatus = {};
+const connectedBlinders = new Map();
 
-function updateAndNotifyStatus(room_id, cupido_id) {
+async function updateAndNotifyStatus(room_id, cupido_id) {
   if (!room_id || !cupido_id) return;
 
-  db.get("SELECT active_since FROM rooms WHERE id = ?", [room_id], (err, row) => {
-    if (err) return console.error("Error fetching room status:", err);
-
+  try {
+    const res = await pool.query("SELECT active_since FROM rooms WHERE id = $1", [room_id]);
+    const row = res.rows[0];
     const currentActiveSince = row ? row.active_since : null;
+
+    // Logic remains same, only DB calls change
     const statusObj = roomStatus[room_id];
     let statusText = 'pendiente';
-
     const isNowActive = (statusObj && statusObj.A && statusObj.B);
 
-    if (isNowActive) {
-      statusText = 'activo';
-    } else if (statusObj && statusObj.A) {
-      statusText = 'A conectado';
-    } else if (statusObj && statusObj.B) {
-      statusText = 'B conectado';
-    } else if (statusObj) {
-      statusText = 'desconectado';
-    }
+    if (isNowActive) statusText = 'activo';
+    else if (statusObj && statusObj.A) statusText = 'A conectado';
+    else if (statusObj && statusObj.B) statusText = 'B conectado';
+    else if (statusObj) statusText = 'desconectado';
 
     const now = Date.now();
 
+    // Use BigInt for timestamps if needed or just numbers. Postgres active_since is BIGINT.
     if (isNowActive && !currentActiveSince) {
-      db.run("UPDATE rooms SET status = ?, active_since = ? WHERE id = ?", [statusText, now, room_id]);
+      await pool.query("UPDATE rooms SET status = $1, active_since = $2 WHERE id = $3", [statusText, now, room_id]);
       io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
       io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: now });
     } else if (!isNowActive && currentActiveSince) {
-      const duration = Math.floor((now - currentActiveSince) / 1000);
-      db.run(
-        "UPDATE rooms SET status = ?, active_since = NULL, total_active_seconds = total_active_seconds + ? WHERE id = ?",
+      const duration = Math.floor((now - Number(currentActiveSince)) / 1000);
+      await pool.query(
+        "UPDATE rooms SET status = $1, active_since = NULL, total_active_seconds = COALESCE(total_active_seconds, 0) + $2 WHERE id = $3",
         [statusText, duration, room_id]
       );
       io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
       io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: null, added_seconds: duration });
     } else {
-      db.run("UPDATE rooms SET status = ? WHERE id = ?", [statusText, room_id]);
+      await pool.query("UPDATE rooms SET status = $1 WHERE id = $2", [statusText, room_id]);
       io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
     }
 
@@ -140,7 +134,9 @@ function updateAndNotifyStatus(room_id, cupido_id) {
       A: !!(statusObj && statusObj.A),
       B: !!(statusObj && statusObj.B)
     });
-  });
+  } catch (err) {
+    console.error("Error updating status:", err);
+  }
 }
 
 // Auth Middleware
@@ -171,23 +167,26 @@ app.get('/join/blinder/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'join-blinder.html'));
 });
 
-app.get('/join/blinder/:token', (req, res) => {
+app.get('/join/blinder/:token', async (req, res) => {
   const { token } = req.params;
-  db.get("SELECT * FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], (err, row) => {
-    if (err || !row) return res.status(404).send("Invitación inválida o expirada.");
+  try {
+    const { rows } = await pool.query("SELECT * FROM invite_tokens WHERE token = $1 AND expires_at > NOW()", [token]);
+    if (rows.length === 0) return res.status(404).send("Invitación inválida o expirada.");
     res.sendFile(path.join(__dirname, 'public', 'join-blinder.html'));
-  });
+  } catch (err) {
+    res.status(500).send("Error de servidor");
+  }
 });
 
 
-
-
 // API
-app.post('/api/login', (req, res) => {
+app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
-  db.get("SELECT * FROM cupidos WHERE username = ?", [username], async (err, user) => {
-    if (err) return res.status(500).json({ error: "Error en el servidor" });
+  try {
+    const { rows } = await pool.query("SELECT * FROM cupidos WHERE username = $1", [username]);
+    const user = rows[0];
     if (!user) return res.status(401).json({ error: "Usuario no encontrado" });
+
     const match = await bcrypt.compare(password, user.password);
     if (match) {
       req.session.userId = user.id;
@@ -197,7 +196,9 @@ app.post('/api/login', (req, res) => {
     } else {
       res.status(401).json({ error: "Contraseña incorrecta" });
     }
-  });
+  } catch (err) {
+    res.status(500).json({ error: "Error en el servidor" });
+  }
 });
 
 
@@ -209,35 +210,35 @@ app.post('/api/logout', (req, res) => {
 app.get('/api/user', isAuthenticated, (req, res) => {
   res.json({ username: req.session.username, userId: req.session.userId, role: req.session.userRole });
 });
-// --- Password Recovery (Functional Mock) ---
-app.post('/api/forgot-password', (req, res) => {
+
+// --- Password Recovery ---
+app.post('/api/forgot-password', async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email requerido" });
 
-  db.get("SELECT id, username FROM cupidos WHERE email = ?", [email], (err, user) => {
-    if (err) return res.status(500).json({ error: "Error en el servidor" });
-    if (!user) {
-      // For security, don't reveal if email doesn't exist
-      return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
-    }
+  try {
+    const { rows } = await pool.query("SELECT id, username FROM cupidos WHERE email = $1", [email]);
+    const user = rows[0];
+    if (!user) return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
 
     const token = crypto.randomBytes(20).toString('hex');
-    const expires = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+    // Postgres timestamp string
+    // const expires = new Date(Date.now() + 3600000).toISOString(); 
+    // easiest is to let node pass Date object, pg handles it
 
-    db.run("UPDATE cupidos SET recovery_token = ?, token_expires = ? WHERE id = ?", [token, expires, user.id], (err) => {
-      if (err) return res.status(500).json({ error: "Error al generar token" });
+    await pool.query("UPDATE cupidos SET recovery_token = $1, token_expires = NOW() + interval '1 hour' WHERE id = $2", [token, user.id]);
 
-      // MOCK EMAIL LOGIC
-      console.log(`-----------------------------------------`);
-      console.log(`📨 MOCK EMAIL TO: ${email}`);
-      console.log(`SUBJECT: Recuperación de contraseña - Cupido's Project`);
-      console.log(`CONTENT: Hola ${user.username}, haz click aquí para resetear tu contraseña:`);
-      console.log(`${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`);
-      console.log(`-----------------------------------------`);
+    // MOCK EMAIL LOGIC
+    console.log(`-----------------------------------------`);
+    console.log(`📨 MOCK EMAIL TO: ${email}`);
+    console.log(`SUBJECT: Recuperación de contraseña`);
+    console.log(`${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`);
+    console.log(`-----------------------------------------`);
 
-      res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
-    });
-  });
+    res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+  } catch (err) {
+    res.status(500).json({ error: "Error al generar token" });
+  }
 });
 
 app.post('/api/reset-password', async (req, res) => {
@@ -245,28 +246,17 @@ app.post('/api/reset-password', async (req, res) => {
   if (!token || !newPassword) return res.status(400).json({ error: "Datos incompletos" });
   if (newPassword.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
 
-  db.get(
-    "SELECT id FROM cupidos WHERE recovery_token = ? AND token_expires > DATETIME('now')",
-    [token],
-    async (err, user) => {
-      if (err) return res.status(500).json({ error: "Error en el servidor" });
-      if (!user) return res.status(400).json({ error: "Token inválido o expirado" });
+  try {
+    const { rows } = await pool.query("SELECT id FROM cupidos WHERE recovery_token = $1 AND token_expires > NOW()", [token]);
+    const user = rows[0];
+    if (!user) return res.status(400).json({ error: "Token inválido o expirado" });
 
-      try {
-        const hashedPassword = await bcrypt.hash(newPassword, 10);
-        db.run(
-          "UPDATE cupidos SET password = ?, recovery_token = NULL, token_expires = NULL WHERE id = ?",
-          [hashedPassword, user.id],
-          (err) => {
-            if (err) return res.status(500).json({ error: "Error al actualizar contraseña" });
-            res.status(200).json({ message: "Contraseña actualizada correctamente" });
-          }
-        );
-      } catch (e) {
-        res.status(500).json({ error: "Error al procesar contraseña" });
-      }
-    }
-  );
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await pool.query("UPDATE cupidos SET password = $1, recovery_token = NULL, token_expires = NULL WHERE id = $2", [hashedPassword, user.id]);
+    res.status(200).json({ message: "Contraseña actualizada correctamente" });
+  } catch (e) {
+    res.status(500).json({ error: "Error al procesar contraseña" });
+  }
 });
 
 
@@ -280,75 +270,80 @@ app.post('/api/register', async (req, res) => {
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    db.run("INSERT INTO cupidos (username, password, email, role) VALUES (?, ?, ?, ?)", [username, hashedPassword, email, userRole], function (err) {
-      if (err) {
-        if (err.message.includes("UNIQUE")) return res.status(400).json({ error: "El usuario ya existe" });
-        return res.status(500).json({ error: "Error al registrar" });
-      }
-      req.session.userId = this.lastID;
-      req.session.username = username;
-      req.session.userRole = userRole;
-      res.status(201).json({ message: "Registro exitoso", role: userRole });
-    });
-  } catch (err) { res.status(500).json({ error: "Error en el servidor" }); }
+    // RETURNING id is key for Postgres
+    const { rows } = await pool.query(
+      "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, $4) RETURNING id",
+      [username, hashedPassword, email, userRole]
+    );
+    const userId = rows[0].id;
+
+    req.session.userId = userId;
+    req.session.username = username;
+    req.session.userRole = userRole;
+    res.status(201).json({ message: "Registro exitoso", role: userRole });
+  } catch (err) {
+    if (err.code === '23505') return res.status(400).json({ error: "El usuario ya existe" }); // Unique violation
+    console.error(err);
+    res.status(500).json({ error: "Error al registrar" });
+  }
 });
 
 
-app.post('/api/rooms', isAuthenticated, (req, res) => {
-  // Solo cupidos pueden crear salas (o blinders si se permite, pero por ahora seguimos lógica previa)
+app.post('/api/rooms', isAuthenticated, async (req, res) => {
   const { friendA_name, friendB_name, noteA, noteB } = req.body;
   const cupido_id = req.session.userId;
   const linkA = crypto.randomUUID();
   const linkB = crypto.randomUUID();
-  db.run(
-    `INSERT INTO rooms (cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB) 
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB],
-    function (err) {
-      if (err) return res.status(500).json({ error: "Error al crear la sala" });
-      const roomId = this.lastID;
 
-      // Notify potential participants if they are registered users
-      // This is a placeholder for when we have user discovery logic
-      // For now, if user_a_id or user_b_id were passed (future enhancement)
-
-      res.status(201).json({ id: roomId, linkA, linkB });
-    }
-  );
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO rooms (cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      [cupido_id, friendA_name, friendB_name, noteA, noteB, linkA, linkB]
+    );
+    res.status(201).json({ id: rows[0].id, linkA, linkB });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al crear la sala" });
+  }
 });
 
 // FEATURE: CUPIDO CONTACTS
-app.post('/api/cupido/contacts', isAuthenticated, (req, res) => {
+app.post('/api/cupido/contacts', isAuthenticated, async (req, res) => {
   if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
   const { name, tel, city, age } = req.body;
   if (!name || !tel) return res.status(400).json({ error: "Nombre y teléfono requeridos" });
 
-  // Privacy: Hash the phone number
   const tel_hash = crypto.createHash('sha256').update(tel).digest('hex');
   const tel_last4 = tel.slice(-4);
 
-  db.run(
-    "INSERT INTO solteros (cupido_id, name, tel_hash, tel_last4, city, age) VALUES (?, ?, ?, ?, ?, ?)",
-    [req.session.userId, name, tel_hash, tel_last4, city || 'Desconocida', age || 0],
-    function (err) {
-      if (err) return res.status(500).json({ error: "Error al guardar contacto" });
-      res.status(201).json({ id: this.lastID, message: "Contacto guardado" });
-    }
-  );
+  try {
+    const { rows } = await pool.query(
+      "INSERT INTO solteros (cupido_id, name, tel_hash, tel_last4, city, age) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+      [req.session.userId, name, tel_hash, tel_last4, city || 'Desconocida', age || 0]
+    );
+    res.status(201).json({ id: rows[0].id, message: "Contacto guardado" });
+  } catch (err) {
+    res.status(500).json({ error: "Error al guardar contacto" });
+  }
 });
 
-// FEATURE: CUPIDO INVITE & BLINDER REVEAL
-app.get('/api/cupido/invite', isAuthenticated, (req, res) => {
+// FEATURE: CUPIDO INVITE
+app.get('/api/cupido/invite', isAuthenticated, async (req, res) => {
   if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
   const token = crypto.randomUUID();
-  const expires = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hour
-  db.run("INSERT INTO invite_tokens (cupido_id, token, expires_at) VALUES (?, ?, ?)", [req.session.userId, token, expires], function (err) {
-    if (err) return res.status(500).json({ error: "Error" });
+  // Postgres interval syntax or date object
+  const expires = new Date(Date.now() + 60 * 60 * 1000);
+
+  try {
+    await pool.query("INSERT INTO invite_tokens (cupido_id, token, expires_at) VALUES ($1, $2, $3)", [req.session.userId, token, expires]);
     const host = req.get('host');
     const protocol = req.protocol;
     const url = `${protocol}://${host}/join/blinder/${token}`;
     res.json({ token, url });
-  });
+  } catch (err) {
+    res.status(500).json({ error: "Error" });
+  }
 });
 
 app.post('/api/blinder/register-join', async (req, res) => {
@@ -358,131 +353,141 @@ app.post('/api/blinder/register-join', async (req, res) => {
   if (username.length < 4) return res.status(400).json({ error: "El usuario debe tener al menos 4 caracteres" });
   if (password.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
 
-  db.get("SELECT id FROM blinder_profiles WHERE tel = ?", [tel], (err, existingTel) => {
-    if (existingTel) return res.status(400).json({ error: "Este número de teléfono ya está registrado" });
+  const client = await pool.connect();
 
-    const finishRegistration = (cupido_id, roomId, roleLetter) => {
-      try {
-        bcrypt.hash(password, 10, (err, hashedPassword) => {
-          if (err) return res.status(500).json({ error: "Error al hashear contraseña" });
+  try {
+    // Check tel uniqueness
+    const telCheck = await client.query("SELECT id FROM blinder_profiles WHERE tel = $1", [tel]);
+    if (telCheck.rows.length > 0) return res.status(400).json({ error: "Teléfono ya registrado" });
 
-          db.serialize(() => {
-            db.run("BEGIN TRANSACTION");
-            db.run("INSERT INTO cupidos (username, password, email, role) VALUES (?, ?, ?, 'blinder')", [username, hashedPassword, email], function (err) {
-              if (err) {
-                db.run("ROLLBACK");
-                return res.status(400).json({ error: "El nombre de usuario ya existe" });
-              }
-              const userId = this.lastID;
-
-              // Set Chat Session if we came from a room link
-              let sessionToken = null;
-              if (roomId && roleLetter) {
-                sessionToken = crypto.randomUUID();
-                const sessionField = roleLetter === 'A' ? 'linkA_session' : 'linkB_session';
-                const idField = roleLetter === 'A' ? 'user_a_id' : 'user_b_id';
-                db.run(`UPDATE rooms SET ${sessionField} = ?, ${idField} = ? WHERE id = ?`, [sessionToken, userId, roomId], (err) => {
-                  if (err) {
-                    console.error("Error updating room session:", err);
-                    // This error is not critical enough to rollback the user creation,
-                    // but we should log it. The user can still join the chat.
-                  }
-                });
-              }
-
-              db.run(
-                `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-                [userId, cupido_id, fullName, age, city, tagline, photo || '', tel],
-                function (err) {
-                  if (err) {
-                    db.run("ROLLBACK");
-                    return res.status(500).json({ error: "Error al crear el perfil" });
-                  }
-                  db.run("COMMIT", (commitErr) => {
-                    if (commitErr) {
-                      console.error("Error committing transaction:", commitErr);
-                      return res.status(500).json({ error: "Error interno del servidor" });
-                    }
-                    req.session.userId = userId;
-                    req.session.username = username;
-                    req.session.userRole = 'blinder';
-
-                    // If room session was created, send cookie
-                    if (sessionToken && roomId && roleLetter) {
-                      const cookieName = `chat_token_${roomId}_${roleLetter}`;
-                      res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
-                    }
-
-                    res.status(201).json({ message: "OK", role: 'blinder', redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
-                  });
-                }
-              );
-            });
-          });
-        });
-      } catch (err) { res.status(500).json({ error: "Error interno del servidor" }); }
-    };
+    // Determine connection context
+    let contextCupidoId = null;
+    let contextRoomId = null;
+    let contextRoleLetter = null;
 
     if (roomLink) {
-      db.get("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = ? OR linkB = ?", [roomLink, roomLink], (err, room) => {
-        if (err || !room) return res.status(400).json({ error: "Enlace de sala inválido" });
-        const roleLetter = (roomLink === room.linkA) ? 'A' : 'B';
-        finishRegistration(room.cupido_id, room.id, roleLetter);
-      });
+      const roomRes = await client.query("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = $1 OR linkB = $2", [roomLink, roomLink]);
+      if (roomRes.rows.length > 0) {
+        const room = roomRes.rows[0];
+        contextCupidoId = room.cupido_id;
+        contextRoomId = room.id;
+        contextRoleLetter = (roomLink === room.linka) ? 'A' : 'B'; // Postgres columns often lowercase
+      } else {
+        return res.status(400).json({ error: "Enlace inválido" });
+      }
     } else if (token) {
-      db.get("SELECT cupido_id FROM invite_tokens WHERE token = ? AND expires_at > DATETIME('now')", [token], (err, invite) => {
-        if (err || !invite) return res.status(400).json({ error: "Token de invitación inválido o expirado" });
-        finishRegistration(invite.cupido_id, null, null);
-      });
-    } else {
-      // Allow registration without token or link
-      finishRegistration(null, null, null);
+      const inviteRes = await client.query("SELECT cupido_id FROM invite_tokens WHERE token = $1 AND expires_at > NOW()", [token]);
+      if (inviteRes.rows.length > 0) {
+        contextCupidoId = inviteRes.rows[0].cupido_id;
+      } else {
+        return res.status(400).json({ error: "Token inválido" });
+      }
     }
 
-  });
+    // Transaction
+    await client.query('BEGIN');
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userRes = await client.query(
+      "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, 'blinder') RETURNING id",
+      [username, hashedPassword, email]
+    );
+    const userId = userRes.rows[0].id;
+
+    // Room Session
+    let sessionToken = null;
+    if (contextRoomId && contextRoleLetter) {
+      sessionToken = crypto.randomUUID();
+      const sessionField = contextRoleLetter === 'A' ? 'linkA_session' : 'linkB_session'; // watch casing
+      // Use dynamic SQL for column name carefully or switch
+      // Safest is direct logic:
+      if (contextRoleLetter === 'A') {
+        await client.query("UPDATE rooms SET linkA_session = $1, user_a_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
+      } else {
+        await client.query("UPDATE rooms SET linkB_session = $1, user_b_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
+      }
+    }
+
+    // Blinder Profile
+    await client.query(
+      `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [userId, contextCupidoId, fullName, age, city, tagline, photo || '', tel]
+    );
+
+    await client.query('COMMIT');
+
+    req.session.userId = userId;
+    req.session.username = username;
+    req.session.userRole = 'blinder';
+
+    if (sessionToken && contextRoomId) {
+      const cookieName = `chat_token_${contextRoomId}_${contextRoleLetter}`;
+      res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    }
+
+    res.status(201).json({ message: "OK", role: 'blinder', redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    if (err.code === '23505') return res.status(400).json({ error: "Usuario ya existe" });
+    res.status(500).json({ error: "Error interno" });
+  } finally {
+    client.release();
+  }
 });
 
-// Revelation Logic: Based on active seconds in a specific room
 function getRoomRevealLevel(activeSeconds) {
   const minutes = activeSeconds / 60;
-  if (minutes >= 30) return 3; // Full (30m)
-  if (minutes >= 15) return 2; // Visual (15m)
-  return 1; // Basic (Ready)
+  if (minutes >= 30) return 3;
+  if (minutes >= 15) return 2;
+  return 1;
 }
 
-app.get('/api/blinder/dashboard', isAuthenticated, (req, res) => {
+app.get('/api/blinder/dashboard', isAuthenticated, async (req, res) => {
   if (req.session.userRole !== 'blinder') return res.status(403).json({ error: "No autorizado" });
-
   const userId = req.session.userId;
 
-  // Get all rooms where this user participates
-  db.all(`
-    SELECT r.id as room_id, r.friendA_name, r.friendB_name, r.status, r.active_since, r.total_active_seconds, 
-           c.username as cupido_name, r.linkA, r.linkB, r.user_a_id, r.user_b_id
-    FROM rooms r
-    JOIN cupidos c ON r.cupido_id = c.id
-    WHERE r.user_a_id = ? OR r.user_b_id = ?
-  `, [userId, userId], (err, rooms) => {
-    if (err) return res.status(500).json({ error: "Error al cargar dashboard" });
+  try {
+    const { rows } = await pool.query(`
+        SELECT r.id as room_id, r.friendA_name, r.friendB_name, r.status, r.active_since, r.total_active_seconds, 
+               c.username as cupido_name, r.linkA, r.linkB, r.user_a_id, r.user_b_id
+        FROM rooms r
+        JOIN cupidos c ON r.cupido_id = c.id
+        WHERE r.user_a_id = $1 OR r.user_b_id = $2
+      `, [userId, userId]);
 
-    // Process rooms to calculate individual progress
-    const processedRooms = rooms.map(room => {
+    const processedRooms = rows.map(room => {
       let currentActiveSeconds = room.total_active_seconds || 0;
+
+      // Check type of active_since (it's BIGINT string in pg usually)
       if (room.active_since) {
-        currentActiveSeconds += Math.floor((Date.now() - room.active_since) / 1000);
+        currentActiveSeconds += Math.floor((Date.now() - Number(room.active_since)) / 1000);
       }
 
       const roleLetter = (room.user_a_id === userId) ? 'A' : 'B';
-      const myName = roleLetter === 'A' ? room.friendA_name : room.friendB_name;
-      const otherName = roleLetter === 'A' ? room.friendB_name : room.friendA_name;
-      const myLink = roleLetter === 'A' ? room.linkA : room.linkB;
+      const myName = roleLetter === 'A' ? room.frienda_name : room.friendb_name; // lowercase from pg driver? usually yes unless quoted
+      // Actually pg returns lowercase column names by default.
+      // friendA_name -> frienda_name probably.
+      // Let's assume standard casing for now or use snake_case in future.
+      // With unquoted identifiers in CREATE TABLE, Postgres lowercases them.
+      // friendA_name becomes frienda_name.
+
+      const r_friendA = room.frienda_name || room.friendA_name; // fallback
+      const r_friendB = room.friendb_name || room.friendB_name;
+      const r_linkA = room.linka || room.linkA;
+      const r_linkB = room.linkb || room.linkB;
+
+      const myLink = roleLetter === 'A' ? r_linkA : r_linkB;
+      const otherName = roleLetter === 'A' ? r_friendB : r_friendA;
+      const myNameReal = roleLetter === 'A' ? r_friendA : r_friendB;
 
       return {
         room_id: room.room_id,
         cupido_name: room.cupido_name,
         other_name: otherName,
-        my_name: myName,
+        my_name: myNameReal,
         status: room.status,
         active_seconds: currentActiveSeconds,
         reveal_level: getRoomRevealLevel(currentActiveSeconds),
@@ -491,190 +496,245 @@ app.get('/api/blinder/dashboard', isAuthenticated, (req, res) => {
     });
 
     res.json({ rooms: processedRooms });
-  });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error dashboard" });
+  }
 });
 
-app.get('/api/cupido/blinders', isAuthenticated, (req, res) => {
+app.get('/api/cupido/blinders', isAuthenticated, async (req, res) => {
   if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No" });
-  db.all(`SELECT p.*, c.username FROM blinder_profiles p JOIN cupidos c ON p.user_id = c.id WHERE p.cupido_id = ?`, [req.session.userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: "Error" });
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.*, c.username FROM blinder_profiles p JOIN cupidos c ON p.user_id = c.id WHERE p.cupido_id = $1`,
+      [req.session.userId]
+    );
     const enriched = rows.map(r => ({
       ...r,
-      revealLevel: getRevealLevel(r.created_at),
       isConnected: connectedBlinders.has(r.user_id)
     }));
     res.json(enriched);
-  });
+  } catch (err) {
+    res.status(500).json({ error: "Error" });
+  }
 });
 
-app.post('/api/user/delete-account', isAuthenticated, (req, res) => {
+app.post('/api/user/delete-account', isAuthenticated, async (req, res) => {
   const userId = req.session.userId;
   const role = req.session.userRole;
+  const client = await pool.connect();
 
-  db.serialize(() => {
-    db.run("BEGIN TRANSACTION");
-
+  try {
+    await client.query('BEGIN');
     if (role === 'blinder') {
-      db.run("DELETE FROM blinder_profiles WHERE user_id = ?", [userId]);
-      db.run("DELETE FROM cupidos WHERE id = ?", [userId]);
-      // Note: We keep the room record so the other person can see 'User Deleted'
-      // but we could also nullify user_a_id/user_b_id if we want.
+      await client.query("DELETE FROM blinder_profiles WHERE user_id = $1", [userId]);
+      await client.query("DELETE FROM cupidos WHERE id = $1", [userId]);
     } else {
-      db.run("DELETE FROM invite_tokens WHERE cupido_id = ?", [userId]);
-      db.run("DELETE FROM solteros WHERE cupido_id = ?", [userId]);
-      db.run("DELETE FROM blinder_profiles WHERE cupido_id = ?", [userId]);
-      db.run("DELETE FROM user_rooms WHERE cupido_id = ?", [userId]);
-      db.run("DELETE FROM rooms WHERE cupido_id = ?", [userId]);
-      db.run("DELETE FROM cupidos WHERE id = ?", [userId]);
+      await client.query("DELETE FROM invite_tokens WHERE cupido_id = $1", [userId]);
+      await client.query("DELETE FROM solteros WHERE cupido_id = $1", [userId]);
+      await client.query("DELETE FROM blinder_profiles WHERE cupido_id = $1", [userId]);
+      await client.query("DELETE FROM user_rooms WHERE cupido_id = $1", [userId]);
+      await client.query("DELETE FROM rooms WHERE cupido_id = $1", [userId]);
+      await client.query("DELETE FROM cupidos WHERE id = $1", [userId]);
     }
-
-    db.run("COMMIT", (err) => {
-      if (err) return res.status(500).json({ error: "Error al borrar cuenta" });
-      req.session.destroy();
-      res.json({ message: "Cuenta borrada con éxito" });
-    });
-  });
+    await client.query('COMMIT');
+    req.session.destroy();
+    res.json({ message: "Cuenta borrada" });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: "Error" });
+  } finally {
+    client.release();
+  }
 });
 
-
-
-
-
-app.get('/api/rooms', isAuthenticated, (req, res) => {
+app.get('/api/rooms', isAuthenticated, async (req, res) => {
   const userId = req.session.userId;
-  db.all(`SELECT * FROM rooms WHERE cupido_id = ? ORDER BY created_at DESC`, [userId], (err, owned) => {
-    if (err) return res.status(500).json({ error: "Error" });
-    const enrichedOwned = owned.map(r => ({ ...r, linkA_used: !!r.linkA_session, linkB_used: !!r.linkB_session }));
-    db.all(`
-      SELECT r.*, ur.role as accessed_role, ur.accessed_at
-      FROM rooms r JOIN user_rooms ur ON r.id = ur.room_id
-      WHERE ur.cupido_id = ? AND r.cupido_id != ?
-      ORDER BY ur.accessed_at DESC`, [userId, userId], (err, accessed) => {
-      res.json({ owned: enrichedOwned, accessed: accessed || [] });
-    });
-  });
+  try {
+    const ownedRes = await pool.query("SELECT * FROM rooms WHERE cupido_id = $1 ORDER BY created_at DESC", [userId]);
+    const enrichedOwned = ownedRes.rows.map(r => ({
+      ...r,
+      // Handle case sensitivity for columns if needed, but SELECT * preserves what PG returns
+      id: r.id, friendA_name: r.frienda_name, friendB_name: r.friendb_name, status: r.status,
+      linkA: r.linka, linkB: r.linkb, // normalize
+      linkA_used: !!r.linka_session, linkB_used: !!r.linkb_session
+    }));
+
+    const accessedRes = await pool.query(`
+        SELECT r.*, ur.role as accessed_role, ur.accessed_at
+        FROM rooms r JOIN user_rooms ur ON r.id = ur.room_id
+        WHERE ur.cupido_id = $1 AND r.cupido_id != $1
+        ORDER BY ur.accessed_at DESC`, [userId]);
+
+    res.json({ owned: enrichedOwned, accessed: accessedRes.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error" });
+  }
 });
 
-app.delete('/api/rooms/:id', isAuthenticated, (req, res) => {
+app.delete('/api/rooms/:id', isAuthenticated, async (req, res) => {
   const roomId = req.params.id;
   const cupido_id = req.session.userId;
-  db.run("DELETE FROM rooms WHERE id = ? AND cupido_id = ?", [roomId, cupido_id], function (err) {
-    if (err || this.changes === 0) return res.status(403).json({ error: "Error" });
-    db.run("DELETE FROM messages WHERE room_id = ?", [roomId]);
-    db.run("DELETE FROM user_rooms WHERE room_id = ?", [roomId]);
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const delRes = await client.query("DELETE FROM rooms WHERE id = $1 AND cupido_id = $2", [roomId, cupido_id]);
+    if (delRes.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Error" });
+    }
+    await client.query("DELETE FROM messages WHERE room_id = $1", [roomId]);
+    await client.query("DELETE FROM user_rooms WHERE room_id = $1", [roomId]);
+    await client.query('COMMIT');
     res.json({ message: "Borrado" });
-  });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: "Error" });
+  } finally {
+    client.release();
+  }
 });
 
-app.post('/api/request-new-link', (req, res) => {
+app.post('/api/request-new-link', async (req, res) => {
   const { oldLink } = req.body;
-  db.get("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = ? OR linkB = ?", [oldLink, oldLink], (err, room) => {
-    if (err || !room) return res.status(404).json({ error: "No encontrado" });
-    const isA = (oldLink === room.linkA);
+  try {
+    const { rows } = await pool.query("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = $1 OR linkB = $2", [oldLink, oldLink]);
+    const room = rows[0];
+    if (!room) return res.status(404).json({ error: "No encontrado" });
+
+    const isA = (oldLink === room.linka); // pg lowercase
     const newLink = crypto.randomUUID();
-    const linkField = isA ? 'linkA' : 'linkB';
-    const sessionField = isA ? 'linkA_session' : 'linkB_session';
-    db.run(`UPDATE rooms SET ${linkField} = ?, ${sessionField} = NULL WHERE id = ?`, [newLink, room.id], (err) => {
-      if (err) return res.status(500).json({ error: "Error" });
-      io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', { room_id: room.id, role: isA ? 'A' : 'B', new_link: newLink });
-      res.json({ message: "OK" });
-    });
-  });
+
+    const linkCol = isA ? 'linkA' : 'linkB';
+    const sessionCol = isA ? 'linkA_session' : 'linkB_session';
+    // Safe dynamic column because we control the string literal above mostly
+    // But query params easier:
+    if (isA) {
+      await pool.query("UPDATE rooms SET linkA = $1, linkA_session = NULL WHERE id = $2", [newLink, room.id]);
+    } else {
+      await pool.query("UPDATE rooms SET linkB = $1, linkB_session = NULL WHERE id = $2", [newLink, room.id]);
+    }
+
+    io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', { room_id: room.id, role: isA ? 'A' : 'B', new_link: newLink });
+    res.json({ message: "OK" });
+
+  } catch (err) {
+    res.status(500).json({ error: "Error" });
+  }
 });
 
-app.get('/chat/:link', (req, res) => {
+app.get('/chat/:link', async (req, res) => {
   const { link } = req.params;
-  db.get("SELECT * FROM rooms WHERE linkA = ? OR linkB = ?", [link, link], (err, room) => {
-    if (err || !room) return res.redirect('/login'); // O una página de 404
+  try {
+    const { rows } = await pool.query("SELECT * FROM rooms WHERE linkA = $1 OR linkB = $2", [link, link]);
+    const room = rows[0];
+    if (!room) return res.redirect('/login');
 
-    const isA = (link === room.linkA);
-    const sessionField = isA ? 'linkA_session' : 'linkB_session';
+    const isA = (link === room.linka); // check lowercase
+    const sessionVal = isA ? room.linka_session : room.linkb_session;
+
     const cookieName = `chat_token_${room.id}_${isA ? 'A' : 'B'}`;
     const clientToken = req.headers.cookie?.split('; ').find(row => row.startsWith(cookieName))?.split('=')[1];
 
-    // If no session token for this specific link, redirect to join/profile creation
-    if (!room[sessionField] && !clientToken) {
+    if (!sessionVal && !clientToken) {
       return res.redirect(`/join/blinder/profile?link=${link}`);
     }
-
-    // If we have a token (either in DB or cookie), serve chat
     res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-  });
+
+  } catch (err) {
+    res.redirect('/login');
+  }
 });
 
 
-app.get('/api/chat-info/:link', (req, res) => {
+app.get('/api/chat-info/:link', async (req, res) => {
   const { link } = req.params;
-  db.get(`SELECT id as room_id, friendA_name, friendB_name, linkA, linkB, cupido_id, user_a_id, user_b_id FROM rooms WHERE linkA = ? OR linkB = ?`, [link, link], (err, room) => {
-    if (err || !room) return res.status(404).json({ error: "No" });
-    const sender = (link === room.linkA) ? 'A' : 'B';
+  try {
+    const { rows } = await pool.query(
+      `SELECT id as room_id, friendA_name, friendB_name, linkA, linkB, cupido_id, user_a_id, user_b_id 
+           FROM rooms WHERE linkA = $1 OR linkB = $2`,
+      [link, link]
+    );
+    const room = rows[0];
+    if (!room) return res.status(404).json({ error: "No" });
+
+    const sender = (link === room.linka) ? 'A' : 'B';
     const otherRole = (sender === 'A') ? 'B' : 'A';
     const otherUserId = (sender === 'A') ? room.user_b_id : room.user_a_id;
     const statusObj = roomStatus[room.room_id] || { A: null, B: null };
 
-    // Check if other user still exists if they were linked
-    const checkUser = otherUserId ? "SELECT id FROM cupidos WHERE id = ?" : "SELECT 1 WHERE 1=0";
-    db.get(checkUser, [otherUserId], (err, userExists) => {
-      const isOtherDeleted = otherUserId && !userExists;
+    let isOtherDeleted = false;
+    if (otherUserId) {
+      const uRes = await pool.query("SELECT id FROM cupidos WHERE id = $1", [otherUserId]);
+      isOtherDeleted = (uRes.rows.length === 0);
+    }
 
-      db.all("SELECT sender, text, timestamp FROM messages WHERE room_id = ? ORDER BY timestamp ASC", [room.room_id], (err, messages) => {
-        res.json({
-          room_id: room.room_id,
-          sender,
-          myName: sender === 'A' ? room.friendA_name : room.friendB_name,
-          otherName: isOtherDeleted ? "Usuario Eliminado" : (sender === 'A' ? room.friendB_name : room.friendA_name),
-          otherRole,
-          otherConnected: !!statusObj[otherRole],
-          otherDeleted: isOtherDeleted,
-          isLoggedIn: !!req.session.userId,
-          messages: messages || []
-        });
-      });
+    const msgRes = await pool.query("SELECT sender, text, timestamp FROM messages WHERE room_id = $1 ORDER BY timestamp ASC", [room.room_id]);
+
+    res.json({
+      room_id: room.room_id,
+      sender,
+      myName: sender === 'A' ? room.frienda_name : room.friendb_name,
+      otherName: isOtherDeleted ? "Usuario Eliminado" : (sender === 'A' ? room.friendb_name : room.frienda_name),
+      otherRole,
+      otherConnected: !!statusObj[otherRole],
+      otherDeleted: isOtherDeleted,
+      isLoggedIn: !!req.session.userId,
+      messages: msgRes.rows || []
     });
-  });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error" });
+  }
 });
 
 
-// Socket.io initialization
+// Socket.io
 io.on('connection', (socket) => {
   socket.on('join-user', ({ userId }) => {
     socket.userId = userId;
     socket.join(`user_${userId}`);
 
-    // Check if is Blinder and track presence
-    db.get("SELECT cupido_id FROM blinder_profiles WHERE user_id = ?", [userId], (err, row) => {
-      if (row && row.cupido_id) {
-        socket.isBlinder = true;
-        socket.blinderCupidoId = row.cupido_id;
-        connectedBlinders.set(userId, { socketId: socket.id, cupidoId: row.cupido_id });
-
-        // Notify Cupido
-        io.to(`dashboard_${row.cupido_id}`).emit('blinder-status', { blinderId: userId, isConnected: true });
-      }
-    });
+    pool.query("SELECT cupido_id FROM blinder_profiles WHERE user_id = $1", [userId])
+      .then(res => {
+        const row = res.rows[0];
+        if (row && row.cupido_id) {
+          socket.isBlinder = true;
+          socket.blinderCupidoId = row.cupido_id;
+          connectedBlinders.set(userId, { socketId: socket.id, cupidoId: row.cupido_id });
+          io.to(`dashboard_${row.cupido_id}`).emit('blinder-status', { blinderId: userId, isConnected: true });
+        }
+      })
+      .catch(e => console.error(e));
   });
 
   socket.on('join-dashboard', ({ cupido_id }) => { socket.join(`dashboard_${cupido_id}`); });
 
   socket.on('join-room', ({ link }) => {
-    db.get("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = ? OR linkB = ?", [link, link], (err, room) => {
-      if (err || !room) return;
-      socket.join(`room_${room.id}`);
-      socket.room_id = room.id;
-      socket.sender = (link === room.linkA) ? 'A' : 'B';
-      socket.cupido_id = room.cupido_id;
-      if (!roomStatus[room.id]) roomStatus[room.id] = { A: null, B: null };
-      roomStatus[room.id][socket.sender] = socket.id;
-      updateAndNotifyStatus(room.id, room.cupido_id);
-      socket.to(`room_${room.id}`).emit('user_joined', { role: socket.sender });
-    });
+    pool.query("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = $1 OR linkB = $2", [link, link])
+      .then(res => {
+        const room = res.rows[0];
+        if (!room) return;
+        socket.join(`room_${room.id}`);
+        socket.room_id = room.id;
+        socket.sender = (link === room.linka) ? 'A' : 'B';
+        socket.cupido_id = room.cupido_id;
+        if (!roomStatus[room.id]) roomStatus[room.id] = { A: null, B: null };
+        roomStatus[room.id][socket.sender] = socket.id;
+        updateAndNotifyStatus(room.id, room.cupido_id);
+        socket.to(`room_${room.id}`).emit('user_joined', { role: socket.sender });
+      })
+      .catch(e => console.error(e));
   });
 
   socket.on('send-message', ({ room_id, sender, text }) => {
-    db.run("INSERT INTO messages (room_id, sender, text) VALUES (?, ?, ?)", [room_id, sender, text], function (err) {
-      if (err) return;
-      io.to(`room_${room_id}`).emit('new-message', { sender, text, timestamp: new Date().toISOString() });
-    });
+    pool.query("INSERT INTO messages (room_id, sender, text) VALUES ($1, $2, $3)", [room_id, sender, text])
+      .then(() => {
+        io.to(`room_${room_id}`).emit('new-message', { sender, text, timestamp: new Date().toISOString() });
+      })
+      .catch(e => console.error(e));
   });
 
   socket.on('typing', ({ room_id, sender, isTyping }) => {
@@ -682,13 +742,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    // Room Status Update
     if (socket.room_id && socket.sender && roomStatus[socket.room_id]) {
       roomStatus[socket.room_id][socket.sender] = null;
       updateAndNotifyStatus(socket.room_id, socket.cupido_id);
     }
-
-    // Blinder Presence Update
     if (socket.isBlinder && socket.userId) {
       connectedBlinders.delete(socket.userId);
       if (socket.blinderCupidoId) {
@@ -721,9 +778,8 @@ process.on('SIGTERM', () => {
     await initDb();
     console.log("✅ initDb() completed.");
 
-    db.run("UPDATE rooms SET active_since = NULL", (err) => {
-      if (err) console.error("⚠️ Error clearing active_since:", err);
-    });
+    // Clear stale statuses
+    await pool.query("UPDATE rooms SET active_since = NULL");
 
     server.listen(port, '0.0.0.0', () => {
       console.log(`🚀 Cupido's Project LIVE on PORT ${port}`);
