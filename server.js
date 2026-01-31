@@ -222,18 +222,31 @@ app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
     let counts = { cupidos: 0, blinders: 0, total_rooms: 0, active_rooms: 0, total_messages: 0, push_subs: 0 };
 
     // Helper to safely run count query
-    const getCount = async (q) => {
-      try { const res = await client.query(q); return res.rows[0].c; } catch (e) { return 0; }
+    const getCount = async (q, name) => {
+      try {
+        const res = await client.query(q);
+        // Postgres COUNT returns bigint as string, parse it safely
+        return parseInt(res.rows[0].c, 10) || 0;
+      } catch (e) {
+        console.error(`Stats Error (${name}):`, e.message);
+        return 0;
+      }
     };
 
-    counts.cupidos = await getCount("SELECT COUNT(*) as c FROM cupidos WHERE role = 'cupido'");
-    counts.blinders = await getCount("SELECT COUNT(*) as c FROM cupidos WHERE role = 'blinder'");
-    counts.total_rooms = await getCount("SELECT COUNT(*) as c FROM rooms");
-    counts.active_rooms = await getCount("SELECT COUNT(*) as c FROM rooms WHERE status = 'activo'");
-    counts.total_messages = await getCount("SELECT COUNT(*) as c FROM messages");
-    counts.push_subs = await getCount("SELECT COUNT(*) as c FROM push_subscriptions");
+    counts.cupidos = await getCount("SELECT COUNT(*) as c FROM cupidos WHERE role = 'cupido'", 'cupidos');
+    counts.blinders = await getCount("SELECT COUNT(*) as c FROM cupidos WHERE role = 'blinder'", 'blinders');
+    counts.total_rooms = await getCount("SELECT COUNT(*) as c FROM rooms", 'rooms');
+    counts.active_rooms = await getCount("SELECT COUNT(*) as c FROM rooms WHERE status = 'activo'", 'active_rooms');
+    counts.total_messages = await getCount("SELECT COUNT(*) as c FROM messages", 'messages');
+    counts.push_subs = await getCount("SELECT COUNT(*) as c FROM push_subscriptions", 'subs');
 
-    const recentUsers = await client.query("SELECT username, role, created_at FROM cupidos ORDER BY id DESC LIMIT 5");
+    let recentUsers = [];
+    try {
+      const rUsersRes = await client.query("SELECT username, role, created_at FROM cupidos ORDER BY id DESC LIMIT 5");
+      recentUsers = rUsersRes.rows;
+    } catch (e) {
+      console.error("Stats Error (RecentUsers):", e.message);
+    }
 
     // Calculate DB size (approx for Postgres)
     let dbSize = "N/A";
@@ -244,7 +257,7 @@ app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
 
     res.json({
       counts: counts,
-      recentUsers: recentUsers.rows,
+      recentUsers: recentUsers,
       dbSize,
       uptime: process.uptime(),
       memory: process.memoryUsage()
