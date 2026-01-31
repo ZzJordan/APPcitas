@@ -168,6 +168,13 @@ const initDb = async () => {
         const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
         const hashedPassword = await bcrypt.hash(pass, 10);
 
+        // Master User (Password 12345)
+        const masterPass = await bcrypt.hash('12345', 10);
+        await client.query(
+            "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO UPDATE SET password = $2",
+            ['master', masterPass, 'admin']
+        );
+
         await client.query(
             "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
             ['cupido1', hashedPassword, 'cupido']

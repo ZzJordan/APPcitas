@@ -181,6 +181,11 @@ app.get('/blinder-dashboard', isAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'blinder-dashboard.html'));
 });
 
+app.get('/admin-dashboard', isAuthenticated, (req, res) => {
+  if (req.session.userRole !== 'admin') return res.redirect('/dashboard');
+  res.sendFile(path.join(__dirname, 'public', 'admin-dashboard.html'));
+});
+
 app.get('/join/blinder/profile', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'join-blinder.html'));
 });
@@ -204,6 +209,50 @@ app.get('/join/blinder/:token', async (req, res) => {
 // 1. Get Public Key
 app.get('/api/vapid-key', (req, res) => {
   res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ error: "No autorizado" });
+
+  try {
+    const client = await pool.connect();
+
+    const counts = await client.query(`
+          SELECT 
+              (SELECT COUNT(*) FROM cupidos WHERE role = 'cupido') as cupidos,
+              (SELECT COUNT(*) FROM cupidos WHERE role = 'blinder') as blinders,
+              (SELECT COUNT(*) FROM rooms) as total_rooms,
+              (SELECT COUNT(*) FROM rooms WHERE status = 'activo') as active_rooms,
+              (SELECT COUNT(*) FROM messages) as total_messages,
+              (SELECT COUNT(*) FROM push_subscriptions) as push_subs
+      `);
+
+    const recentUsers = await client.query("SELECT username, role, created_at FROM cupidos ORDER BY id DESC LIMIT 5");
+
+    // Calculate DB size (approx for Postgres) - simplifying for SQLite/Postgres hybrid compat
+    // If Postgres:
+    let dbSize = "N/A";
+    try {
+      const sizeRes = await client.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
+      dbSize = sizeRes.rows[0].size;
+    } catch (e) {
+      // Ignore if not supported (e.g. SQLite local)
+    }
+
+    client.release();
+
+    res.json({
+      counts: counts.rows[0],
+      recentUsers: recentUsers.rows,
+      dbSize,
+      uptime: process.uptime(),
+      memory: process.memoryUsage()
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Stats falló" });
+  }
 });
 
 // 2. Subscribe Route

@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>God Mode | Cupido's Project</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-purple: #bc13fe;
+            --glass-bg: rgba(20, 20, 25, 0.7);
+        }
+
+        body {
+            background-color: #050507;
+            background-image:
+                radial-gradient(circle at 10% 20%, rgba(188, 19, 254, 0.1) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(0, 243, 255, 0.05) 0%, transparent 20%);
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, var(--neon-purple), var(--neon-blue));
+            opacity: 0.5;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            background: linear-gradient(to right, #fff, #aaa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .chart-container {
+            background: var(--glass-bg);
+            border-radius: 20px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            height: 300px;
+        }
+
+        .header-god {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2rem 0;
+        }
+
+        .live-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(0, 255, 136, 0.1);
+            color: #00ff88;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 6px rgba(0, 255, 136, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 255, 136, 0);
+            }
+        }
+
+        /* Table Styles */
+        .glass-table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #fff;
+            margin-top: 1rem;
+        }
+
+        .glass-table th {
+            text-align: left;
+            padding: 1rem;
+            color: var(--text-dim);
+            font-weight: 400;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .refresh-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .refresh-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container" style="max-width: 1200px;">
+
+        <div class="header-god">
+            <div>
+                <h1 style="margin:0; font-size: 1.8rem;">Nexus Control ⚡</h1>
+                <p class="text-dim fs-small" style="margin-top:5px;">Admin Dashboard v2.0</p>
+            </div>
+            <div class="flex-center-y gap-2">
+                <span class="live-badge">
+                    <div class="live-dot"></div> SYSTEM ONLINE
+                </span>
+                <button onclick="fetchStats()" class="refresh-btn">🔄</button>
+                <button onclick="location.href='/api/logout'" class="refresh-btn"
+                    style="background:rgba(255,50,50,0.2)">🚪</button>
+            </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="dashboard-grid">
+            <div class="stat-card">
+                <span class="text-dim fs-small">Total Cupidos 💘</span>
+                <div class="stat-value" id="val-cupidos">--</div>
+            </div>
+            <div class="stat-card">
+                <span class="text-dim fs-small">Total Blinders 🕶️</span>
+                <div class="stat-value" id="val-blinders">--</div>
+            </div>
+            <div class="stat-card">
+                <span class="text-dim fs-small">Salas Activas 🔥</span>
+                <div class="stat-value" id="val-active-rooms" style="color:#00ff88">--</div>
+            </div>
+            <div class="stat-card">
+                <span class="text-dim fs-small">Mensajes Totales 💬</span>
+                <div class="stat-value" id="val-messages">--</div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+
+            <div class="glass-card p-2">
+                <h3 class="mb-1">Distribución de Usuarios</h3>
+                <div style="height: 250px;">
+                    <canvas id="userChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-card p-2">
+                <h3 class="mb-1">Actividad del Servidor</h3>
+                <div class="flex-center-y"
+                    style="height: 250px; flex-direction: column; justify-content: center; gap: 1rem;">
+
+                    <div
+                        style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                        <span class="text-dim">Uptime</span>
+                        <b id="val-uptime" style="font-family: monospace; font-size: 1.2rem;">--</b>
+                    </div>
+
+                    <div
+                        style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                        <span class="text-dim">Memoria (RSS)</span>
+                        <b id="val-memory" style="font-family: monospace; font-size: 1.2rem;">--</b>
+                    </div>
+
+                    <div
+                        style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px;">
+                        <span class="text-dim">Base de Datos</span>
+                        <b id="val-db" style="font-family: monospace; font-size: 1.2rem;">--</b>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card p-2 mt-2">
+            <h3 class="mb-1">Últimos Registros 📝</h3>
+            <table class="glass-table">
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTable">
+                    <!-- Loaded dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <script>
+        let userChartInstance = null;
+
+        async function fetchStats() {
+            try {
+                const res = await fetch('/api/admin/stats');
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                // Update KPIs
+                document.getElementById('val-cupidos').innerText = data.counts.cupidos;
+                document.getElementById('val-blinders').innerText = data.counts.blinders;
+                document.getElementById('val-active-rooms').innerText = data.counts.active_rooms + " / " + data.counts.total_rooms;
+                document.getElementById('val-messages').innerText = data.counts.total_messages;
+
+                // Update Server Stats
+                const uptimeHrs = (data.uptime / 3600).toFixed(1);
+                document.getElementById('val-uptime').innerText = `${uptimeHrs} hrs`;
+                document.getElementById('val-memory').innerText = `${(data.memory.rss / 1024 / 1024).toFixed(0)} MB`;
+                document.getElementById('val-db').innerText = data.dbSize;
+
+                // Update Chart
+                updateCharts(data.counts.cupidos, data.counts.blinders);
+
+                // Update Table
+                const tbody = document.getElementById('usersTable');
+                tbody.innerHTML = data.recentUsers.map(u => `
+                    <tr>
+                        <td style="font-weight:600">${u.username}</td>
+                        <td><span style="background:${u.role === 'cupido' ? 'rgba(255, 77, 109, 0.2)' : 'rgba(100,100,255,0.2)'}; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${u.role.toUpperCase()}</span></td>
+                        <td class="text-dim fs-small">${new Date(u.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+
+            } catch (e) {
+                console.error(e);
+                alert("Error cargando dashboard");
+            }
+        }
+
+        function updateCharts(cupidos, blinders) {
+            const ctx = document.getElementById('userChart').getContext('2d');
+
+            if (userChartInstance) {
+                userChartInstance.data.datasets[0].data = [cupidos, blinders];
+                userChartInstance.update();
+                return;
+            }
+
+            userChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Cupidos', 'Blinders'],
+                    datasets: [{
+                        data: [cupidos, blinders],
+                        backgroundColor: ['#ff4d6d', '#bc13fe'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: 'rgba(255,255,255,0.7)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Auto Refresh
+        fetchStats();
+        setInterval(fetchStats, 10000); // 10s polling
+    </script>
+</body>
+
+</html>
