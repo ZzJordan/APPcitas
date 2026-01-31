@@ -8,7 +8,8 @@
     <title>God Mode | Cupido's Project</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/style.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Move script to bottom of head or before body end for better reliability -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         :root {
             --neon-blue: #00f3ff;
@@ -313,13 +314,16 @@
         }
 
         function updateCharts(cupidos, blinders) {
-            // Check if Chart is defined (library loaded)
-            if (!window.Chart) {
-                console.warn("Chart.js library not loaded.");
+            const lib = window.Chart;
+            if (!lib) {
+                console.warn("Chart.js not ready, retrying...");
+                setTimeout(() => updateCharts(cupidos, blinders), 1500);
                 return;
             }
 
-            const ctx = document.getElementById('userChart').getContext('2d');
+            const canvas = document.getElementById('userChart');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
 
             if (userChartInstance) {
                 userChartInstance.data.datasets[0].data = [cupidos, blinders];
@@ -327,7 +331,7 @@
                 return;
             }
 
-            userChartInstance = new window.Chart(ctx, {
+            userChartInstance = new lib(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Cupidos', 'Blinders'],
@@ -335,16 +339,20 @@
                         data: [cupidos, blinders],
                         backgroundColor: ['#ff4d6d', '#bc13fe'],
                         borderWidth: 0,
-                        hoverOffset: 4
+                        hoverOffset: 10
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    cutout: '70%',
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { color: 'rgba(255,255,255,0.7)' }
+                            labels: {
+                                color: 'rgba(255,255,255,0.7)',
+                                font: { family: 'Outfit', size: 12 }
+                            }
                         }
                     }
                 }
