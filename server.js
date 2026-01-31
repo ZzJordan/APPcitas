@@ -105,6 +105,8 @@ app.use(session({
 // --- Presence Logic ---
 const roomStatus = {};
 const connectedBlinders = new Map();
+const connectedUsers = new Set(); // Global tracking for online users
+const offlineMessageQueue = new Map(); // userId -> [pending message objects]
 
 async function updateAndNotifyStatus(room_id, cupido_id) {
   if (!room_id || !cupido_id) return;
@@ -978,6 +980,14 @@ io.on('connection', (socket) => {
   socket.on('join-user', ({ userId }) => {
     socket.userId = userId;
     socket.join(`user_${userId}`);
+    connectedUsers.add(userId.toString());
+
+    // Check for offline messages
+    const pending = offlineMessageQueue.get(userId.toString());
+    if (pending && pending.length > 0) {
+      socket.emit('pending-messages', pending);
+      offlineMessageQueue.delete(userId.toString()); // Clear after sending
+    }
 
     pool.query("SELECT cupido_id FROM blinder_profiles WHERE user_id = $1", [userId])
       .then(res => {
@@ -1033,11 +1043,31 @@ io.on('connection', (socket) => {
         }
 
         if (recipientId) {
-          // Send Push
-          sendPushToUser(recipientId, {
+          // 1. Global Socket Notification
+          const isConnected = connectedUsers.has(recipientId.toString());
+          const notifPayload = {
+            room_id,
+            otherLink,
             title: `Nuevo mensaje de ${myName}`,
-            body: text.length > 30 ? text.substring(0, 30) + '...' : text,
-            url: `/chat/${otherLink}`, // Deep link to their chat view
+            body: text.length > 50 ? text.substring(0, 50) + '...' : text
+          };
+
+          if (isConnected) {
+            // Send real-time alert to all tabs of the recipient
+            io.to(`user_${recipientId}`).emit('global-message-alert', notifPayload);
+          } else {
+            // Save in memory queue until they connect
+            if (!offlineMessageQueue.has(recipientId.toString())) {
+              offlineMessageQueue.set(recipientId.toString(), []);
+            }
+            offlineMessageQueue.get(recipientId.toString()).push(notifPayload);
+          }
+
+          // 2. Web Push (Traditional background)
+          sendPushToUser(recipientId, {
+            title: notifPayload.title,
+            body: notifPayload.body,
+            url: `/chat/${notifPayload.otherLink}`,
             tag: `chat-${room_id}`
           });
         }
@@ -1052,6 +1082,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    if (socket.userId) {
+      // Check if user has other sockets open before removing from connectedUsers
+      const userRoom = io.sockets.adapter.rooms.get(`user_${socket.userId}`);
+      if (!userRoom || userRoom.size === 0) {
+        connectedUsers.delete(socket.userId.toString());
+      }
+    }
     if (socket.room_id && socket.sender && roomStatus[socket.room_id]) {
       roomStatus[socket.room_id][socket.sender] = null;
       updateAndNotifyStatus(socket.room_id, socket.cupido_id);

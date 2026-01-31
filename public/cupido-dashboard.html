@@ -198,7 +198,6 @@
             </button>
         </div>
     </div>
-    </div>
 
     <!-- Room Info Modal -->
     <div id="infoModal" class="modal"
@@ -217,9 +216,16 @@
     </div>
 
     <script>
+        const socket = io();
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
         let currentRooms = [];
+
+        // Identify for Global Notifications
+        fetch('/api/user').then(r => r.json()).then(user => {
+            if (user.userId) socket.emit('join-user', { userId: user.userId });
+            if (user.userId) socket.emit('join-dashboard', { cupido_id: user.userId });
+        }).catch(e => console.warn(e));
 
         // Modal Logic
         function openModal() { document.getElementById('roomModal').style.display = 'flex'; }
@@ -247,7 +253,6 @@
             }
         }
 
-
         // Haptic Feedback Helper
         function triggerHaptic() {
             if (navigator.vibrate) navigator.vibrate(50);
@@ -255,13 +260,11 @@
 
         function switchTab(tab) {
             const updateTab = () => {
-                // Update Nav State
                 document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
                 if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
                 if (tab === 'blinders') document.querySelectorAll('.nav-item')[1].classList.add('active');
                 if (tab === 'profile') document.querySelectorAll('.nav-item')[2].classList.add('active');
 
-                // Hide/Show Views
                 document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
 
                 if (tab === 'rooms') {
@@ -326,21 +329,9 @@
         async function shareRoom(roomId) {
             try {
                 const res = await fetch(`/api/rooms/${roomId}/share`, { method: 'POST' });
-
-                if (!res.ok) {
-                    const text = await res.text();
-                    try {
-                        const json = JSON.parse(text);
-                        alert(json.error || "Error al generar enlace.");
-                    } catch {
-                        alert(`Error del servidor: ${res.status}`);
-                    }
-                    return;
-                }
-
+                if (!res.ok) return alert("Error al generar enlace.");
                 const data = await res.json();
                 if (data.url) {
-                    // 1. Try Native Share (Best for Mobile)
                     if (navigator.share) {
                         try {
                             await navigator.share({
@@ -349,37 +340,19 @@
                                 url: data.url
                             });
                             return;
-                        } catch (err) {
-                            // User cancelled share or specific error, continue to clipboard
-                        }
+                        } catch (err) { }
                     }
-
-                    // 2. Try Clipboard (Might fail on iOS if async took too long)
-                    try {
-                        await navigator.clipboard.writeText(data.url);
-                        triggerHaptic();
-                        alert("Enlace copiado al portapapeles.");
-                    } catch (err) {
-                        // 3. Fallback: Show link manually
-                        prompt("⚠️ No pudimos copiarlo automáticamente. Cópialo aquí:", data.url);
-                    }
-                } else {
-                    alert("Error al generar enlace.");
+                    await navigator.clipboard.writeText(data.url);
+                    triggerHaptic();
+                    alert("Enlace copiado al portapapeles.");
                 }
-            } catch (e) {
-                console.error(e);
-                alert("Error de conexión: " + e.message);
-            }
+            } catch (e) { console.error(e); }
         }
 
         function showRoomInfo(roomId) {
             const room = currentRooms.find(r => r.id == roomId);
             if (!room) return;
-
-            const createdDate = new Date(room.created_at).toLocaleDateString('es-ES', {
-                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-
+            const createdDate = new Date(room.created_at).toLocaleDateString();
             document.getElementById('infoContent').innerHTML = `
                 <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
                     <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id.substring(0, 8)}...</span></p>
@@ -394,23 +367,22 @@
             document.getElementById('infoModal').style.display = 'flex';
         }
 
-
         async function loadBlinders() {
             try {
                 const res = await fetch('/api/cupido/blinders');
                 const blinders = await res.json();
                 blindersList.innerHTML = blinders.map(b => `
                     <div class="room-card">
-                    <div style="display: flex; align-items: center; gap: 1.2rem;">
-                        <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
-                            ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
+                        <div style="display: flex; align-items: center; gap: 1.2rem;">
+                            <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
+                                ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
+                            </div>
+                            <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
                         </div>
-                        <div style="flex:1;">
-                            <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
-                        </div>
-                        <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
-                    </div>
                     </div>
                 `).join('');
                 if (blinders.length === 0) {
@@ -424,17 +396,14 @@
             } catch (err) { console.error(err); }
         }
 
-
         async function generateInvite() {
             const btn = document.getElementById('inviteBtn');
             btn.disabled = true;
             btn.innerText = "Generando...";
-
             try {
                 const res = await fetch('/api/cupido/invite');
                 const data = await res.json();
-                const urlEl = document.getElementById('inviteUrl');
-                urlEl.value = data.url;
+                document.getElementById('inviteUrl').value = data.url;
                 document.getElementById('inviteResult').style.display = 'block';
                 btn.innerText = "¡Link Generado!";
             } catch (err) {
@@ -446,21 +415,10 @@
 
         function copyInvite() {
             const url = document.getElementById('inviteUrl').value;
-            if (navigator.share) {
-                navigator.share({
-                    title: 'Únete a Cupido\'s Project',
-                    text: 'Te invito a descubrir tus conexiones. ¡Únete a mi red!',
-                    url: url
-                }).catch(() => {
-                    navigator.clipboard.writeText(url);
-                    alert("Link copiado al portapapeles.");
-                });
-            } else {
-                navigator.clipboard.writeText(url);
-                alert("Link copiado al portapapeles.");
-            }
+            navigator.clipboard.writeText(url);
+            triggerHaptic();
+            alert("Link copiado al portapapeles.");
         }
-
 
         function copyUrl(path) {
             const fullUrl = window.location.origin + path;
@@ -470,33 +428,21 @@
         }
 
         async function deleteAccount() {
-            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu cuenta? Se eliminarán todas tus salas, tokens y blinders vinculados. Esta acción es definitiva.")) {
+            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu cuenta? Esta acción es definitiva.")) {
                 const res = await fetch('/api/user/delete-account', { method: 'POST' });
-                if (res.ok) {
-                    alert("Cuenta eliminada correctamente.");
-                    location.href = '/login';
-                } else {
-                    alert("Error al eliminar la cuenta.");
-                }
+                if (res.ok) location.href = '/login';
             }
         }
 
         async function logout() {
-
             await fetch('/api/logout', { method: 'POST' });
             location.href = '/login';
         }
 
-        // Form Logic
         document.getElementById('createRoomForm').onsubmit = async (e) => {
             e.preventDefault();
-            const btn = e.target.querySelector('button');
             const friendA = document.getElementById('friendA').value;
             const friendB = document.getElementById('friendB').value;
-
-            btn.disabled = true;
-            btn.innerText = 'Creando...';
-
             try {
                 const res = await fetch('/api/rooms', {
                     method: 'POST',
@@ -505,33 +451,11 @@
                 });
                 if (res.ok) {
                     closeModal();
-                    await loadRooms();
+                    loadRooms();
                     e.target.reset();
-                } else {
-                    alert("Error al crear la conexión");
                 }
-            } catch (e) {
-                alert("Error de red");
-            } finally {
-                btn.disabled = false;
-                btn.innerText = 'Crear Sala';
-            }
+            } catch (e) { }
         };
-
-        // Initial Load
-        switchTab('rooms');
-
-        // Socket Logic
-        const socket = io();
-
-        // Auto-join dashboard room
-        fetch('/api/user')
-            .then(res => res.json())
-            .then(user => {
-                if (user.userId) {
-                    socket.emit('join-dashboard', { cupido_id: user.userId });
-                }
-            });
 
         socket.on('status-change', ({ room_id, status }) => {
             const badge = document.getElementById(`status-${room_id}`);
@@ -542,164 +466,47 @@
         });
 
         socket.on('link-regenerated', ({ room_id }) => {
-            // Reload rooms to update links/status if needed
-            if (document.getElementById('roomsView').style.display === 'block') {
-                loadRooms();
-            }
+            if (document.getElementById('roomsView').style.display === 'block') loadRooms();
         });
 
-        // PWA Install Logic
+        // PWA logic simplified
         let deferredPrompt;
         const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
-        const isAndroid = /android/.test(window.navigator.userAgent.toLowerCase());
-        const isStandalone = ('standalone' in window.navigator && window.navigator.standalone) ||
-            (window.matchMedia('(display-mode: standalone)').matches);
+        const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
 
-        function dismissPwa() {
-            document.getElementById('pwaModal').style.display = 'none';
-            sessionStorage.setItem('pwaDismissed', 'true');
-        }
-
+        function dismissPwa() { document.getElementById('pwaModal').style.display = 'none'; sessionStorage.setItem('pwaDismissed', 'true'); }
         function showManualInstructions() {
             const modal = document.getElementById('pwaModal');
-            const title = modal.querySelector('h2');
-            const text = modal.querySelector('p');
-            const btn = document.getElementById('pwaInstallBtn');
-            const icon = document.getElementById('pwaIcon');
-
+            document.getElementById('pwaIcon').innerHTML = isIos ? '🍏' : '📲';
+            modal.querySelector('h2').innerText = isIos ? "Instalar en iPhone" : "Instalar App";
+            modal.querySelector('p').innerHTML = isIos ? "Toca <b>Compartir</b> y selecciona <b>'Añadir al inicio'</b>" : "Usa el menú del navegador para instalar.";
+            document.getElementById('pwaInstallBtn').innerText = "Entendido";
+            document.getElementById('pwaInstallBtn').onclick = dismissPwa;
             modal.style.display = 'flex';
-
-            if (isIos) {
-                icon.innerHTML = '🍏';
-                title.innerText = "Instalar en iPhone";
-                text.innerHTML = "Toca <b>Compartir</b> <span style='font-size:1.2rem'>⎋</span> y selecciona <b>'Añadir a inicio'</b> ➕";
-                btn.innerText = "Entendido";
-                btn.onclick = dismissPwa;
-            } else {
-                // Android / Generic Fallback
-                icon.innerHTML = '📲';
-                title.innerText = "Instalar App";
-                text.innerHTML = "Abre el menú del navegador (<b>⋮</b> o <b>...</b>) y selecciona <b>'Instalar aplicación'</b> o <b>'Agregar a inicio'</b>.";
-                btn.innerText = "Entendido";
-                btn.onclick = dismissPwa;
-            }
         }
 
-        // Logic to run on load
-        if (!isStandalone) {
-            // Always show profile button if not installed
-            const installArea = document.getElementById('pwaInstallArea');
-            if (installArea) installArea.style.display = 'block';
+        if (!isStandalone) document.getElementById('pwaInstallArea').style.display = 'block';
+        document.getElementById('installBtn').onclick = () => { if (deferredPrompt) deferredPrompt.prompt(); else showManualInstructions(); };
 
-            // Handle Profile Button Click
-            const profileBtn = document.getElementById('installBtn');
-            if (profileBtn) {
-                profileBtn.addEventListener('click', () => {
-                    if (deferredPrompt) triggerInstall();
-                    else showManualInstructions();
-                });
-            }
-        }
-
-        // Listen for browser support
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-
-            // Show Popup if not dismissed recently (Auto-prompt logic)
             if (!sessionStorage.getItem('pwaDismissed') && !isStandalone) {
-                setTimeout(() => {
-                    // If we have the event, we show the "Automatic" popup version
-                    const modal = document.getElementById('pwaModal');
-                    const title = modal.querySelector('h2');
-                    const text = modal.querySelector('p');
-                    const btn = document.getElementById('pwaInstallBtn');
-
-                    // Reset to default "Auto" state in case it was changed
-                    title.innerText = "Mejor Experiencia";
-                    text.innerHTML = "Instala la App para recibir notificaciones y acceder sin internet.";
-                    btn.innerText = "Instalar App";
-                    btn.onclick = triggerInstall;
-
-                    modal.style.display = 'flex';
-                }, 2000);
+                setTimeout(() => { document.getElementById('pwaModal').style.display = 'flex'; }, 2000);
             }
         });
 
-        // Trigger native prompt
-        async function triggerInstall() {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    document.getElementById('pwaModal').style.display = 'none';
-                    const installArea = document.getElementById('pwaInstallArea');
-                    if (installArea) installArea.style.display = 'none';
-                }
-                deferredPrompt = null;
-            }
-        }
-
-        // Universal Fallback (if native event doesn't fire)
-        // This covers iOS (never fires) AND Android Edge/Browsers that might suppress it.
-        if (!isStandalone && !sessionStorage.getItem('pwaDismissed')) {
-            setTimeout(() => {
-                // If deferredPrompt is still null, it means 'beforeinstallprompt' didn't fire.
-                // If the modal is also hidden, we should show the manual instructions.
-                if (!deferredPrompt && document.getElementById('pwaModal').style.display === 'none') {
-                    showManualInstructions();
-                }
-            }, 4000); // 4s wait to be safe
-        }
-
-        // --- Push Logic ---
+        // Push functions
         async function subscribeToPush() {
-            const btn = document.getElementById('pushBtn');
-            btn.disabled = true;
-            btn.innerText = "Activando...";
-
-            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-                alert("Tu navegador no soporta notificaciones push.");
-                return;
-            }
-
             try {
-                // 1. Get Key
                 const keyRes = await fetch('/api/vapid-key');
                 const { publicKey } = await keyRes.json();
-
-                // 2. Request Permission
-                const permission = await Notification.requestPermission();
-                if (permission !== 'granted') {
-                    alert("Permiso denegado.");
-                    btn.innerText = "Activar Alertas";
-                    btn.disabled = false;
-                    return;
-                }
-
-                // 3. Register SW (if not already) & Subscribe
                 const reg = await navigator.serviceWorker.ready;
-                const subscription = await reg.pushManager.subscribe({
-                    userVisibleOnly: true,
-                    applicationServerKey: urlBase64ToUint8Array(publicKey)
-                });
-
-                // 4. Send to Backend
-                await fetch('/api/subscribe', {
-                    method: 'POST',
-                    body: JSON.stringify(subscription),
-                    headers: { 'Content-Type': 'application/json' }
-                });
-
+                const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+                await fetch('/api/subscribe', { method: 'POST', body: JSON.stringify(sub), headers: { 'Content-Type': 'application/json' } });
                 alert("¡Notificaciones activadas! 🔔");
-                document.getElementById('pushArea').style.display = 'none'; // Hide after success
-
-            } catch (err) {
-                console.error(err);
-                alert("Error al activar notificaciones.");
-                btn.innerText = "Reintentar";
-                btn.disabled = false;
-            }
+                document.getElementById('pushArea').style.display = 'none';
+            } catch (err) { console.error(err); }
         }
 
         function urlBase64ToUint8Array(base64String) {
@@ -707,24 +514,20 @@
             const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
             const rawData = window.atob(base64);
             const outputArray = new Uint8Array(rawData.length);
-            for (let i = 0; i < rawData.length; ++i) {
-                outputArray[i] = rawData.charCodeAt(i);
-            }
+            for (let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
             return outputArray;
         }
 
-        // Check if already subscribed to show/hide button
         (async () => {
             if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission !== 'denied') {
                 const reg = await navigator.serviceWorker.ready;
-                const sub = await reg.pushManager.getSubscription();
-                if (!sub) {
-                    document.getElementById('pushArea').style.display = 'block';
-                }
+                if (!(await reg.pushManager.getSubscription())) document.getElementById('pushArea').style.display = 'block';
             }
         })();
 
+        switchTab('rooms');
     </script>
+    <script src="/notifications.js"></script>
 </body>
 
 </html>
