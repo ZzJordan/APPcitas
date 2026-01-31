@@ -129,6 +129,21 @@ const initDb = async () => {
             );
         `);
 
+        // 8. Table: session (Required by connect-pg-simple)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS "session" (
+              "sid" varchar NOT NULL COLLATE "default",
+              "sess" json NOT NULL,
+              "expire" timestamp(6) NOT NULL
+            )
+            WITH (OIDS=FALSE);
+            
+            ALTER TABLE "session" DROP CONSTRAINT IF EXISTS "session_pkey";
+            ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
+            
+            CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+        `);
+
         // Default Users
         const res = await client.query("SELECT id FROM cupidos LIMIT 1");
         if (res.rowCount === 0) {
