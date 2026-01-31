@@ -386,65 +386,64 @@ app.post('/api/blinder/register-join', async (req, res) => {
     } else {
       return res.status(400).json({ error: "Token inválido" });
     }
-  }
 
     // Validation: Must have either a valid Cupido context or Room context
     if (!contextCupidoId && !contextRoomId) {
-    return res.status(400).json({ error: "Enlace de invitación o token requerido." });
-  }
-
-  // Transaction
-  await client.query('BEGIN');
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-  const userRes = await client.query(
-    "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, 'blinder') RETURNING id",
-    [username, hashedPassword, email]
-  );
-  const userId = userRes.rows[0].id;
-
-  // Room Session
-  let sessionToken = null;
-  if (contextRoomId && contextRoleLetter) {
-    sessionToken = crypto.randomUUID();
-    const sessionField = contextRoleLetter === 'A' ? 'linkA_session' : 'linkB_session'; // watch casing
-    // Use dynamic SQL for column name carefully or switch
-    // Safest is direct logic:
-    if (contextRoleLetter === 'A') {
-      await client.query("UPDATE rooms SET linkA_session = $1, user_a_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
-    } else {
-      await client.query("UPDATE rooms SET linkB_session = $1, user_b_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
+      return res.status(400).json({ error: "Enlace de invitación o token requerido." });
     }
-  }
 
-  // Blinder Profile
-  await client.query(
-    `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
+    // Transaction
+    await client.query('BEGIN');
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userRes = await client.query(
+      "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, 'blinder') RETURNING id",
+      [username, hashedPassword, email]
+    );
+    const userId = userRes.rows[0].id;
+
+    // Room Session
+    let sessionToken = null;
+    if (contextRoomId && contextRoleLetter) {
+      sessionToken = crypto.randomUUID();
+      const sessionField = contextRoleLetter === 'A' ? 'linkA_session' : 'linkB_session'; // watch casing
+      // Use dynamic SQL for column name carefully or switch
+      // Safest is direct logic:
+      if (contextRoleLetter === 'A') {
+        await client.query("UPDATE rooms SET linkA_session = $1, user_a_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
+      } else {
+        await client.query("UPDATE rooms SET linkB_session = $1, user_b_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
+      }
+    }
+
+    // Blinder Profile
+    await client.query(
+      `INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, photo_url, tel) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-    [userId, contextCupidoId, fullName, age, city, tagline, photo || '', tel]
-  );
+      [userId, contextCupidoId, fullName, age, city, tagline, photo || '', tel]
+    );
 
-  await client.query('COMMIT');
+    await client.query('COMMIT');
 
-  req.session.userId = userId;
-  req.session.username = username;
-  req.session.userRole = 'blinder';
+    req.session.userId = userId;
+    req.session.username = username;
+    req.session.userRole = 'blinder';
 
-  if (sessionToken && contextRoomId) {
-    const cookieName = `chat_token_${contextRoomId}_${contextRoleLetter}`;
-    res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    if (sessionToken && contextRoomId) {
+      const cookieName = `chat_token_${contextRoomId}_${contextRoleLetter}`;
+      res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    }
+
+    res.status(201).json({ message: "OK", role: 'blinder', redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    if (err.code === '23505') return res.status(400).json({ error: "Usuario ya existe" });
+    res.status(500).json({ error: "Error interno" });
+  } finally {
+    client.release();
   }
-
-  res.status(201).json({ message: "OK", role: 'blinder', redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
-
-} catch (err) {
-  await client.query('ROLLBACK');
-  console.error(err);
-  if (err.code === '23505') return res.status(400).json({ error: "Usuario ya existe" });
-  res.status(500).json({ error: "Error interno" });
-} finally {
-  client.release();
-}
 });
 
 function getRoomRevealLevel(activeSeconds) {
