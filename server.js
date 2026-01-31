@@ -214,54 +214,33 @@ app.get('/api/vapid-key', (req, res) => {
 app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
   if (req.session.userRole !== 'admin') return res.status(403).json({ error: "No autorizado" });
 
+  let client;
   try {
-    const client = await pool.connect();
-
-
+    client = await pool.connect();
 
     // Queries separated to avoid 'relation does not exist' if migration didn't run perfectly
     let counts = { cupidos: 0, blinders: 0, total_rooms: 0, active_rooms: 0, total_messages: 0, push_subs: 0 };
 
-    try {
-      const cRes = await client.query("SELECT COUNT(*) as c FROM cupidos WHERE role = 'cupido'");
-      counts.cupidos = cRes.rows[0].c;
-    } catch (e) { }
+    // Helper to safely run count query
+    const getCount = async (q) => {
+      try { const res = await client.query(q); return res.rows[0].c; } catch (e) { return 0; }
+    };
 
-    try {
-      const bRes = await client.query("SELECT COUNT(*) as c FROM cupidos WHERE role = 'blinder'");
-      counts.blinders = bRes.rows[0].c;
-    } catch (e) { }
-
-    try {
-      const rRes = await client.query("SELECT COUNT(*) as c FROM rooms");
-      counts.total_rooms = rRes.rows[0].c;
-      const raRes = await client.query("SELECT COUNT(*) as c FROM rooms WHERE status = 'activo'");
-      counts.active_rooms = raRes.rows[0].c;
-    } catch (e) { }
-
-    try {
-      const mRes = await client.query("SELECT COUNT(*) as c FROM messages");
-      counts.total_messages = mRes.rows[0].c;
-    } catch (e) { }
-
-    try {
-      const sRes = await client.query("SELECT COUNT(*) as c FROM push_subscriptions");
-      counts.push_subs = sRes.rows[0].c;
-    } catch (e) { }
+    counts.cupidos = await getCount("SELECT COUNT(*) as c FROM cupidos WHERE role = 'cupido'");
+    counts.blinders = await getCount("SELECT COUNT(*) as c FROM cupidos WHERE role = 'blinder'");
+    counts.total_rooms = await getCount("SELECT COUNT(*) as c FROM rooms");
+    counts.active_rooms = await getCount("SELECT COUNT(*) as c FROM rooms WHERE status = 'activo'");
+    counts.total_messages = await getCount("SELECT COUNT(*) as c FROM messages");
+    counts.push_subs = await getCount("SELECT COUNT(*) as c FROM push_subscriptions");
 
     const recentUsers = await client.query("SELECT username, role, created_at FROM cupidos ORDER BY id DESC LIMIT 5");
 
-    // Calculate DB size (approx for Postgres) - simplifying for SQLite/Postgres hybrid compat
-    // If Postgres:
+    // Calculate DB size (approx for Postgres)
     let dbSize = "N/A";
     try {
       const sizeRes = await client.query("SELECT pg_size_pretty(pg_database_size(current_database())) as size");
       dbSize = sizeRes.rows[0].size;
-    } catch (e) {
-      // Ignore if not supported (e.g. SQLite local)
-    }
-
-    client.release();
+    } catch (e) { }
 
     res.json({
       counts: counts,
@@ -274,6 +253,8 @@ app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Stats falló" });
+  } finally {
+    if (client) client.release();
   }
 });
 
