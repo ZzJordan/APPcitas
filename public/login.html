@@ -217,8 +217,9 @@
                     btn.innerText = '¡Correcto!';
                     btn.style.background = '#4ade80';
                     setTimeout(() => {
-                        if (data.role === 'blinder') location.href = '/blinder-dashboard';
-                        else if (data.role === 'cupido') location.href = '/cupido-dashboard'; // Force specific dash
+                        if (data.role === 'admin') location.href = '/admin-dashboard';
+                        else if (data.role === 'blinder') location.href = '/blinder-dashboard';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
                         else location.href = '/dashboard';
                     }, 500);
                 } else {
