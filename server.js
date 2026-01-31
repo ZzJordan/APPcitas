@@ -12,6 +12,18 @@ const morgan = require('morgan');
 const compression = require('compression');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+const webpush = require('web-push');
+
+// Web Push Configuration
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.WEB_PUSH_CONTACT || 'mailto:admin@cupidosproject.com',
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn("⚠️ Web Push VAPID keys not missing. Push notifications will not work.");
+}
 
 const app = express();
 const server = http.createServer(app);
@@ -144,6 +156,10 @@ async function updateAndNotifyStatus(room_id, cupido_id) {
 // Auth Middleware
 const isAuthenticated = (req, res, next) => {
   if (req.session.userId) return next();
+
+  if (req.path.startsWith('/api/')) {
+    return res.status(401).json({ error: "No autenticado" });
+  }
   res.redirect('/login');
 };
 
@@ -182,6 +198,59 @@ app.get('/join/blinder/:token', async (req, res) => {
 
 
 // API
+
+// --- Web Push APIs ---
+
+// 1. Get Public Key
+app.get('/api/vapid-key', (req, res) => {
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+// 2. Subscribe Route
+app.post('/api/subscribe', isAuthenticated, async (req, res) => {
+  const subscription = req.body;
+  const userId = req.session.userId;
+
+  if (!subscription || !subscription.endpoint) {
+    return res.status(400).json({ error: 'Invalid subscription' });
+  }
+
+  try {
+    await pool.query(
+      "INSERT INTO push_subscriptions (user_id, endpoint, keys) VALUES ($1, $2, $3) ON CONFLICT (endpoint) DO UPDATE SET user_id = EXCLUDED.user_id, keys = EXCLUDED.keys",
+      [userId, subscription.endpoint, JSON.stringify(subscription.keys)]
+    );
+    res.status(201).json({ message: 'Subscription saved' });
+  } catch (err) {
+    console.error("Subscription Error:", err);
+    res.status(500).json({ error: 'Database error' });
+  }
+});
+
+// Helper: Send Push to User
+async function sendPushToUser(userId, data) {
+  if (!process.env.VAPID_PRIVATE_KEY) return;
+  try {
+    const { rows } = await pool.query("SELECT * FROM push_subscriptions WHERE user_id = $1", [userId]);
+    const notifications = rows.map(sub => {
+      const pushConfig = {
+        endpoint: sub.endpoint,
+        keys: typeof sub.keys === 'string' ? JSON.parse(sub.keys) : sub.keys
+      };
+      return webpush.sendNotification(pushConfig, JSON.stringify(data))
+        .catch(err => {
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            // Expired subscription, cleanup
+            pool.query("DELETE FROM push_subscriptions WHERE id = $1", [sub.id]);
+          }
+        });
+    });
+    await Promise.all(notifications);
+  } catch (err) {
+    console.error("Push Error:", err);
+  }
+}
+
 app.post('/api/login', async (req, res) => {
   const { username, password } = req.body;
   try {
@@ -877,12 +946,40 @@ io.on('connection', (socket) => {
       .catch(e => console.error(e));
   });
 
-  socket.on('send-message', ({ room_id, sender, text }) => {
-    pool.query("INSERT INTO messages (room_id, sender, text) VALUES ($1, $2, $3)", [room_id, sender, text])
-      .then(() => {
-        io.to(`room_${room_id}`).emit('new-message', { sender, text, timestamp: new Date().toISOString() });
-      })
-      .catch(e => console.error(e));
+  socket.on('send-message', async ({ room_id, sender, text }) => {
+    try {
+      await pool.query("INSERT INTO messages (room_id, sender, text) VALUES ($1, $2, $3)", [room_id, sender, text]);
+      io.to(`room_${room_id}`).emit('new-message', { sender, text, timestamp: new Date().toISOString() });
+
+      // Notify the OTHER user
+      const roomRes = await pool.query("SELECT user_a_id, user_b_id, friendA_name, friendB_name, linkA, linkB FROM rooms WHERE id = $1", [room_id]);
+      const room = roomRes.rows[0];
+
+      if (room) {
+        let recipientId, recipientName, myName, myLink, otherLink;
+        if (sender === 'A') {
+          recipientId = room.user_b_id;
+          myName = room.frienda_name;
+          otherLink = room.linkb;
+        } else {
+          recipientId = room.user_a_id;
+          myName = room.friendb_name;
+          otherLink = room.linka;
+        }
+
+        if (recipientId) {
+          // Send Push
+          sendPushToUser(recipientId, {
+            title: `Nuevo mensaje de ${myName}`,
+            body: text.length > 30 ? text.substring(0, 30) + '...' : text,
+            url: `/chat/${otherLink}`, // Deep link to their chat view
+            tag: `chat-${room_id}`
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Msg Error", e);
+    }
   });
 
   socket.on('typing', ({ room_id, sender, isTyping }) => {

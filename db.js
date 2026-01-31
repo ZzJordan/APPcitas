@@ -66,9 +66,13 @@ const initDb = async () => {
             );
         `);
         // Migration for existing tables: Add share_token if missing
+        // Migration for existing tables: Add share_token if missing
         try {
             await client.query(`ALTER TABLE rooms ADD COLUMN IF NOT EXISTS share_token TEXT UNIQUE;`);
-        } catch (e) { /* ignore if exists */ }
+        } catch (e) {
+            // 42701 = Duplicate column (already exists, though IF NOT EXISTS should handle it)
+            if (e.code !== '42701') console.warn("Migration Warning (share_token):", e.message);
+        }
 
         // 3. Table: invite_tokens
         await client.query(`
@@ -147,6 +151,17 @@ const initDb = async () => {
             ALTER TABLE "session" ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid") NOT DEFERRABLE INITIALLY IMMEDIATE;
             
             CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+        `);
+
+        // 9. Table: push_subscriptions
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS push_subscriptions (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES cupidos(id),
+                endpoint TEXT UNIQUE,
+                keys JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
         `);
 
         // Default Users (Always attempt creation with ON CONFLICT)

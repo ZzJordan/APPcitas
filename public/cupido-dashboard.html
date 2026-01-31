@@ -126,6 +126,13 @@
                 <button id="installBtn" class="btn-main w-full">Instalar Ahora</button>
             </div>
 
+            <div id="pushArea" class="glass-card text-center p-2 mb-2" style="display:none;">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔔</div>
+                <h3 class="mb-1">Notificaciones</h3>
+                <p class="text-dim fs-small mb-1">Activa alertas para saber cuando te escriben.</p>
+                <button id="pushBtn" onclick="subscribeToPush()" class="btn-main w-full">Activar Alertas</button>
+            </div>
+
             <button onclick="logout()" class="btn-main w-full mb-1 btn-glass">
                 🚪 Cerrar Sesión
             </button>
@@ -179,7 +186,7 @@
         style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
         <div class="premium-card text-center"
             style="max-width: 90%; width: 350px; margin: 0; animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📲</div>
+            <div id="pwaIcon" style="font-size: 3rem; margin-bottom: 0.5rem;">📲</div>
             <h2 class="mb-1">Mejor Experiencia</h2>
             <p class="text-dim mb-2 fs-small">Instala la App para recibir notificaciones y acceder sin internet.</p>
 
@@ -319,6 +326,20 @@
         async function shareRoom(roomId) {
             try {
                 const res = await fetch(`/api/rooms/${roomId}/share`, { method: 'POST' });
+
+                if (!res.ok) {
+                    const text = await res.text();
+                    console.error("Share Error:", res.status, text);
+                    // Try to parse JSON error if possible
+                    try {
+                        const json = JSON.parse(text);
+                        alert(json.error || "Error al generar enlace.");
+                    } catch {
+                        alert(`Error del servidor: ${res.status}`);
+                    }
+                    return;
+                }
+
                 const data = await res.json();
                 if (data.url) {
                     await navigator.clipboard.writeText(data.url);
@@ -328,7 +349,8 @@
                     alert("Error al generar enlace.");
                 }
             } catch (e) {
-                alert("Error de conexión.");
+                console.error(e);
+                alert("Error de conexión: " + e.message);
             }
         }
 
@@ -525,7 +547,7 @@
             const title = modal.querySelector('h2');
             const text = modal.querySelector('p');
             const btn = document.getElementById('pwaInstallBtn');
-            const icon = modal.querySelector('div');
+            const icon = document.getElementById('pwaIcon');
 
             modal.style.display = 'flex';
 
@@ -600,10 +622,89 @@
             }
         }
 
-        // iOS Immediate Check (since it won't fire beforeinstallprompt)
-        if (isIos && !isStandalone && !sessionStorage.getItem('pwaDismissed')) {
-            setTimeout(showManualInstructions, 3000);
+        // Universal Fallback (if native event doesn't fire)
+        // This covers iOS (never fires) AND Android Edge/Browsers that might suppress it.
+        if (!isStandalone && !sessionStorage.getItem('pwaDismissed')) {
+            setTimeout(() => {
+                // If deferredPrompt is still null, it means 'beforeinstallprompt' didn't fire.
+                // If the modal is also hidden, we should show the manual instructions.
+                if (!deferredPrompt && document.getElementById('pwaModal').style.display === 'none') {
+                    showManualInstructions();
+                }
+            }, 4000); // 4s wait to be safe
         }
+
+        // --- Push Logic ---
+        async function subscribeToPush() {
+            const btn = document.getElementById('pushBtn');
+            btn.disabled = true;
+            btn.innerText = "Activando...";
+
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                alert("Tu navegador no soporta notificaciones push.");
+                return;
+            }
+
+            try {
+                // 1. Get Key
+                const keyRes = await fetch('/api/vapid-key');
+                const { publicKey } = await keyRes.json();
+
+                // 2. Request Permission
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    alert("Permiso denegado.");
+                    btn.innerText = "Activar Alertas";
+                    btn.disabled = false;
+                    return;
+                }
+
+                // 3. Register SW (if not already) & Subscribe
+                const reg = await navigator.serviceWorker.ready;
+                const subscription = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: urlBase64ToUint8Array(publicKey)
+                });
+
+                // 4. Send to Backend
+                await fetch('/api/subscribe', {
+                    method: 'POST',
+                    body: JSON.stringify(subscription),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                alert("¡Notificaciones activadas! 🔔");
+                document.getElementById('pushArea').style.display = 'none'; // Hide after success
+
+            } catch (err) {
+                console.error(err);
+                alert("Error al activar notificaciones.");
+                btn.innerText = "Reintentar";
+                btn.disabled = false;
+            }
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            const padding = '='.repeat((4 - base64String.length % 4) % 4);
+            const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            const rawData = window.atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        // Check if already subscribed to show/hide button
+        (async () => {
+            if ('serviceWorker' in navigator && 'PushManager' in window && Notification.permission !== 'denied') {
+                const reg = await navigator.serviceWorker.ready;
+                const sub = await reg.pushManager.getSubscription();
+                if (!sub) {
+                    document.getElementById('pushArea').style.display = 'block';
+                }
+            }
+        })();
 
     </script>
 </body>

@@ -67,3 +67,49 @@ self.addEventListener('fetch', (event) => {
         })
     );
 });
+
+// --- Push Notifications ---
+self.addEventListener('push', event => {
+    const data = event.data.json();
+    console.log('[SW] Push Received:', data);
+
+    const title = data.title || 'Nuevo Mensaje';
+    const options = {
+        body: data.body || 'Tienes una nueva notificación.',
+        icon: '/app-icon.png',
+        badge: '/app-icon.png',
+        data: { url: data.url || '/dashboard' },
+        tag: data.tag || 'general'
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+    console.log('[SW] Notification Clicked');
+    event.notification.close();
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(windowClients => {
+            // Check if there is already a window open with target URL
+            const targetUrl = event.notification.data.url;
+
+            for (let client of windowClients) {
+                // If url matches roughly (ignoring query params if needed, but here we want exact chat)
+                // For simplified UX, if any app window is open, focus it and navigate.
+                if (client.url.includes(targetUrl) && 'focus' in client) {
+                    return client.focus();
+                }
+                // Or just focus any open window and navigate
+                if (client.url.includes(self.registration.scope) && 'focus' in client) {
+                    client.focus();
+                    return client.navigate(targetUrl);
+                }
+            }
+            // If no window open, open new one
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+        })
+    );
+});
