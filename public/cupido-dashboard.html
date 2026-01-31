@@ -329,8 +329,6 @@
 
                 if (!res.ok) {
                     const text = await res.text();
-                    console.error("Share Error:", res.status, text);
-                    // Try to parse JSON error if possible
                     try {
                         const json = JSON.parse(text);
                         alert(json.error || "Error al generar enlace.");
@@ -342,9 +340,29 @@
 
                 const data = await res.json();
                 if (data.url) {
-                    await navigator.clipboard.writeText(data.url);
-                    triggerHaptic();
-                    alert("Enlace de acceso copiado al portapapeles. Compártelo con otro Cupido.");
+                    // 1. Try Native Share (Best for Mobile)
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: 'Acceso a Sala - Cupido',
+                                text: 'Enlace de acceso para colaborar en esta sala:',
+                                url: data.url
+                            });
+                            return;
+                        } catch (err) {
+                            // User cancelled share or specific error, continue to clipboard
+                        }
+                    }
+
+                    // 2. Try Clipboard (Might fail on iOS if async took too long)
+                    try {
+                        await navigator.clipboard.writeText(data.url);
+                        triggerHaptic();
+                        alert("Enlace copiado al portapapeles.");
+                    } catch (err) {
+                        // 3. Fallback: Show link manually
+                        prompt("⚠️ No pudimos copiarlo automáticamente. Cópialo aquí:", data.url);
+                    }
                 } else {
                     alert("Error al generar enlace.");
                 }
