@@ -308,7 +308,7 @@
 
         function updateCharts(cupidos, blinders) {
             // Check if Chart is defined (library loaded)
-            if (typeof Chart === 'undefined') {
+            if (!window.Chart) {
                 console.warn("Chart.js library not loaded.");
                 return;
             }
@@ -321,7 +321,7 @@
                 return;
             }
 
-            userChartInstance = new Chart(ctx, {
+            userChartInstance = new window.Chart(ctx, {
                 type: 'doughnut',
                 data: {
                     labels: ['Cupidos', 'Blinders'],
