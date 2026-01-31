@@ -290,13 +290,19 @@
                 // Update Table
                 const tbody = document.getElementById('usersTable');
                 if (data.recentUsers && Array.isArray(data.recentUsers)) {
-                    tbody.innerHTML = data.recentUsers.map(u => `
-                        <tr>
-                            <td style="font-weight:600">${u.username}</td>
-                            <td><span style="background:${u.role === 'cupido' ? 'rgba(255, 77, 109, 0.2)' : 'rgba(100,100,255,0.2)'}; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${u.role.toUpperCase()}</span></td>
-                            <td class="text-dim fs-small">${new Date(u.created_at).toLocaleDateString()}</td>
-                        </tr>
-                    `).join('');
+                    tbody.innerHTML = data.recentUsers.map(u => {
+                        let badgeColor = 'rgba(100,100,255,0.2)'; // Blue (Blinder/Other)
+                        if (u.role === 'cupido') badgeColor = 'rgba(255, 77, 109, 0.2)'; // Pink
+                        if (u.role === 'admin') badgeColor = 'rgba(0, 243, 255, 0.2)'; // Cyan/Neon Blue
+
+                        return `
+                            <tr>
+                                <td style="font-weight:600">${u.username}</td>
+                                <td><span style="background:${badgeColor}; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; color: #fff;">${u.role.toUpperCase()}</span></td>
+                                <td class="text-dim fs-small">${u.created_at ? new Date(u.created_at).toLocaleDateString() : 'N/A'}</td>
+                            </tr>
+                        `;
+                    }).join('');
                 }
 
             } catch (e) {

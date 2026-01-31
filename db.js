@@ -36,12 +36,16 @@ const initDb = async () => {
                 email TEXT,
                 recovery_token TEXT,
                 token_expires TIMESTAMP,
-                role TEXT DEFAULT 'cupido'
+                role TEXT DEFAULT 'cupido',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        // Migrations (Add columns if missing - simplified for Postgres with IF NOT EXISTS logic usually involves checking info_schema)
-        // For now, assuming fresh start or standard creates. If columns missing on existing DB, manual migration needed.
-        // We'll skip complex migration checks for this 'init -y' prompt style unless critical.
+        // Migrations
+        try {
+            await client.query(`ALTER TABLE cupidos ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`);
+        } catch (e) {
+            if (e.code !== '42701') console.warn("Migration Warning (cupidos.created_at):", e.message);
+        }
 
         // 2. Table: rooms
         await client.query(`
