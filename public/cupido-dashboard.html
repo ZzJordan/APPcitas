@@ -509,43 +509,84 @@
         });
 
         // PWA Install Logic
-        // PWA Install Logic
         let deferredPrompt;
+        const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isAndroid = /android/.test(window.navigator.userAgent.toLowerCase());
+        const isStandalone = ('standalone' in window.navigator && window.navigator.standalone) ||
+            (window.matchMedia('(display-mode: standalone)').matches);
 
         function dismissPwa() {
             document.getElementById('pwaModal').style.display = 'none';
             sessionStorage.setItem('pwaDismissed', 'true');
         }
 
+        function showManualInstructions() {
+            const modal = document.getElementById('pwaModal');
+            const title = modal.querySelector('h2');
+            const text = modal.querySelector('p');
+            const btn = document.getElementById('pwaInstallBtn');
+            const icon = modal.querySelector('div');
+
+            modal.style.display = 'flex';
+
+            if (isIos) {
+                icon.innerHTML = '🍏';
+                title.innerText = "Instalar en iPhone";
+                text.innerHTML = "Toca <b>Compartir</b> <span style='font-size:1.2rem'>⎋</span> y selecciona <b>'Añadir a inicio'</b> ➕";
+                btn.innerText = "Entendido";
+                btn.onclick = dismissPwa;
+            } else {
+                // Android / Generic Fallback
+                icon.innerHTML = '📲';
+                title.innerText = "Instalar App";
+                text.innerHTML = "Abre el menú del navegador (<b>⋮</b> o <b>...</b>) y selecciona <b>'Instalar aplicación'</b> o <b>'Agregar a inicio'</b>.";
+                btn.innerText = "Entendido";
+                btn.onclick = dismissPwa;
+            }
+        }
+
+        // Logic to run on load
+        if (!isStandalone) {
+            // Always show profile button if not installed
+            const installArea = document.getElementById('pwaInstallArea');
+            if (installArea) installArea.style.display = 'block';
+
+            // Handle Profile Button Click
+            const profileBtn = document.getElementById('installBtn');
+            if (profileBtn) {
+                profileBtn.addEventListener('click', () => {
+                    if (deferredPrompt) triggerInstall();
+                    else showManualInstructions();
+                });
+            }
+        }
+
+        // Listen for browser support
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
 
-            // Show inline install area in profile always if installable
-            const installArea = document.getElementById('pwaInstallArea');
-            if (installArea) installArea.style.display = 'block';
-
-            // Show Popup if not dismissed recently
-            if (!sessionStorage.getItem('pwaDismissed')) {
+            // Show Popup if not dismissed recently (Auto-prompt logic)
+            if (!sessionStorage.getItem('pwaDismissed') && !isStandalone) {
                 setTimeout(() => {
-                    document.getElementById('pwaModal').style.display = 'flex';
-                }, 2000); // Small delay for better UX
-            }
+                    // If we have the event, we show the "Automatic" popup version
+                    const modal = document.getElementById('pwaModal');
+                    const title = modal.querySelector('h2');
+                    const text = modal.querySelector('p');
+                    const btn = document.getElementById('pwaInstallBtn');
 
-            // Handle Profile Button
-            const profileInstallBtn = document.getElementById('installBtn');
-            if (profileInstallBtn) {
-                profileInstallBtn.addEventListener('click', async () => {
-                    triggerInstall();
-                });
-            }
+                    // Reset to default "Auto" state in case it was changed
+                    title.innerText = "Mejor Experiencia";
+                    text.innerHTML = "Instala la App para recibir notificaciones y acceder sin internet.";
+                    btn.innerText = "Instalar App";
+                    btn.onclick = triggerInstall;
 
-            // Handle Popup Button
-            document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
-                triggerInstall();
-            });
+                    modal.style.display = 'flex';
+                }, 2000);
+            }
         });
 
+        // Trigger native prompt
         async function triggerInstall() {
             if (deferredPrompt) {
                 deferredPrompt.prompt();
@@ -557,6 +598,11 @@
                 }
                 deferredPrompt = null;
             }
+        }
+
+        // iOS Immediate Check (since it won't fire beforeinstallprompt)
+        if (isIos && !isStandalone && !sessionStorage.getItem('pwaDismissed')) {
+            setTimeout(showManualInstructions, 3000);
         }
 
     </script>
