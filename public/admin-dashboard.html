@@ -262,11 +262,17 @@
                 const data = await res.json();
                 if (data.error) throw new Error(data.error);
 
+                // Safely handle missing counts structure
+                if (!data.counts) {
+                    console.warn("Stats API returned invalid counts:", data);
+                    return;
+                }
+
                 // Update KPIs
-                document.getElementById('val-cupidos').innerText = data.counts.cupidos;
-                document.getElementById('val-blinders').innerText = data.counts.blinders;
-                document.getElementById('val-active-rooms').innerText = data.counts.active_rooms + " / " + data.counts.total_rooms;
-                document.getElementById('val-messages').innerText = data.counts.total_messages;
+                document.getElementById('val-cupidos').innerText = data.counts.cupidos ?? 0;
+                document.getElementById('val-blinders').innerText = data.counts.blinders ?? 0;
+                document.getElementById('val-active-rooms').innerText = (data.counts.active_rooms ?? 0) + " / " + (data.counts.total_rooms ?? 0);
+                document.getElementById('val-messages').innerText = data.counts.total_messages ?? 0;
 
                 // Update Server Stats
                 const uptimeHrs = (data.uptime / 3600).toFixed(1);
