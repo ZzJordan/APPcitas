@@ -194,22 +194,10 @@
                 </div>
             </div>
 
-            <button id="btnDeleteRoom" class="btn-main w-full btn-danger" onclick="">Borrar Proyecto</button>
-        </div>
-
-        <!-- Share with Cupido Section -->
-        <div style="border-top: 1px solid var(--border); padding-top: 1rem; margin-top: 1rem;">
-            <p class="fs-small text-dim text-center mb-1">Colaboración (Co-Cupido)</p>
-            <button id="btnShareRoom" class="btn-main btn-glass w-full fs-small" onclick="">
-                🔗 Generar Link para otro Cupido
-            </button>
-            <div id="shareLinkContainer" class="input-group mt-1 hidden">
-                <input type="text" id="shareLinkInput" readonly onclick="this.select()">
-                <p class="fs-small text-center text-dim mt-05">Comparte este link con otro Cupido para que gestione esta
-                    sala contigo.</p>
+            <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
+                <button id="btnDeleteRoom" class="btn-main w-full btn-danger" onclick="">Borrar Proyecto</button>
             </div>
         </div>
-    </div>
     </div>
 
 
@@ -245,11 +233,6 @@
 
             // Delete Logic
             document.getElementById('btnDeleteRoom').onclick = () => deleteRoom(room.id);
-
-            // Share Logic
-            const shareContainer = document.getElementById('shareLinkContainer');
-            shareContainer.classList.add('hidden'); // Reset
-            document.getElementById('btnShareRoom').onclick = () => generateShareLink(room.id);
 
             // Timer Setup (Initial)
             updateDetailTimer(roomId);
@@ -425,15 +408,10 @@
                         const link = (room.accessed_role === 'A') ? room.linkA : room.linkB;
                         const name = (room.accessed_role === 'A') ? room.friendB_name : room.friendA_name;
                         return `
-                        <div class="room-card" onclick="location.href='/chat/${link}'" style="cursor: pointer; border-left: 4px solid var(--primary);">
-                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">
-                                ${name} <span style="font-size:0.7rem; background:var(--primary); padding:2px 6px; border-radius:4px; color:white; vertical-align:middle;">COMPARTIDA</span>
-                            </div>
-                            <div style="font-size: 0.85rem; color: var(--text-dim); display: flex; justify-content: space-between;">
-                                <span>Último acceso: ${new Date(room.accessed_at).toLocaleString()}</span>
-                                <span>${room.friendA_name} & ${room.friendB_name}</span>
-                            </div>
-                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.2;">🤝</div>
+                        <div class="room-card" onclick="location.href='/chat/${link}'" style="cursor: pointer;">
+                            <div style="font-size: 1.2rem; font-weight: 700; margin-bottom: 0.5rem;">Conexión con ${name}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-dim);">Último acceso: ${new Date(room.accessed_at).toLocaleString()}</div>
+                            <div style="position: absolute; right: 1.5rem; bottom: 1.5rem; opacity: 0.2;">💖</div>
                         </div>`;
                     }).join('');
                 }
@@ -610,55 +588,6 @@
             }
         });
 
-        // Check for Join Room Token
-        (async function checkJoinToken() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('join_room');
-            if (token) {
-                // Clear URL info immediately
-                window.history.replaceState({}, document.title, window.location.pathname);
-
-                try {
-                    const res = await fetch('/api/rooms/join', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ token })
-                    });
-                    const data = await res.json();
-                    if (res.ok) {
-                        alert(`¡Éxito! ${data.message}`);
-                        loadRecents(); // Reload list
-                    } else {
-                        alert(`Error: ${data.error}`);
-                    }
-                } catch (e) {
-                    alert("Error de conexión al unirse a la sala.");
-                }
-            }
-        })();
-
-        async function generateShareLink(roomId) {
-            const btn = document.getElementById('btnShareRoom');
-            const input = document.getElementById('shareLinkInput');
-            const container = document.getElementById('shareLinkContainer');
-
-            btn.innerText = "Generando...";
-            try {
-                const res = await fetch(`/api/rooms/${roomId}/share`, { method: 'POST' });
-                const data = await res.json();
-                if (res.ok) {
-                    input.value = data.url;
-                    container.classList.remove('hidden');
-                    btn.innerText = "🔗 Generar Link para otro Cupido";
-                } else {
-                    alert("Error: " + data.error);
-                    btn.innerText = "Reintentar";
-                }
-            } catch (e) {
-                alert("Error de red");
-                btn.innerText = "Error";
-            }
-        }
     </script>
 </body>
 

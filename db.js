@@ -61,9 +61,14 @@ const initDb = async () => {
                 status TEXT DEFAULT 'pendiente',
                 active_since BIGINT, 
                 total_active_seconds INTEGER DEFAULT 0,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                share_token TEXT UNIQUE
             );
         `);
+        // Migration for existing tables: Add share_token if missing
+        try {
+            await client.query(`ALTER TABLE rooms ADD COLUMN IF NOT EXISTS share_token TEXT UNIQUE;`);
+        } catch (e) { /* ignore if exists */ }
 
         // 3. Table: invite_tokens
         await client.query(`

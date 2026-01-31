@@ -581,55 +581,6 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
   }
 });
 
-// Generate Room Share Token
-app.post('/api/rooms/:id/share', isAuthenticated, async (req, res) => {
-  const roomId = req.params.id;
-  const userId = req.session.userId;
-
-  try {
-    const result = await pool.query("SELECT id, share_token FROM rooms WHERE id = $1 AND cupido_id = $2", [roomId, userId]);
-    if (result.rowCount === 0) return res.status(403).json({ error: "No autorizado" });
-
-    let token = result.rows[0].share_token;
-    if (!token) {
-      token = crypto.randomUUID();
-      await pool.query("UPDATE rooms SET share_token = $1 WHERE id = $2", [token, roomId]);
-    }
-    res.json({ token, url: `${req.protocol}://${req.get('host')}/dashboard?join_room=${token}` });
-
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Error" });
-  }
-});
-
-// Join Room via Token
-app.post('/api/rooms/join', isAuthenticated, async (req, res) => {
-  const { token } = req.body;
-  const userId = req.session.userId;
-  if (!token) return res.status(400).json({ error: "Token requerido" });
-
-  try {
-    const roomRes = await pool.query("SELECT id, cupido_id FROM rooms WHERE share_token = $1", [token]);
-    if (roomRes.rowCount === 0) return res.status(404).json({ error: "Sala no encontrada" });
-
-    const room = roomRes.rows[0];
-    if (room.cupido_id === userId) return res.json({ message: "Ya eres el dueño" });
-
-    // Add to user_rooms
-    await pool.query(`
-            INSERT INTO user_rooms (cupido_id, room_id, role) 
-            VALUES ($1, $2, 'cupido') 
-            ON CONFLICT (cupido_id, room_id) DO UPDATE SET accessed_at = NOW()
-        `, [userId, room.id]);
-
-    res.json({ message: "Unido exitosamente", roomId: room.id });
-  } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: "Error al unirse" });
-  }
-});
-
 app.delete('/api/rooms/:id', isAuthenticated, async (req, res) => {
   const roomId = req.params.id;
   const cupido_id = req.session.userId;
