@@ -173,6 +173,24 @@
             </form>
         </div>
     </div>
+
+    <!-- PWA Install Popup -->
+    <div id="pwaModal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="premium-card text-center"
+            style="max-width: 90%; width: 350px; margin: 0; animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div style="font-size: 3rem; margin-bottom: 0.5rem;">📲</div>
+            <h2 class="mb-1">Mejor Experiencia</h2>
+            <p class="text-dim mb-2 fs-small">Instala la App para recibir notificaciones y acceder sin internet.</p>
+
+            <button id="pwaInstallBtn" class="btn-main w-full mb-1">
+                Instalar App
+            </button>
+            <button onclick="dismissPwa()" class="btn-main w-full btn-glass">
+                Seguir en Navegador
+            </button>
+        </div>
+    </div>
     </div>
 
     <!-- Room Info Modal -->
@@ -491,24 +509,56 @@
         });
 
         // PWA Install Logic
+        // PWA Install Logic
         let deferredPrompt;
+
+        function dismissPwa() {
+            document.getElementById('pwaModal').style.display = 'none';
+            sessionStorage.setItem('pwaDismissed', 'true');
+        }
+
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
+
+            // Show inline install area in profile always if installable
             const installArea = document.getElementById('pwaInstallArea');
             if (installArea) installArea.style.display = 'block';
 
-            document.getElementById('installBtn').addEventListener('click', async () => {
-                if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    if (outcome === 'accepted') {
-                        installArea.style.display = 'none';
-                    }
-                    deferredPrompt = null;
-                }
+            // Show Popup if not dismissed recently
+            if (!sessionStorage.getItem('pwaDismissed')) {
+                setTimeout(() => {
+                    document.getElementById('pwaModal').style.display = 'flex';
+                }, 2000); // Small delay for better UX
+            }
+
+            // Handle Profile Button
+            const profileInstallBtn = document.getElementById('installBtn');
+            if (profileInstallBtn) {
+                profileInstallBtn.addEventListener('click', async () => {
+                    triggerInstall();
+                });
+            }
+
+            // Handle Popup Button
+            document.getElementById('pwaInstallBtn').addEventListener('click', async () => {
+                triggerInstall();
             });
         });
+
+        async function triggerInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    document.getElementById('pwaModal').style.display = 'none';
+                    const installArea = document.getElementById('pwaInstallArea');
+                    if (installArea) installArea.style.display = 'none';
+                }
+                deferredPrompt = null;
+            }
+        }
+
     </script>
 </body>
 

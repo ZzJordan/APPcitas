@@ -130,6 +130,22 @@
     </div>
 
     <script>
+        // Start by checking session logic
+        async function checkSession() {
+            try {
+                const res = await fetch('/api/user');
+                const data = await res.json();
+                if (data.userId) {
+                    // Already logged in
+                    if (data.role === 'cupido') window.location.href = '/cupido-dashboard';
+                    else if (data.role === 'blinder') window.location.href = '/blinder-dashboard';
+                }
+            } catch (e) {
+                // Not logged in, stay on page
+            }
+        }
+        checkSession();
+
         function setRole(role) {
             const selector = document.getElementById('role-selector');
             const cupidoSection = document.getElementById('cupido-login-section');

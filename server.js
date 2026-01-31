@@ -80,6 +80,7 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'cupidos-project-2026',
   resave: false,
   saveUninitialized: false, // Better for compliance
+  rolling: true, // Auto-renew session on access
   name: 'cupido.sid',
   cookie: {
     maxAge: 30 * 24 * 60 * 60 * 1000,

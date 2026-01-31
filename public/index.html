@@ -83,6 +83,20 @@
 
 
     <script>
+        async function checkSession() {
+            try {
+                const res = await fetch('/api/user');
+                const data = await res.json();
+                if (data.userId) {
+                    if (data.role === 'cupido') window.location.href = '/cupido-dashboard';
+                    else if (data.role === 'blinder') window.location.href = '/blinder-dashboard';
+                }
+            } catch (e) {
+                console.log('No active session');
+            }
+        }
+        checkSession();
+
         function setRole(role) {
             const selector = document.getElementById('role-selector');
             const cupidoContent = document.getElementById('cupido-content');
