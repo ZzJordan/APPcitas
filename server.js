@@ -150,7 +150,7 @@ const isAuthenticated = (req, res, next) => {
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/dashboard', isAuthenticated, (req, res) => {
-  if (req.session.userRole === 'blinder') return res.redirect('/blinder-matches');
+  if (req.session.userRole === 'blinder') return res.redirect('/blinder-dashboard');
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 

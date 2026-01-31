@@ -168,13 +168,20 @@
         window.showLogin = showLogin;
 
 
-        document.getElementById('loginForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const btn = document.getElementById('loginBtn');
-            const user = document.getElementById('username').value;
-            const pass = document.getElementById('cupido-password').value;
-            const errEl = document.getElementById('errorMessage');
+        document.getElementById('loginForm').onsubmit = async (e) => handleLogin(e, 'username', 'cupido-password', 'loginBtn', 'errorMessage');
+        document.getElementById('blinderLoginForm').onsubmit = async (e) => handleLogin(e, 'blinderUsername', 'blinderPassword', 'blinderLoginBtn', 'blinderErrorMessage'); // Add ID to button in HTML too if needed, or querySelector
 
+        async function handleLogin(e, userFieldId, passFieldId, btnId, errFieldId) {
+            e.preventDefault();
+            // Fallback for button if passed ID doesn't exist (blinder btn has no ID)
+            let btn = document.getElementById(btnId);
+            if (!btn) btn = e.target.querySelector('button[type="submit"]');
+
+            const user = document.getElementById(userFieldId).value;
+            const pass = document.getElementById(passFieldId).value;
+            const errEl = document.getElementById(errFieldId);
+
+            const originalBtnText = btn.innerText;
             btn.disabled = true;
             btn.innerText = 'Verificando...';
             errEl.style.display = 'none';
@@ -192,7 +199,7 @@
                     btn.style.background = '#4ade80';
                     setTimeout(() => {
                         if (data.role === 'blinder') location.href = '/blinder-dashboard';
-                        else if (data.role === 'cupido') location.href = '/dashboard';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard'; // Force specific dash
                         else location.href = '/dashboard';
                     }, 500);
                 } else {
@@ -200,13 +207,13 @@
                     errEl.innerText = data.error || 'Acceso denegado';
                     errEl.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = 'Entrar al Panel Cupido';
+                    btn.innerText = originalBtnText;
                 }
             } catch (err) {
                 errEl.innerText = 'Error de conexión';
                 errEl.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Entrar al Panel Cupido';
+                btn.innerText = originalBtnText;
             }
         };
 
