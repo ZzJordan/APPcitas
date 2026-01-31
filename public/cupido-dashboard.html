@@ -119,6 +119,13 @@
             <h2 class="mb-1">Mi Cuenta Cupido</h2>
             <p class="text-dim mb-2">Gestiona tu suscripción y ajustes.</p>
 
+            <div id="pwaInstallArea" class="glass-card install-card text-center p-2 mb-2">
+                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📲</div>
+                <h3 class="mb-1">Instalar App</h3>
+                <p class="text-dim fs-small mb-1">Instala Cupido's Project en tu inicio para acceso rápido.</p>
+                <button id="installBtn" class="btn-main w-full">Instalar Ahora</button>
+            </div>
+
             <button onclick="logout()" class="btn-main w-full mb-1 btn-glass">
                 🚪 Cerrar Sesión
             </button>
@@ -166,16 +173,37 @@
             </form>
         </div>
     </div>
+    </div>
+
+    <!-- Room Info Modal -->
+    <div id="infoModal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 2000; align-items: center; justify-content: center;">
+        <div class="premium-card" style="max-width: 90%; width: 350px; margin: 0; position: relative;">
+            <span class="close-modal" onclick="closeInfoModal()"
+                style="position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer;">&times;</span>
+            <h2 class="mb-2 text-center">Detalles de Sala</h2>
+
+            <div id="infoContent" style="text-align: left;">
+                <!-- Content injected via JS -->
+            </div>
+
+            <button onclick="closeInfoModal()" class="btn-main w-full mt-2">Cerrar</button>
+        </div>
+    </div>
 
     <script>
         const roomsList = document.getElementById('roomsList');
         const blindersList = document.getElementById('blindersList');
+        let currentRooms = [];
 
         // Modal Logic
         function openModal() { document.getElementById('roomModal').style.display = 'flex'; }
         function closeModal() { document.getElementById('roomModal').style.display = 'none'; }
+        function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
+
         window.openModal = openModal;
         window.closeModal = closeModal;
+        window.closeInfoModal = closeInfoModal;
 
         // Prevent Back Navigation
         history.pushState(null, null, location.href);
@@ -195,25 +223,38 @@
         }
 
 
+        // Haptic Feedback Helper
+        function triggerHaptic() {
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+
         function switchTab(tab) {
-            // Update Nav State
-            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-            // Mapping for button index manual for simplicity or query by onclick content
-            if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
-            if (tab === 'blinders') document.querySelectorAll('.nav-item')[1].classList.add('active');
-            if (tab === 'profile') document.querySelectorAll('.nav-item')[2].classList.add('active');
+            const updateTab = () => {
+                // Update Nav State
+                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+                if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
+                if (tab === 'blinders') document.querySelectorAll('.nav-item')[1].classList.add('active');
+                if (tab === 'profile') document.querySelectorAll('.nav-item')[2].classList.add('active');
 
-            // Hide/Show Views
-            document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
+                // Hide/Show Views
+                document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
 
-            if (tab === 'rooms') {
-                document.getElementById('roomsView').style.display = 'block';
-                loadRooms();
-            } else if (tab === 'blinders') {
-                document.getElementById('blindersView').style.display = 'block';
-                loadBlinders();
-            } else if (tab === 'profile') {
-                document.getElementById('profileView').style.display = 'block';
+                if (tab === 'rooms') {
+                    document.getElementById('roomsView').style.display = 'block';
+                    loadRooms();
+                } else if (tab === 'blinders') {
+                    document.getElementById('blindersView').style.display = 'block';
+                    loadBlinders();
+                } else if (tab === 'profile') {
+                    document.getElementById('profileView').style.display = 'block';
+                }
+                triggerHaptic();
+            };
+
+            if (document.startViewTransition) {
+                document.startViewTransition(updateTab);
+            } else {
+                updateTab();
             }
         }
 
@@ -225,7 +266,10 @@
                     <div class="room-card" id="room-${r.id}">
                         <div class="room-header">
                             <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
-                            <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
+                                <button onclick="showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center;">ℹ️</button>
+                            </div>
                         </div>
                         <div class="link-pills">
                             <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
@@ -242,7 +286,15 @@
                         </button>
                     </div>
                 `).join('');
-                if (data.owned.length === 0) roomsList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">No hay salas activas todavía.</p>';
+                if (data.owned.length === 0) {
+                    roomsList.innerHTML = `
+                        <div class="text-center p-3">
+                            <div class="empty-state-icon">🕸️</div>
+                            <p class="text-dim">Tu red está tranquila...</p>
+                            <p class="fs-small text-dim">¡Crea una nueva sala para empezar la magia!</p>
+                        </div>`;
+                }
+                currentRooms = data.owned;
             } catch (err) { console.error(err); }
         }
 
@@ -252,6 +304,7 @@
                 const data = await res.json();
                 if (data.url) {
                     await navigator.clipboard.writeText(data.url);
+                    triggerHaptic();
                     alert("Enlace de acceso copiado al portapapeles. Compártelo con otro Cupido.");
                 } else {
                     alert("Error al generar enlace.");
@@ -259,6 +312,28 @@
             } catch (e) {
                 alert("Error de conexión.");
             }
+        }
+
+        function showRoomInfo(roomId) {
+            const room = currentRooms.find(r => r.id == roomId);
+            if (!room) return;
+
+            const createdDate = new Date(room.created_at).toLocaleDateString('es-ES', {
+                day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            document.getElementById('infoContent').innerHTML = `
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id.substring(0, 8)}...</span></p>
+                    <p class="mb-1"><strong class="text-dim">Creada:</strong><br>${createdDate}</p>
+                    <p class="mb-1"><strong class="text-dim">Participantes:</strong><br>
+                        ✨ ${room.friendA_name}<br>
+                        🔥 ${room.friendB_name}
+                    </p>
+                    <p class="mb-0"><strong class="text-dim">Estado Actual:</strong> <span class="text-success">${room.status.toUpperCase()}</span></p>
+                </div>
+            `;
+            document.getElementById('infoModal').style.display = 'flex';
         }
 
 
@@ -280,7 +355,14 @@
                     </div>
                     </div>
                 `).join('');
-                if (blinders.length === 0) blindersList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">Aún no tienes blinders invitados.</p>';
+                if (blinders.length === 0) {
+                    blindersList.innerHTML = `
+                        <div class="text-center p-3">
+                            <div class="empty-state-icon">👻</div>
+                            <p class="text-dim">No tienes blinders aún.</p>
+                            <p class="fs-small text-dim">¡Comparte tu link viral para atraer solteros!</p>
+                        </div>`;
+                }
             } catch (err) { console.error(err); }
         }
 
@@ -325,6 +407,7 @@
         function copyUrl(path) {
             const fullUrl = window.location.origin + path;
             navigator.clipboard.writeText(fullUrl);
+            triggerHaptic();
             alert("Enlace de chat copiado");
         }
 
@@ -405,6 +488,26 @@
             if (document.getElementById('roomsView').style.display === 'block') {
                 loadRooms();
             }
+        });
+
+        // PWA Install Logic
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installArea = document.getElementById('pwaInstallArea');
+            if (installArea) installArea.style.display = 'block';
+
+            document.getElementById('installBtn').addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installArea.style.display = 'none';
+                    }
+                    deferredPrompt = null;
+                }
+            });
         });
     </script>
 </body>

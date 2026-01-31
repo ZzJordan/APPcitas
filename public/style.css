@@ -650,6 +650,47 @@ h1 {
     text-align: center;
 }
 
+/* Empty State Animation */
+@keyframes floatEmpty {
+    0% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0.7;
+    }
+
+    50% {
+        transform: translateY(-15px) rotate(5deg);
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(0px) rotate(0deg);
+        opacity: 0.7;
+    }
+}
+
+.empty-state-icon {
+    font-size: 4rem;
+    display: inline-block;
+    animation: floatEmpty 3s ease-in-out infinite;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 10px rgba(255, 77, 109, 0.3));
+}
+
+/* View Transitions */
+::view-transition-old(root),
+::view-transition-new(root) {
+    animation-duration: 0.3s;
+}
+
+/* PWA Install Button */
+.install-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: none;
+    /* Hidden by default */
+}
+
+
 /* Bottom Navigation */
 .bottom-nav {
     position: fixed;

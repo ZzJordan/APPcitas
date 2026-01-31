@@ -109,6 +109,13 @@
                     <h2 class="mb-1">Mi Perfil Blinder</h2>
                     <p class="text-dim mb-2">Gestiona tu experiencia.</p>
 
+                    <div id="pwaInstallArea" class="glass-card install-card text-center p-2 mb-2">
+                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📲</div>
+                        <h3 class="mb-1">Instalar App</h3>
+                        <p class="text-dim fs-small mb-1">Instala para recibir notificaciones.</p>
+                        <button id="installBtn" class="btn-main w-full">Instalar</button>
+                    </div>
+
                     <button onclick="logout()" class="btn-main w-full mb-1 btn-glass">
                         🚪 Cerrar Sesión
                     </button>
@@ -154,21 +161,34 @@
         // Close menu when clicking outside
         // Close menu when clicking outside (removed menu logic, kept for cleanup if any fragments remain)
         function switchTab(tab) {
-            // Update Nav State
-            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
-            if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
-            if (tab === 'profile') document.querySelectorAll('.nav-item')[1].classList.add('active');
+            const updateTab = () => {
+                // Update Nav State
+                document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+                if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
+                if (tab === 'profile') document.querySelectorAll('.nav-item')[1].classList.add('active');
 
-            // View Logic
-            document.getElementById('roomsView').style.display = 'none';
-            document.getElementById('profileView').style.display = 'none';
+                // View Logic
+                document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
 
-            if (tab === 'rooms') {
-                document.getElementById('roomsView').style.display = 'block';
-                loadDashboard(); // Refresh data
+                if (tab === 'rooms') {
+                    document.getElementById('roomsView').style.display = 'block';
+                    loadDashboard(); // Refresh data
+                } else {
+                    document.getElementById('profileView').style.display = 'block';
+                }
+                triggerHaptic();
+            };
+
+            if (document.startViewTransition) {
+                document.startViewTransition(updateTab);
             } else {
-                document.getElementById('profileView').style.display = 'block';
+                updateTab();
             }
+        }
+
+
+        function triggerHaptic() {
+            if (navigator.vibrate) navigator.vibrate(50);
         }
 
         async function loadDashboard() {
@@ -184,6 +204,11 @@
                 const data = await res.json();
 
                 if (!data.rooms || data.rooms.length === 0) {
+                    document.getElementById('noChispazos').innerHTML = `
+                        <div class="empty-state-icon">🌵</div>
+                        <h2 class="mb-1">Aún no hay chispazos</h2>
+                        <p class="text-dim mb-2">¡Tu próxima conexión está cerca!</p>
+                        <button onclick="shareLink()" class="btn-main w-full">🤝 Compartir Perfil</button>`;
                     document.getElementById('noChispazos').classList.remove('hidden');
                     document.getElementById('chispazosContainer').classList.add('hidden');
                 } else {
@@ -308,6 +333,26 @@
         }
 
         loadDashboard();
+
+        // PWA Install Logic
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            const installArea = document.getElementById('pwaInstallArea');
+            if (installArea) installArea.style.display = 'block';
+
+            document.getElementById('installBtn').addEventListener('click', async () => {
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    const { outcome } = await deferredPrompt.userChoice;
+                    if (outcome === 'accepted') {
+                        installArea.style.display = 'none';
+                    }
+                    deferredPrompt = null;
+                }
+            });
+        });
     </script>
 </body>
 
