@@ -256,8 +256,9 @@
         async function fetchStats() {
             try {
                 const res = await fetch('/api/admin/stats');
-                const data = await res.json();
+                if (!res.ok) throw new Error("Server status: " + res.status);
 
+                const data = await res.json();
                 if (data.error) throw new Error(data.error);
 
                 // Update KPIs
@@ -272,26 +273,39 @@
                 document.getElementById('val-memory').innerText = `${(data.memory.rss / 1024 / 1024).toFixed(0)} MB`;
                 document.getElementById('val-db').innerText = data.dbSize;
 
-                // Update Chart
-                updateCharts(data.counts.cupidos, data.counts.blinders);
+                // Update Chart (Safely)
+                try {
+                    updateCharts(data.counts.cupidos, data.counts.blinders);
+                } catch (e) {
+                    console.warn("Chart Error:", e);
+                }
 
                 // Update Table
                 const tbody = document.getElementById('usersTable');
-                tbody.innerHTML = data.recentUsers.map(u => `
-                    <tr>
-                        <td style="font-weight:600">${u.username}</td>
-                        <td><span style="background:${u.role === 'cupido' ? 'rgba(255, 77, 109, 0.2)' : 'rgba(100,100,255,0.2)'}; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${u.role.toUpperCase()}</span></td>
-                        <td class="text-dim fs-small">${new Date(u.created_at).toLocaleDateString()}</td>
-                    </tr>
-                `).join('');
+                if (data.recentUsers && Array.isArray(data.recentUsers)) {
+                    tbody.innerHTML = data.recentUsers.map(u => `
+                        <tr>
+                            <td style="font-weight:600">${u.username}</td>
+                            <td><span style="background:${u.role === 'cupido' ? 'rgba(255, 77, 109, 0.2)' : 'rgba(100,100,255,0.2)'}; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem;">${u.role.toUpperCase()}</span></td>
+                            <td class="text-dim fs-small">${new Date(u.created_at).toLocaleDateString()}</td>
+                        </tr>
+                    `).join('');
+                }
 
             } catch (e) {
                 console.error(e);
-                alert("Error cargando dashboard");
+                // Only alert if it's not a handled chart error
+                alert("Dashboard Error: " + e.message);
             }
         }
 
         function updateCharts(cupidos, blinders) {
+            // Check if Chart is defined (library loaded)
+            if (typeof Chart === 'undefined') {
+                console.warn("Chart.js library not loaded.");
+                return;
+            }
+
             const ctx = document.getElementById('userChart').getContext('2d');
 
             if (userChartInstance) {
