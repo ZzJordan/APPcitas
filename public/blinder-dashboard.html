@@ -82,26 +82,55 @@
             <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/blinder-dashboard'">Mis
                 Chispazos ✨</h1>
             <div class="nav-actions">
-                <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
-                <div id="settingsMenu" class="dropdown-menu">
-                    <div class="dropdown-item" onclick="logout()">🚪 Salir</div>
-                    <div class="dropdown-item danger" onclick="deleteAccount()">⚠️ Borrar Perfil</div>
-                </div>
+                <button onclick="switchTab('profile')" class="settings-btn" title="Perfil">👤</button>
             </div>
         </header>
 
         <main>
-            <div id="noChispazos" class="text-center p-3 hidden">
-                <div class="hero-emoji">🌵</div>
-                <h2 class="mb-1">Aún no hay chispazos</h2>
-                <p class="text-dim mb-2">Tu Cupido está trabajando en encontrarte el match ideal. ¡Recibirás una
-                    notificación cuando suceda!</p>
-                <button onclick="shareLink()" class="btn-main w-full">🤝 Invitar a más amigos</button>
+            <!-- Chispazos View -->
+            <div id="roomsView" class="view-section">
+                <div id="noChispazos" class="text-center p-3 hidden">
+                    <div class="hero-emoji">🌵</div>
+                    <h2 class="mb-1">Aún no hay chispazos</h2>
+                    <p class="text-dim mb-2">Tu Cupido está trabajando en encontrarte el match ideal. ¡Recibirás una
+                        notificación cuando suceda!</p>
+                    <button onclick="shareLink()" class="btn-main w-full">🤝 Invitar a más amigos</button>
+                </div>
+
+                <div id="chispazosContainer" class="chispazos-grid">
+                    <!-- Chispazos load here -->
+                </div>
             </div>
 
-            <div id="chispazosContainer" class="chispazos-grid">
-                <!-- Chispazos load here -->
+            <!-- Profile View -->
+            <div id="profileView" class="view-section" style="display: none;">
+                <div class="glass-card text-center p-2 mb-2">
+                    <div class="hero-emoji-main" style="font-size: 3rem;">⚡</div>
+                    <h2 class="mb-1">Mi Perfil Blinder</h2>
+                    <p class="text-dim mb-2">Gestiona tu experiencia.</p>
+
+                    <button onclick="logout()" class="btn-main w-full mb-1 btn-glass">
+                        🚪 Cerrar Sesión
+                    </button>
+                    <button onclick="deleteAccount()" class="btn-main w-full btn-danger">
+                        ⚠️ Borrar Perfil
+                    </button>
+                </div>
             </div>
+
+        </main>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="switchTab('rooms')">
+                <span class="nav-icon">⚡</span>
+                <span>Chispazos</span>
+            </button>
+            <button class="nav-item" onclick="switchTab('profile')">
+                <span class="nav-icon">👤</span>
+                <span>Perfil</span>
+            </button>
+        </div>
         </main>
     </div>
 
@@ -123,10 +152,22 @@
         }
 
         // Close menu when clicking outside
-        window.onclick = function (event) {
-            if (!event.target.matches('.settings-btn')) {
-                const menu = document.getElementById('settingsMenu');
-                if (menu.classList.contains('show')) menu.classList.remove('show');
+        // Close menu when clicking outside (removed menu logic, kept for cleanup if any fragments remain)
+        function switchTab(tab) {
+            // Update Nav State
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
+            if (tab === 'profile') document.querySelectorAll('.nav-item')[1].classList.add('active');
+
+            // View Logic
+            document.getElementById('roomsView').style.display = 'none';
+            document.getElementById('profileView').style.display = 'none';
+
+            if (tab === 'rooms') {
+                document.getElementById('roomsView').style.display = 'block';
+                loadDashboard(); // Refresh data
+            } else {
+                document.getElementById('profileView').style.display = 'block';
             }
         }
 

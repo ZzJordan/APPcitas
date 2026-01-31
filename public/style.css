@@ -445,6 +445,14 @@ h1 {
     box-shadow: 0 0 10px rgba(74, 222, 128, 0.1);
 }
 
+.badge-aconectado,
+.badge-bconectado {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
+}
+
 /* Link Pills */
 .link-pills {
     display: flex;
@@ -638,9 +646,65 @@ h1 {
 
 .hero-emoji-main {
     font-size: 4rem;
-    margin-bottom: 1rem;
+    margin-bottom: 2rem;
     text-align: center;
 }
+
+/* Bottom Navigation */
+.bottom-nav {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 400px;
+    background: rgba(22, 22, 28, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    display: flex;
+    justify-content: space-around;
+    padding: 0.8rem 1rem;
+    z-index: 1000;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: none;
+    border: none;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.nav-item svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+    transition: transform 0.2s;
+}
+
+.nav-item.active {
+    color: white;
+}
+
+.nav-item.active svg {
+    transform: translateY(-2px);
+    color: var(--primary);
+}
+
+.nav-icon {
+    font-size: 1.4rem;
+    margin-bottom: 2px;
+}
+
 
 /* Toast Notification (Restored) */
 .toast {

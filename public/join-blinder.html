@@ -42,9 +42,15 @@
         <div class="text-center mb-2">
             <div id="join-emoji" class="hero-emoji-small">✨</div>
             <h1 id="join-title">Tu Perfil Blinder</h1>
-            <p id="join-subtitle" class="subtitle">Crea tu perfil para descubrir y gestionar tus conexiones.</p>
+            <p id="join-subtitle" class="subtitle">Únete para descubrir tus conexiones.</p>
         </div>
 
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchAuthTab('register')">Soy Nuevo</button>
+            <button class="tab-btn" onclick="switchAuthTab('login')">Ya tengo cuenta</button>
+        </div>
+
+        <!-- REGISTRATION FORM -->
         <form id="joinForm">
             <div class="photo-preview" id="photoResult" onclick="document.getElementById('photoInput').click()">
                 <span id="photoPlaceholder">📸 Foto</span>
@@ -58,7 +64,7 @@
                 <input type="text" id="fullName" placeholder="Tu nombre" required>
             </div>
 
-            <div class="flex-gap-1">
+            <div class="flex-gap-1" style="display: flex; gap: 1rem;">
                 <div class="input-group flex-1">
                     <label>Edad</label>
                     <input type="number" id="age" placeholder="25" required>
@@ -96,8 +102,25 @@
             </div>
 
 
-            <button type="submit" class="btn-main w-full" id="submitBtn">Crear mi Perfil y Ver Mis Conexiones</button>
-            <div id="errorMessage" class="error"></div>
+            <button type="submit" class="btn-main w-full" id="submitBtn">Crear mi Perfil</button>
+            <div id="errorMessage" class="error" style="color: #ef4444; margin-top: 1rem; display: none;"></div>
+        </form>
+
+        <!-- LOGIN FORM -->
+        <form id="loginForm" style="display: none;">
+            <div class="text-center mb-2">
+                <p class="text-dim">Inicia sesión para añadir esta sala a tus chispazos.</p>
+            </div>
+            <div class="input-group">
+                <label>Usuario</label>
+                <input type="text" id="loginUsername" placeholder="Tu usuario" required>
+            </div>
+            <div class="input-group">
+                <label>Contraseña</label>
+                <input type="password" id="loginPassword" placeholder="••••••••" required>
+            </div>
+            <button type="submit" class="btn-main w-full" id="loginBtn">Entrar y Unirme</button>
+            <div id="loginError" class="error" style="color: #ef4444; margin-top: 1rem; display: none;"></div>
         </form>
 
     </div>
@@ -125,6 +148,24 @@
                 reader.readAsDataURL(file);
             }
         };
+
+        function switchAuthTab(tab) {
+            const registerForm = document.getElementById('joinForm');
+            const loginForm = document.getElementById('loginForm');
+            const btns = document.querySelectorAll('.tab-btn');
+
+            btns.forEach(b => b.classList.remove('active'));
+
+            if (tab === 'register') {
+                registerForm.style.display = 'block';
+                loginForm.style.display = 'none';
+                btns[0].classList.add('active');
+            } else {
+                registerForm.style.display = 'none';
+                loginForm.style.display = 'block';
+                btns[1].classList.add('active');
+            }
+        }
 
         document.getElementById('joinForm').onsubmit = async (e) => {
             e.preventDefault();
@@ -172,7 +213,7 @@
                     errEl.innerText = data.error || 'Error al crear perfil';
                     errEl.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = 'Crear mi Perfil y Ver Mis Conexiones';
+                    btn.innerText = 'Crear mi Perfil';
                 }
 
             } catch (err) {
@@ -180,9 +221,57 @@
                 errEl.innerText = 'Error de respuesta del servidor (Posible foto muy pesada)';
                 errEl.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Crear mi Perfil y Ver Mis Conexiones';
+                btn.innerText = 'Crear mi Perfil';
             }
 
+        };
+
+        // LOGIN LOGIC
+        document.getElementById('loginForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const loginError = document.getElementById('loginError');
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomLink = urlParams.get('link');
+
+            btn.disabled = true;
+            btn.innerText = 'Verificando...';
+            loginError.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/blinder/login-join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        token,
+                        roomLink
+                    })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    btn.innerText = '¡Bienvenido de nuevo!';
+                    setTimeout(() => {
+                        location.href = data.redirectUrl || '/blinder-dashboard';
+                    }, 800);
+                } else {
+                    const data = await res.json();
+                    loginError.innerText = data.error || 'Credenciales incorrectas';
+                    loginError.style.display = 'block';
+                    btn.innerText = 'Entrar y Unirme';
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                loginError.innerText = 'Error de conexión';
+                loginError.style.display = 'block';
+                btn.innerText = 'Entrar y Unirme';
+                btn.disabled = false;
+            }
         };
     </script>
 </body>

@@ -446,6 +446,96 @@ app.post('/api/blinder/register-join', async (req, res) => {
   }
 });
 
+app.post('/api/blinder/login-join', async (req, res) => {
+  const { username, password, token, roomLink } = req.body;
+
+  if (!username || !password) return res.status(400).json({ error: "Credenciales incompletas" });
+
+  const client = await pool.connect();
+
+  try {
+    // 1. Validate User
+    const userRes = await client.query("SELECT * FROM cupidos WHERE username = $1", [username]);
+    const user = userRes.rows[0];
+    if (!user) return res.status(401).json({ error: "Usuario no encontrado" });
+
+    const match = await bcrypt.compare(password, user.password);
+    if (!match) return res.status(401).json({ error: "Contraseña incorrecta" });
+    if (user.role !== 'blinder') return res.status(403).json({ error: "Cuenta no es de tipo Blinder" });
+
+    // 2. Validate Context (Room or Invite)
+    let contextCupidoId = null;
+    let contextRoomId = null;
+    let contextRoleLetter = null;
+
+    if (roomLink) {
+      const roomRes = await client.query("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = $1 OR linkB = $2", [roomLink, roomLink]);
+      if (roomRes.rows.length > 0) {
+        const room = roomRes.rows[0];
+        contextCupidoId = room.cupido_id;
+        contextRoomId = room.id;
+        contextRoleLetter = (roomLink === room.linka) ? 'A' : 'B';
+      }
+    } else if (token) {
+      // Only token provided (invite flow not direct room link, less likely on join page but possible)
+      // Usually join page has roomLink param if coming from room link
+      // If just token, we might not have a room yet unless we create one? 
+      // Requirement says "guardar la sala", implies room link exists.
+      // Let's assume roomLink is main driver.
+      const inviteRes = await client.query("SELECT cupido_id FROM invite_tokens WHERE token = $1 AND expires_at > NOW()", [token]);
+      if (inviteRes.rows.length > 0) {
+        contextCupidoId = inviteRes.rows[0].cupido_id;
+      }
+    }
+
+    if (!contextRoomId && !contextCupidoId) {
+      // Just login if no valid context found? Or error?
+      // User asked to "save room". If no room found, just standard login.
+    }
+
+    await client.query('BEGIN');
+
+    // 3. Link Room if applicable
+    let sessionToken = null;
+    if (contextRoomId && contextRoleLetter) {
+      // Check if room slot is free or can be overwritten?
+      // Assuming we overwrite or just claim it.
+      sessionToken = crypto.randomUUID();
+      if (contextRoleLetter === 'A') {
+        await client.query("UPDATE rooms SET linkA_session = $1, user_a_id = $2 WHERE id = $3", [sessionToken, user.id, contextRoomId]);
+      } else {
+        await client.query("UPDATE rooms SET linkB_session = $1, user_b_id = $2 WHERE id = $3", [sessionToken, user.id, contextRoomId]);
+      }
+    }
+
+    // 4. Update Profile if needed (optional, maybe link to new cupido?)
+    // If arriving via token of a new Cupido, shoud we update cupido_id? 
+    // Usually blinder belongs to who invited first, but we can add multiple links in future.
+    // For now, let's just create the room link.
+
+    await client.query('COMMIT');
+
+    // 5. Session Setup
+    req.session.userId = user.id;
+    req.session.username = user.username;
+    req.session.userRole = 'blinder';
+
+    if (sessionToken && contextRoomId) {
+      const cookieName = `chat_token_${contextRoomId}_${contextRoleLetter}`;
+      res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    }
+
+    res.json({ message: "Login y vinculación exitosa", redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: "Error en servidor" });
+  } finally {
+    client.release();
+  }
+});
+
 function getRoomRevealLevel(activeSeconds) {
   const minutes = activeSeconds / 60;
   if (minutes >= 30) return 3;

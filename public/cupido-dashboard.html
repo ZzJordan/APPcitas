@@ -10,6 +10,7 @@
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
     <style>
         .dropdown-menu {
             position: absolute;
@@ -66,23 +67,14 @@
             <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/cupido-dashboard'">Panel
                 Cupido ✨</h1>
             <div class="nav-actions">
-                <button onclick="toggleSettings()" class="settings-btn" title="Configuración">⚙️</button>
-                <div id="settingsMenu" class="dropdown-menu">
-                    <div class="dropdown-item" onclick="location.href='/dashboard'">📋 Ver Salas</div>
-                    <div class="dropdown-item" onclick="logout()">🚪 Salir</div>
-                    <div class="dropdown-item danger" onclick="deleteAccount()">⚠️ Borrar Cuenta</div>
-                </div>
+                <button onclick="switchTab('profile')" class="settings-btn" title="Perfil">👤</button>
             </div>
 
         </header>
 
         <main>
-            <div class="tabs">
-                <button class="tab-btn active" onclick="switchTab('rooms')">Mis Salas</button>
-                <button class="tab-btn" onclick="switchTab('blinders')">Mis Blinders</button>
-            </div>
-
-            <div id="roomsView">
+            <!-- Views Container -->
+            <div id="roomsView" class="view-section">
                 <div class="p-2 mb-2 glass-dashed text-center">
                     <button onclick="openModal()" class="btn-main w-full">
                         <span>+ Nueva Conexión</span>
@@ -96,8 +88,7 @@
                 </div>
             </div>
 
-
-            <div id="blindersView" style="display: none;">
+            <div id="blindersView" class="view-section" style="display: none;">
                 <div class="import-section glass-dashed p-2 mb-2 text-center">
                     <h3>Generar Invitación Viral</h3>
                     <p class="fs-small mb-1 mt-1 text-dim">
@@ -120,7 +111,39 @@
                 </div>
 
             </div>
-        </main>
+    </div>
+
+    <div id="profileView" class="view-section" style="display: none;">
+        <div class="glass-card text-center p-2 mb-2">
+            <div class="hero-emoji-main" style="font-size: 3rem;">👤</div>
+            <h2 class="mb-1">Mi Cuenta Cupido</h2>
+            <p class="text-dim mb-2">Gestiona tu suscripción y ajustes.</p>
+
+            <button onclick="logout()" class="btn-main w-full mb-1 btn-glass">
+                🚪 Cerrar Sesión
+            </button>
+            <button onclick="deleteAccount()" class="btn-main w-full btn-danger">
+                ⚠️ Eliminar Cuenta
+            </button>
+        </div>
+    </div>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('rooms')">
+            <span class="nav-icon">💬</span>
+            <span>Salas</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('blinders')">
+            <span class="nav-icon">👥</span>
+            <span>Blinders</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('profile')">
+            <span class="nav-icon">👤</span>
+            <span>Perfil</span>
+        </button>
+    </div>
     </div>
 
     <!-- Create Room Modal -->
@@ -173,18 +196,24 @@
 
 
         function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('roomsView').style.display = 'none';
-            document.getElementById('blindersView').style.display = 'none';
+            // Update Nav State
+            document.querySelectorAll('.nav-item').forEach(btn => btn.classList.remove('active'));
+            // Mapping for button index manual for simplicity or query by onclick content
+            if (tab === 'rooms') document.querySelectorAll('.nav-item')[0].classList.add('active');
+            if (tab === 'blinders') document.querySelectorAll('.nav-item')[1].classList.add('active');
+            if (tab === 'profile') document.querySelectorAll('.nav-item')[2].classList.add('active');
+
+            // Hide/Show Views
+            document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
 
             if (tab === 'rooms') {
-                document.querySelector('[onclick="switchTab(\'rooms\')"]').classList.add('active');
                 document.getElementById('roomsView').style.display = 'block';
                 loadRooms();
             } else if (tab === 'blinders') {
-                document.querySelector('[onclick="switchTab(\'blinders\')"]').classList.add('active');
                 document.getElementById('blindersView').style.display = 'block';
                 loadBlinders();
+            } else if (tab === 'profile') {
+                document.getElementById('profileView').style.display = 'block';
             }
         }
 
@@ -193,25 +222,43 @@
                 const res = await fetch('/api/rooms');
                 const data = await res.json();
                 roomsList.innerHTML = data.owned.map(r => `
-                    <div class="room-card">
+                    <div class="room-card" id="room-${r.id}">
                         <div class="room-header">
                             <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
-                            <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}">${r.status}</div>
+                            <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
                         </div>
                         <div class="link-pills">
                             <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
-                                <span>Rol A</span>
-                                <span>Copiar</span>
+                                <span>${r.friendA_name}</span>
+                                <span>Copiar Link</span>
                             </div>
                             <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
-                                <span>Rol B</span>
-                                <span>Copiar</span>
+                                <span>${r.friendB_name}</span>
+                                <span>Copiar Link</span>
                             </div>
                         </div>
+                        <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
+                            🔗 Compartir Acceso a Sala
+                        </button>
                     </div>
                 `).join('');
                 if (data.owned.length === 0) roomsList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">No hay salas activas todavía.</p>';
             } catch (err) { console.error(err); }
+        }
+
+        async function shareRoom(roomId) {
+            try {
+                const res = await fetch(`/api/rooms/${roomId}/share`, { method: 'POST' });
+                const data = await res.json();
+                if (data.url) {
+                    await navigator.clipboard.writeText(data.url);
+                    alert("Enlace de acceso copiado al portapapeles. Compártelo con otro Cupido.");
+                } else {
+                    alert("Error al generar enlace.");
+                }
+            } catch (e) {
+                alert("Error de conexión.");
+            }
         }
 
 
@@ -221,16 +268,16 @@
                 const blinders = await res.json();
                 blindersList.innerHTML = blinders.map(b => `
                     <div class="room-card">
-                        <div style="display: flex; align-items: center; gap: 1.2rem;">
-                            <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
-                                ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
-                            </div>
-                            <div style="flex:1;">
-                                <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
-                                <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
-                            </div>
-                            <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
+                    <div style="display: flex; align-items: center; gap: 1.2rem;">
+                        <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
+                            ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
                         </div>
+                        <div style="flex:1;">
+                            <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
+                        </div>
+                        <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
+                    </div>
                     </div>
                 `).join('');
                 if (blinders.length === 0) blindersList.innerHTML = '<p style="text-align:center; padding: 3rem; color: var(--text-dim);">Aún no tienes blinders invitados.</p>';
@@ -332,6 +379,33 @@
 
         // Initial Load
         switchTab('rooms');
+
+        // Socket Logic
+        const socket = io();
+
+        // Auto-join dashboard room
+        fetch('/api/user')
+            .then(res => res.json())
+            .then(user => {
+                if (user.userId) {
+                    socket.emit('join-dashboard', { cupido_id: user.userId });
+                }
+            });
+
+        socket.on('status-change', ({ room_id, status }) => {
+            const badge = document.getElementById(`status-${room_id}`);
+            if (badge) {
+                badge.innerText = status;
+                badge.className = `badge badge-${status.toLowerCase().replace(' ', '')}`;
+            }
+        });
+
+        socket.on('link-regenerated', ({ room_id }) => {
+            // Reload rooms to update links/status if needed
+            if (document.getElementById('roomsView').style.display === 'block') {
+                loadRooms();
+            }
+        });
     </script>
 </body>
 
