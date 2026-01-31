@@ -217,15 +217,37 @@ app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
   try {
     const client = await pool.connect();
 
-    const counts = await client.query(`
-          SELECT 
-              (SELECT COUNT(*) FROM cupidos WHERE role = 'cupido') as cupidos,
-              (SELECT COUNT(*) FROM cupidos WHERE role = 'blinder') as blinders,
-              (SELECT COUNT(*) FROM rooms) as total_rooms,
-              (SELECT COUNT(*) FROM rooms WHERE status = 'activo') as active_rooms,
-              (SELECT COUNT(*) FROM messages) as total_messages,
-              (SELECT COUNT(*) FROM push_subscriptions) as push_subs
-      `);
+
+
+    // Queries separated to avoid 'relation does not exist' if migration didn't run perfectly
+    let counts = { cupidos: 0, blinders: 0, total_rooms: 0, active_rooms: 0, total_messages: 0, push_subs: 0 };
+
+    try {
+      const cRes = await client.query("SELECT COUNT(*) as c FROM cupidos WHERE role = 'cupido'");
+      counts.cupidos = cRes.rows[0].c;
+    } catch (e) { }
+
+    try {
+      const bRes = await client.query("SELECT COUNT(*) as c FROM cupidos WHERE role = 'blinder'");
+      counts.blinders = bRes.rows[0].c;
+    } catch (e) { }
+
+    try {
+      const rRes = await client.query("SELECT COUNT(*) as c FROM rooms");
+      counts.total_rooms = rRes.rows[0].c;
+      const raRes = await client.query("SELECT COUNT(*) as c FROM rooms WHERE status = 'activo'");
+      counts.active_rooms = raRes.rows[0].c;
+    } catch (e) { }
+
+    try {
+      const mRes = await client.query("SELECT COUNT(*) as c FROM messages");
+      counts.total_messages = mRes.rows[0].c;
+    } catch (e) { }
+
+    try {
+      const sRes = await client.query("SELECT COUNT(*) as c FROM push_subscriptions");
+      counts.push_subs = sRes.rows[0].c;
+    } catch (e) { }
 
     const recentUsers = await client.query("SELECT username, role, created_at FROM cupidos ORDER BY id DESC LIMIT 5");
 
@@ -242,7 +264,7 @@ app.get('/api/admin/stats', isAuthenticated, async (req, res) => {
     client.release();
 
     res.json({
-      counts: counts.rows[0],
+      counts: counts,
       recentUsers: recentUsers.rows,
       dbSize,
       uptime: process.uptime(),
