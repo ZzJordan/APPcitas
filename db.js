@@ -144,60 +144,56 @@ const initDb = async () => {
             CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
         `);
 
-        // Default Users
-        const res = await client.query("SELECT id FROM cupidos LIMIT 1");
-        if (res.rowCount === 0) {
-            const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
-            const hashedPassword = await bcrypt.hash(pass, 10);
+        // Default Users (Always attempt creation with ON CONFLICT)
+        const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
+        const hashedPassword = await bcrypt.hash(pass, 10);
 
+        await client.query(
+            "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
+            ['cupido1', hashedPassword, 'cupido']
+        );
+        await client.query(
+            "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
+            ['cupido2', hashedPassword, 'cupido']
+        );
+
+        // Create extra Cupidos (3-6)
+        for (let i = 3; i <= 6; i++) {
             await client.query(
                 "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
-                ['cupido1', hashedPassword, 'cupido']
+                [`cupido${i}`, hashedPassword, 'cupido']
             );
-            await client.query(
-                "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
-                ['cupido2', hashedPassword, 'cupido']
-            );
+        }
 
-            // Create extra Cupidos (3-6)
-            for (let i = 3; i <= 6; i++) {
+        // Create Blinders (1-4) linked to Cupido1
+        const c1Res = await client.query("SELECT id FROM cupidos WHERE username='cupido1'");
+        const cupido1Id = c1Res.rows[0]?.id;
+
+        if (cupido1Id) {
+            for (let i = 1; i <= 4; i++) {
+                const bUsername = `blinder${i}`;
+                // Insert user
                 await client.query(
                     "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
-                    [`cupido${i}`, hashedPassword, 'cupido']
+                    [bUsername, hashedPassword, 'blinder']
                 );
-            }
 
-            // Create Blinders (1-4) linked to Cupido1 (assuming ID 1)
-            // We first get cupido1 ID just to be safe, though usually 1
-            const c1Res = await client.query("SELECT id FROM cupidos WHERE username='cupido1'");
-            const cupido1Id = c1Res.rows[0]?.id;
+                // Get ID
+                const bRes = await client.query("SELECT id FROM cupidos WHERE username=$1", [bUsername]);
+                const bId = bRes.rows[0]?.id;
 
-            if (cupido1Id) {
-                for (let i = 1; i <= 4; i++) {
-                    const bUsername = `blinder${i}`;
-                    // Insert user
-                    await client.query(
-                        "INSERT INTO cupidos (username, password, role) VALUES ($1, $2, $3) ON CONFLICT (username) DO NOTHING",
-                        [bUsername, hashedPassword, 'blinder']
-                    );
-
-                    // Get ID
-                    const bRes = await client.query("SELECT id FROM cupidos WHERE username=$1", [bUsername]);
-                    const bId = bRes.rows[0]?.id;
-
-                    if (bId) {
-                        // Create Profile
-                        await client.query(`
-                            INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, tel)
-                            VALUES ($1, $2, $3, $4, $5, $6, $7)
-                            ON CONFLICT (user_id) DO NOTHING
-                        `, [bId, cupido1Id, `Blinder Master ${i}`, 20 + i, 'Madrid', 'Testing Account', `555-000${i}`]);
-                    }
+                if (bId) {
+                    // Create Profile
+                    await client.query(`
+                        INSERT INTO blinder_profiles (user_id, cupido_id, full_name, age, city, tagline, tel)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7)
+                        ON CONFLICT (user_id) DO NOTHING
+                    `, [bId, cupido1Id, `Blinder Master ${i}`, 20 + i, 'Madrid', 'Testing Account', `555-000${i}`]);
                 }
             }
-
-            console.log("✅ Default users and blinder profiles created.");
         }
+
+        console.log("✅ Default users verified/created.");
 
         await client.query('COMMIT');
         console.log("✅ Database tables confirmed (PostgreSQL).");
