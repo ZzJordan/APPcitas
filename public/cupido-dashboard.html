@@ -111,76 +111,76 @@
                 </div>
 
             </div>
-    </div>
 
-    <div id="profileView" class="view-section" style="display: none;">
-        <div class="text-center mb-2 mt-1">
-            <div
-                style="width: 80px; height: 80px; margin: 0 auto 10px; background: var(--glass); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 2px solid var(--border);">
-                👤</div>
-            <h2 style="font-size: 1.5rem; margin-bottom: 0px;">Mi Perfil</h2>
-            <p class="text-dim fs-small">Configuración de cuenta</p>
-        </div>
 
-        <div id="pwaInstallArea" class="compact-card" style="display:none;">
-            <div class="icon">📲</div>
-            <div class="content">
-                <h3>Instalar App</h3>
-                <p>Acceso rápido en inicio</p>
+            <div id="profileView" class="view-section" style="display: none;">
+                <div class="text-center mb-2 mt-1">
+                    <div
+                        style="width: 80px; height: 80px; margin: 0 auto 10px; background: var(--glass); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 2px solid var(--border);">
+                        👤</div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 0px;">Mi Perfil</h2>
+                    <p class="text-dim fs-small">Configuración de cuenta</p>
+                </div>
+
+                <div id="pwaInstallArea" class="compact-card" style="display:none;">
+                    <div class="icon">📲</div>
+                    <div class="content">
+                        <h3>Instalar App</h3>
+                        <p>Acceso rápido en inicio</p>
+                    </div>
+                    <button id="installBtn" class="btn-main"
+                        style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 12px;">Instalar</button>
+                </div>
+
+                <div id="pushArea" class="compact-card" style="display:none;">
+                    <div class="icon">🔔</div>
+                    <div class="content">
+                        <h3>Notificaciones</h3>
+                        <p>Activa alertas de chat</p>
+                    </div>
+                    <button id="pushBtn" onclick="subscribeToPush()" class="btn-main"
+                        style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 12px;">Activar</button>
+                </div>
+
+                <div class="compact-card" onclick="logout()" style="cursor: pointer;">
+                    <div class="icon">🚪</div>
+                    <div class="content">
+                        <h3>Cerrar Sesión</h3>
+                        <p>Salir de tucocuenta</p>
+                    </div>
+                    <div style="color: var(--text-dim);">›</div>
+                </div>
+
+                <div class="compact-card" onclick="deleteAccount()"
+                    style="cursor: pointer; border-color: rgba(239, 68, 68, 0.3);">
+                    <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">⚠️</div>
+                    <div class="content">
+                        <h3>Eliminar Cuenta</h3>
+                        <p style="color: #ef4444;">Acción irreversible</p>
+                    </div>
+                </div>
+
+                <div class="text-center mt-2">
+                    <p class="fs-small text-dim">Cupido's Project v2.0</p>
+                </div>
             </div>
-            <button id="installBtn" class="btn-main"
-                style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 12px;">Instalar</button>
-        </div>
+        </main>
 
-        <div id="pushArea" class="compact-card" style="display:none;">
-            <div class="icon">🔔</div>
-            <div class="content">
-                <h3>Notificaciones</h3>
-                <p>Activa alertas de chat</p>
-            </div>
-            <button id="pushBtn" onclick="subscribeToPush()" class="btn-main"
-                style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 12px;">Activar</button>
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="switchTab('rooms')">
+                <span class="nav-icon">💬</span>
+                <span>Salas</span>
+            </button>
+            <button class="nav-item" onclick="switchTab('blinders')">
+                <span class="nav-icon">👥</span>
+                <span>Blinders</span>
+            </button>
+            <button class="nav-item" onclick="switchTab('profile')">
+                <span class="nav-icon">👤</span>
+                <span>Perfil</span>
+            </button>
         </div>
-
-        <div class="compact-card" onclick="logout()" style="cursor: pointer;">
-            <div class="icon">🚪</div>
-            <div class="content">
-                <h3>Cerrar Sesión</h3>
-                <p>Salir de tucocuenta</p>
-            </div>
-            <div style="color: var(--text-dim);">›</div>
-        </div>
-
-        <div class="compact-card" onclick="deleteAccount()"
-            style="cursor: pointer; border-color: rgba(239, 68, 68, 0.3);">
-            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">⚠️</div>
-            <div class="content">
-                <h3>Eliminar Cuenta</h3>
-                <p style="color: #ef4444;">Acción irreversible</p>
-            </div>
-        </div>
-
-        <div class="text-center mt-2">
-            <p class="fs-small text-dim">Cupido's Project v2.0</p>
-        </div>
-    </div>
-    </main>
-
-    <!-- Bottom Navigation -->
-    <div class="bottom-nav">
-        <button class="nav-item active" onclick="switchTab('rooms')">
-            <span class="nav-icon">💬</span>
-            <span>Salas</span>
-        </button>
-        <button class="nav-item" onclick="switchTab('blinders')">
-            <span class="nav-icon">👥</span>
-            <span>Blinders</span>
-        </button>
-        <button class="nav-item" onclick="switchTab('profile')">
-            <span class="nav-icon">👤</span>
-            <span>Perfil</span>
-        </button>
-    </div>
     </div>
 
     <!-- Create Room Modal -->
@@ -315,32 +315,32 @@
                 const res = await fetch('/api/rooms');
                 const data = await res.json();
                 roomsList.innerHTML = data.owned.map(r => `
-                    < div class= "room-card-wrapper" >
-                        <div class="floating-info-btn" onclick="event.stopPropagation(); showRoomInfo('${r.id}')">ℹ️</div>
-                        <div class="room-card" id="room-${r.id}">
-                            <div class="room-header">
-                                <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
+                    <div class="room-card" id="room-${r.id}">
+                        <div class="room-header">
+                            <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
+                                <button onclick="event.stopPropagation(); showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.15); border: 1px solid var(--border); border-radius: 50%; width: 44px; height: 44px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: transform 0.2s; position: relative; z-index: 10;">ℹ️</button>
                             </div>
-                            <div class="link-pills">
-                                <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
-                                    <span>${r.friendA_name}</span>
-                                    <span>Copiar Link</span>
-                                </div>
-                                <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
-                                    <span>${r.friendB_name}</span>
-                                    <span>Copiar Link</span>
-                                </div>
-                            </div>
-                            <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
-                                🔗 Compartir Acceso a Sala
-                            </button>
                         </div>
-                    </div >
-                    `).join('');
+                        <div class="link-pills">
+                            <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
+                                <span>${r.friendA_name}</span>
+                                <span>Copiar Link</span>
+                            </div>
+                            <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
+                                <span>${r.friendB_name}</span>
+                                <span>Copiar Link</span>
+                            </div>
+                        </div>
+                        <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
+                            🔗 Compartir Acceso a Sala
+                        </button>
+                    </div>
+                `).join('');
                 if (data.owned.length === 0) {
                     roomsList.innerHTML = `
-                    < div class= "text-center p-3" >
+                    <div class="text-center p-3">
                             <div class="empty-state-icon">🕸️</div>
                             <p class="text-dim">Tu red está tranquila...</p>
                             <p class="fs-small text-dim">¡Crea una nueva sala para empezar la magia!</p>
