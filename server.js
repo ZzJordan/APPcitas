@@ -513,16 +513,19 @@ app.post('/api/register', async (req, res) => {
     );
     const userId = rows[0].id;
 
-    // 2. Create Profile if Cupido
+    // 2. Create Profile
     if (userRole === 'cupido') {
-      // Even if empty, create the profile entry so we have a place for data later
       await client.query(
         "INSERT INTO cupido_profiles (user_id, full_name, tel, city, age) VALUES ($1, $2, $3, $4, $5)",
         [userId, fullName || '', tel || '', city || '', age || null]
       );
+    } else if (userRole === 'blinder') {
+      // Support for direct Blinder registration (orphan profile initially)
+      await client.query(
+        "INSERT INTO blinder_profiles (user_id, full_name, tel, city, age) VALUES ($1, $2, $3, $4, $5)",
+        [userId, fullName || '', tel || '', city || '', age || null]
+      );
     }
-    // Note: Blinder profile creation via this generic route is not fully supported yet (usually done via invite link)
-    // but if we wanted to support it, we'd add similar logic here for blinder_profiles.
 
     await client.query('COMMIT');
 

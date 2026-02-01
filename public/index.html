@@ -52,7 +52,7 @@
 
                     <div class="text-center mt-2 pt-1 glass-border-top">
                         <p class="text-dim fs-small mb-1">¿Eres nuevo cupido? Únete al proyecto:</p>
-                        <a href="javascript:void(0)" onclick="showRegister()"
+                        <a href="javascript:void(0)" onclick="showRegisterCupido()"
                             class="btn-main btn-glass w-full fs-small px-2">
                             Crear mi Perfil Cupido &rarr;
                         </a>
@@ -80,7 +80,8 @@
 
                     <div class="text-center mt-2 pt-1 glass-border-top">
                         <p class="text-dim fs-small mb-1">¿Eres nuevo? Únete al proyecto:</p>
-                        <a href="/join/blinder/profile" class="btn-main btn-glass w-full fs-small px-2">
+                        <a href="javascript:void(0)" onclick="showRegisterBlinder()"
+                            class="btn-main btn-glass w-full fs-small px-2">
                             Crear mi Perfil Blinder &rarr;
                         </a>
                     </div>
@@ -91,54 +92,119 @@
         </div>
 
 
-        <div id="registerView" class="premium-card" style="display: none;">
-            <div class="hero-emoji-main">✨</div>
+        <!-- View: Register Cupido -->
+        <div id="registerViewCupido" class="premium-card" style="display: none;">
+            <div class="hero-emoji-main">🏹</div>
             <h1 class="primary-text-gradient text-center mb-1">Registro Cupido</h1>
             <p class="subtitle text-center mb-2">Crea tu perfil profesional</p>
 
-            <form id="registerForm">
-                <div class="input-group">
-                    <label>Nombre de Usuario (mín. 4 caracteres)</label>
-                    <input type="text" id="regUsername" placeholder="Ej: cupido_master" required minlength="4">
-                </div>
-                <div class="input-group">
-                    <label>Correo de Recuperación</label>
-                    <input type="email" id="regEmail" placeholder="tu@correo.com" required>
-                </div>
-                <div class="input-group">
-                    <label>Tipo de Perfil</label>
-                    <select id="regRole" class="input-glass mb-1 w-full">
-                        <option value="cupido">Cupido (Creador de matches)</option>
-                        <option value="blinder">Blinder (Buscador de matches)</option>
-                    </select>
-                </div>
-
+            <form id="registerFormCupido">
+                <input type="hidden" id="regRoleCupido" value="cupido">
+                <!-- 1. Nombre Completo -->
                 <div class="input-group">
                     <label>Nombre Completo</label>
-                    <input type="text" id="regFullName" placeholder="Tu nombre real" required>
-                </div>
-                <div class="input-group">
-                    <label>Teléfono (Para recuperación)</label>
-                    <input type="tel" id="regTel" placeholder="+34 600 000 000" required>
-                </div>
-                <div class="input-group">
-                    <label>Edad</label>
-                    <input type="number" id="regAge" placeholder="25">
-                </div>
-                <div class="input-group">
-                    <label>Ciudad</label>
-                    <input type="text" id="regCity" placeholder="Madrid">
+                    <input type="text" id="regFullNameCupido" placeholder="Ej: Laura García" required>
                 </div>
 
+                <!-- 2. Usuario -->
                 <div class="input-group">
-                    <label>Contraseña Maestra (mín. 6 caracteres)</label>
-                    <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+                    <label>Nombre de Usuario (mín. 4 caracteres)</label>
+                    <input type="text" id="regUsernameCupido" placeholder="Ej: laura_g" required minlength="4">
                 </div>
 
-                <button type="submit" class="btn-main w-full mt-1" id="registerBtn">Crear Cuenta</button>
-                <div id="regError" class="error"></div>
+                <!-- 3. Email (Obligatorio) -->
+                <div class="input-group">
+                    <label>Correo Electrónico (Obligatorio)</label>
+                    <input type="email" id="regEmailCupido" placeholder="laura@ejemplo.com" required>
+                </div>
+
+                <!-- 4. Teléfono (Opcional) -->
+                <div class="input-group">
+                    <label>Teléfono (Opcional)</label>
+                    <input type="tel" id="regTelCupido" placeholder="+34 600 123 456">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="input-group">
+                        <label>Edad</label>
+                        <input type="number" id="regAgeCupido" placeholder="25">
+                    </div>
+                    <div class="input-group">
+                        <label>Ciudad</label>
+                        <input type="text" id="regCityCupido" placeholder="Madrid">
+                    </div>
+                </div>
+
+                <!-- 5. Contraseña -->
+                <div class="input-group">
+                    <label>Contraseña (mín. 6 caracteres)</label>
+                    <input type="password" id="regPasswordCupido" placeholder="••••••••" required minlength="6">
+                </div>
+
+                <button type="submit" class="btn-main w-full mt-1" id="registerBtnCupido">Registrar Cupido</button>
+                <div id="regErrorCupido" class="error"></div>
             </form>
 
+            <div class="text-center mt-2">
+                <p class="text-dim fs-small">
+                    ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()" class="font-800"
+                        style="color: var(--primary);">Inicia Sesión</a>
+                </p>
+            </div>
+        </div>
+
+        <!-- View: Register Blinder -->
+        <div id="registerViewBlinder" class="premium-card" style="display: none;">
+            <div class="hero-emoji-main">🕵️</div>
+            <h1 class="primary-text-gradient text-center mb-1">Registro Blinder</h1>
+            <p class="subtitle text-center mb-2">Únete de forma privada</p>
+
+            <form id="registerFormBlinder">
+                <input type="hidden" id="regRoleBlinder" value="blinder">
+                <!-- 1. Nombre Completo -->
+                <div class="input-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="regFullNameBlinder" placeholder="Ej: Alex Smith" required>
+                </div>
+
+                <!-- 2. Usuario -->
+                <div class="input-group">
+                    <label>Nombre de Usuario (mín. 4 caracteres)</label>
+                    <input type="text" id="regUsernameBlinder" placeholder="Ej: alex_secret" required minlength="4">
+                </div>
+
+                <!-- 3. Email (Obligatorio) -->
+                <div class="input-group">
+                    <label>Correo Electrónico (Obligatorio)</label>
+                    <input type="email" id="regEmailBlinder" placeholder="alex@ejemplo.com" required>
+                </div>
+
+                <!-- 4. Teléfono (Opcional) -->
+                <div class="input-group">
+                    <label>Teléfono (Opcional)</label>
+                    <input type="tel" id="regTelBlinder" placeholder="+34 600 999 999">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="input-group">
+                        <label>Edad</label>
+                        <input type="number" id="regAgeBlinder" placeholder="30">
+                    </div>
+                    <div class="input-group">
+                        <label>Ciudad</label>
+                        <input type="text" id="regCityBlinder" placeholder="Barcelona">
+                    </div>
+                </div>
+
+                <!-- 5. Contraseña -->
+                <div class="input-group">
+                    <label>Contraseña (mín. 6 caracteres)</label>
+                    <input type="password" id="regPasswordBlinder" placeholder="••••••••" required minlength="6">
+                </div>
+
+                <button type="submit" class="btn-main w-full mt-1" id="registerBtnBlinder">Registrar Blinder</button>
+                <div id="regErrorBlinder" class="error"></div>
+            </form>
 
             <div class="text-center mt-2">
                 <p class="text-dim fs-small">
@@ -206,24 +272,31 @@
 
         }
 
-        function showRegister() {
+        function showRegisterCupido() {
             document.getElementById('loginView').style.display = 'none';
-            document.getElementById('registerView').style.display = 'block';
+            document.getElementById('registerViewBlinder').style.display = 'none';
+            document.getElementById('registerViewCupido').style.display = 'block';
+        }
+        function showRegisterBlinder() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('registerViewCupido').style.display = 'none';
+            document.getElementById('registerViewBlinder').style.display = 'block';
         }
         function showLogin() {
             document.getElementById('loginView').style.display = 'block';
-            document.getElementById('registerView').style.display = 'none';
+            document.getElementById('registerViewCupido').style.display = 'none';
+            document.getElementById('registerViewBlinder').style.display = 'none';
         }
-        window.showRegister = showRegister;
+        window.showRegisterCupido = showRegisterCupido;
+        window.showRegisterBlinder = showRegisterBlinder;
         window.showLogin = showLogin;
 
 
         document.getElementById('loginForm').onsubmit = async (e) => handleLogin(e, 'username', 'cupido-password', 'loginBtn', 'errorMessage');
-        document.getElementById('blinderLoginForm').onsubmit = async (e) => handleLogin(e, 'blinderUsername', 'blinderPassword', 'blinderLoginBtn', 'blinderErrorMessage'); // Add ID to button in HTML too if needed, or querySelector
+        document.getElementById('blinderLoginForm').onsubmit = async (e) => handleLogin(e, 'blinderUsername', 'blinderPassword', 'blinderLoginBtn', 'blinderErrorMessage');
 
         async function handleLogin(e, userFieldId, passFieldId, btnId, errFieldId) {
             e.preventDefault();
-            // Fallback for button if passed ID doesn't exist (blinder btn has no ID)
             let btn = document.getElementById(btnId);
             if (!btn) btn = e.target.querySelector('button[type="submit"]');
 
@@ -269,25 +342,31 @@
         };
 
 
-        document.getElementById('registerForm').onsubmit = async (e) => {
+        // Handle Cupido Registration
+        document.getElementById('registerFormCupido').onsubmit = async (e) => handleRegister(e, 'Cupido');
+        // Handle Blinder Registration
+        document.getElementById('registerFormBlinder').onsubmit = async (e) => handleRegister(e, 'Blinder');
+
+        async function handleRegister(e, suffix) {
             e.preventDefault();
-            const btn = document.getElementById('registerBtn');
-            const user = document.getElementById('regUsername').value;
-            const email = document.getElementById('regEmail').value;
-            const pass = document.getElementById('regPassword').value;
-            const errEl = document.getElementById('regError');
+            const btn = document.getElementById('registerBtn' + suffix);
+            const user = document.getElementById('regUsername' + suffix).value;
+            const email = document.getElementById('regEmail' + suffix).value;
+            const pass = document.getElementById('regPassword' + suffix).value;
+            const errEl = document.getElementById('regError' + suffix);
+
+            // Additional fields
+            const role = document.getElementById('regRole' + suffix).value;
+            const fullName = document.getElementById('regFullName' + suffix).value;
+            const tel = document.getElementById('regTel' + suffix).value;
+            const city = document.getElementById('regCity' + suffix).value;
+            const age = document.getElementById('regAge' + suffix).value;
 
             btn.disabled = true;
             btn.innerText = 'Registrando...';
             errEl.style.display = 'none';
 
             try {
-                const role = document.getElementById('regRole').value;
-                const fullName = document.getElementById('regFullName').value;
-                const tel = document.getElementById('regTel').value;
-                const city = document.getElementById('regCity').value;
-                const age = document.getElementById('regAge').value;
-
                 const res = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -310,22 +389,21 @@
                     btn.style.background = '#4ade80';
                     setTimeout(() => {
                         if (data.role === 'blinder') location.href = '/blinder-dashboard';
-                        else if (data.role === 'cupido') location.href = '/dashboard';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
                         else location.href = '/dashboard';
                     }, 500);
                 } else {
-
                     const data = await res.json();
                     errEl.innerText = data.error || 'Error al registrar';
                     errEl.style.display = 'block';
                     btn.disabled = false;
-                    btn.innerText = 'Registrar Cupido';
+                    btn.innerText = 'Registrar ' + suffix;
                 }
             } catch (err) {
                 errEl.innerText = 'Error de conexión';
                 errEl.style.display = 'block';
                 btn.disabled = false;
-                btn.innerText = 'Registrar Cupido';
+                btn.innerText = 'Registrar ' + suffix;
             }
         };
 
