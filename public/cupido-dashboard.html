@@ -296,7 +296,7 @@
                             <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
-                                <button onclick="showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center;">ℹ️</button>
+                                <button onclick="showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.15); border: 1px solid var(--border); border-radius: 50%; width: 44px; height: 44px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: transform 0.2s;">ℹ️</button>
                             </div>
                         </div>
                         <div class="link-pills">
@@ -353,15 +353,47 @@
             const room = currentRooms.find(r => r.id == roomId);
             if (!room) return;
             const createdDate = new Date(room.created_at).toLocaleDateString();
+
+            // Helper for stats if missing (backward compatibility)
+            const stats = room.stats || { total_messages: 0, msgs_A: 0, msgs_B: 0, ratio_A: 0, ratio_B: 0 };
+            const activeTime = room.active_time_str || "0m";
+
             document.getElementById('infoContent').innerHTML = `
                 <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
                     <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id.substring(0, 8)}...</span></p>
-                    <p class="mb-1"><strong class="text-dim">Creada:</strong><br>${createdDate}</p>
-                    <p class="mb-1"><strong class="text-dim">Participantes:</strong><br>
-                        ✨ ${room.friendA_name}<br>
-                        🔥 ${room.friendB_name}
-                    </p>
-                    <p class="mb-0"><strong class="text-dim">Estado Actual:</strong> <span class="text-success">${room.status.toUpperCase()}</span></p>
+                    <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
+                    <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
+                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.8rem 0;">
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
+                        <div class="glass-card p-1 text-center" style="background: rgba(255,255,255,0.05);">
+                            <div style="font-size: 1.2rem;">⏱️</div>
+                            <small class="text-dim">Tiempo Activo</small>
+                            <div style="font-weight: bold;">${activeTime}</div>
+                        </div>
+                        <div class="glass-card p-1 text-center" style="background: rgba(255,255,255,0.05);">
+                            <div style="font-size: 1.2rem;">💬</div>
+                            <small class="text-dim">Mensajes</small>
+                            <div style="font-weight: bold;">${stats.total_messages}</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-1">
+                        <strong class="text-dim" style="display:block; margin-bottom: 0.5rem;">🗣️ Ratio de Conversación</strong>
+                        
+                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                            <span>✨ ${room.friendA_name} (${stats.ratio_A}%)</span>
+                            <span>🔥 ${room.friendB_name} (${stats.ratio_B}%)</span>
+                        </div>
+                        <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; display: flex;">
+                            <div style="width: ${stats.ratio_A}%; background: #ff4d6d; height: 100%;"></div>
+                            <div style="width: ${stats.ratio_B}%; background: #4ecdc4; height: 100%;"></div>
+                        </div>
+                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                            <span>${stats.msgs_A} msgs</span>
+                            <span>${stats.msgs_B} msgs</span>
+                        </div>
+                    </div>
                 </div>
             `;
             document.getElementById('infoModal').style.display = 'flex';

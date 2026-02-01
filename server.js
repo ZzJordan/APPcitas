@@ -786,14 +786,47 @@ app.post('/api/user/delete-account', isAuthenticated, async (req, res) => {
 app.get('/api/rooms', isAuthenticated, async (req, res) => {
   const userId = req.session.userId;
   try {
-    const ownedRes = await pool.query("SELECT * FROM rooms WHERE cupido_id = $1 ORDER BY created_at DESC", [userId]);
-    const enrichedOwned = ownedRes.rows.map(r => ({
-      ...r,
-      // Handle case sensitivity for columns if needed, but SELECT * preserves what PG returns
-      id: r.id, friendA_name: r.frienda_name, friendB_name: r.friendb_name, status: r.status,
-      linkA: r.linka, linkB: r.linkb, // normalize
-      linkA_used: !!r.linka_session, linkB_used: !!r.linkb_session
-    }));
+    const ownedRes = await pool.query(`
+      SELECT r.*, 
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id) as total_messages,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b
+      FROM rooms r 
+      WHERE cupido_id = $1 
+      ORDER BY created_at DESC
+    `, [userId]);
+
+    const enrichedOwned = ownedRes.rows.map(r => {
+      let currentActiveSeconds = parseInt(r.total_active_seconds || 0, 10);
+      if (r.active_since) {
+        currentActiveSeconds += Math.floor((Date.now() - Number(r.active_since)) / 1000);
+      }
+
+      const totalMsgs = parseInt(r.total_messages || 0, 10);
+      const msgsA = parseInt(r.msgs_a || 0, 10);
+      const msgsB = parseInt(r.msgs_b || 0, 10);
+
+      return {
+        ...r,
+        id: r.id,
+        friendA_name: r.frienda_name,
+        friendB_name: r.friendb_name,
+        status: r.status,
+        linkA: r.linka,
+        linkB: r.linkb,
+        linkA_used: !!r.linka_session,
+        linkB_used: !!r.linkb_session,
+        active_time_str: formatDuration(currentActiveSeconds),
+        active_seconds: currentActiveSeconds,
+        stats: {
+          total_messages: totalMsgs,
+          msgs_A: msgsA,
+          msgs_B: msgsB,
+          ratio_A: totalMsgs > 0 ? Math.round((msgsA / totalMsgs) * 100) : 0,
+          ratio_B: totalMsgs > 0 ? Math.round((msgsB / totalMsgs) * 100) : 0
+        }
+      };
+    });
 
     const accessedRes = await pool.query(`
         SELECT r.*, ur.role as accessed_role, ur.accessed_at
@@ -1129,6 +1162,15 @@ process.on('SIGTERM', () => {
     process.exit(0);
   });
 });
+
+
+function formatDuration(seconds) {
+  if (!seconds) return "0m";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
 
 (async () => {
   console.log("🌀 Starting server process...");
