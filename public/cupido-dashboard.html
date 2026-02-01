@@ -114,31 +114,54 @@
     </div>
 
     <div id="profileView" class="view-section" style="display: none;">
-        <div class="glass-card text-center p-2 mb-2">
-            <div class="hero-emoji-main" style="font-size: 3rem;">👤</div>
-            <h2 class="mb-1">Mi Cuenta Cupido</h2>
-            <p class="text-dim mb-2">Gestiona tu suscripción y ajustes.</p>
+        <div class="text-center mb-2 mt-1">
+            <div
+                style="width: 80px; height: 80px; margin: 0 auto 10px; background: var(--glass); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; border: 2px solid var(--border);">
+                👤</div>
+            <h2 style="font-size: 1.5rem; margin-bottom: 0px;">Mi Perfil</h2>
+            <p class="text-dim fs-small">Configuración de cuenta</p>
+        </div>
 
-            <div id="pwaInstallArea" class="glass-card install-card text-center p-2 mb-2">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📲</div>
-                <h3 class="mb-1">Instalar App</h3>
-                <p class="text-dim fs-small mb-1">Instala Cupido's Project en tu inicio para acceso rápido.</p>
-                <button id="installBtn" class="btn-main w-full">Instalar Ahora</button>
+        <div id="pwaInstallArea" class="compact-card" style="display:none;">
+            <div class="icon">📲</div>
+            <div class="content">
+                <h3>Instalar App</h3>
+                <p>Acceso rápido en inicio</p>
             </div>
+            <button id="installBtn" class="btn-main"
+                style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 12px;">Instalar</button>
+        </div>
 
-            <div id="pushArea" class="glass-card text-center p-2 mb-2" style="display:none;">
-                <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔔</div>
-                <h3 class="mb-1">Notificaciones</h3>
-                <p class="text-dim fs-small mb-1">Activa alertas para saber cuando te escriben.</p>
-                <button id="pushBtn" onclick="subscribeToPush()" class="btn-main w-full">Activar Alertas</button>
+        <div id="pushArea" class="compact-card" style="display:none;">
+            <div class="icon">🔔</div>
+            <div class="content">
+                <h3>Notificaciones</h3>
+                <p>Activa alertas de chat</p>
             </div>
+            <button id="pushBtn" onclick="subscribeToPush()" class="btn-main"
+                style="padding: 0.5rem 1rem; font-size: 0.8rem; border-radius: 12px;">Activar</button>
+        </div>
 
-            <button onclick="logout()" class="btn-main w-full mb-1 btn-glass">
-                🚪 Cerrar Sesión
-            </button>
-            <button onclick="deleteAccount()" class="btn-main w-full btn-danger">
-                ⚠️ Eliminar Cuenta
-            </button>
+        <div class="compact-card" onclick="logout()" style="cursor: pointer;">
+            <div class="icon">🚪</div>
+            <div class="content">
+                <h3>Cerrar Sesión</h3>
+                <p>Salir de tucocuenta</p>
+            </div>
+            <div style="color: var(--text-dim);">›</div>
+        </div>
+
+        <div class="compact-card" onclick="deleteAccount()"
+            style="cursor: pointer; border-color: rgba(239, 68, 68, 0.3);">
+            <div class="icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">⚠️</div>
+            <div class="content">
+                <h3>Eliminar Cuenta</h3>
+                <p style="color: #ef4444;">Acción irreversible</p>
+            </div>
+        </div>
+
+        <div class="text-center mt-2">
+            <p class="fs-small text-dim">Cupido's Project v2.0</p>
         </div>
     </div>
     </main>
@@ -235,6 +258,7 @@
         window.openModal = openModal;
         window.closeModal = closeModal;
         window.closeInfoModal = closeInfoModal;
+        window.showRoomInfo = showRoomInfo;
 
         // Prevent Back Navigation
         history.pushState(null, null, location.href);
@@ -291,36 +315,36 @@
                 const res = await fetch('/api/rooms');
                 const data = await res.json();
                 roomsList.innerHTML = data.owned.map(r => `
-                    <div class="room-card" id="room-${r.id}">
-                        <div class="room-header">
-                            <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
+                    < div class= "room-card-wrapper" >
+                        <div class="floating-info-btn" onclick="event.stopPropagation(); showRoomInfo('${r.id}')">ℹ️</div>
+                        <div class="room-card" id="room-${r.id}">
+                            <div class="room-header">
+                                <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
                                 <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
-                                <button onclick="showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.15); border: 1px solid var(--border); border-radius: 50%; width: 44px; height: 44px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: transform 0.2s;">ℹ️</button>
                             </div>
+                            <div class="link-pills">
+                                <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
+                                    <span>${r.friendA_name}</span>
+                                    <span>Copiar Link</span>
+                                </div>
+                                <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
+                                    <span>${r.friendB_name}</span>
+                                    <span>Copiar Link</span>
+                                </div>
+                            </div>
+                            <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
+                                🔗 Compartir Acceso a Sala
+                            </button>
                         </div>
-                        <div class="link-pills">
-                            <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
-                                <span>${r.friendA_name}</span>
-                                <span>Copiar Link</span>
-                            </div>
-                            <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
-                                <span>${r.friendB_name}</span>
-                                <span>Copiar Link</span>
-                            </div>
-                        </div>
-                        <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
-                            🔗 Compartir Acceso a Sala
-                        </button>
-                    </div>
-                `).join('');
+                    </div >
+                    `).join('');
                 if (data.owned.length === 0) {
                     roomsList.innerHTML = `
-                        <div class="text-center p-3">
+                    < div class= "text-center p-3" >
                             <div class="empty-state-icon">🕸️</div>
                             <p class="text-dim">Tu red está tranquila...</p>
                             <p class="fs-small text-dim">¡Crea una nueva sala para empezar la magia!</p>
-                        </div>`;
+                        </div > `;
                 }
                 currentRooms = data.owned;
             } catch (err) { console.error(err); }
@@ -328,7 +352,7 @@
 
         async function shareRoom(roomId) {
             try {
-                const res = await fetch(`/api/rooms/${roomId}/share`, { method: 'POST' });
+                const res = await fetch(`/ api / rooms / ${roomId} / share`, { method: 'POST' });
                 if (!res.ok) return alert("Error al generar enlace.");
                 const data = await res.json();
                 if (data.url) {
@@ -359,7 +383,7 @@
             const activeTime = room.active_time_str || "0m";
 
             document.getElementById('infoContent').innerHTML = `
-                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                < div style = "background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);" >
                     <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id.substring(0, 8)}...</span></p>
                     <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
                     <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
@@ -404,26 +428,26 @@
                 const res = await fetch('/api/cupido/blinders');
                 const blinders = await res.json();
                 blindersList.innerHTML = blinders.map(b => `
-                    <div class="room-card">
-                        <div style="display: flex; align-items: center; gap: 1.2rem;">
-                            <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
-                                ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
-                            </div>
-                            <div style="flex:1;">
-                                <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
-                                <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
-                            </div>
-                            <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
+                    < div class= "room-card" >
+                    <div style="display: flex; align-items: center; gap: 1.2rem;">
+                        <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
+                            ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
                         </div>
+                        <div style="flex:1;">
+                            <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
+                            <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
+                        </div>
+                        <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
                     </div>
-                `).join('');
+                    </div >
+                    `).join('');
                 if (blinders.length === 0) {
                     blindersList.innerHTML = `
-                        <div class="text-center p-3">
+                    < div class= "text-center p-3" >
                             <div class="empty-state-icon">👻</div>
                             <p class="text-dim">No tienes blinders aún.</p>
                             <p class="fs-small text-dim">¡Comparte tu link viral para atraer solteros!</p>
-                        </div>`;
+                        </div > `;
                 }
             } catch (err) { console.error(err); }
         }
@@ -490,10 +514,10 @@
         };
 
         socket.on('status-change', ({ room_id, status }) => {
-            const badge = document.getElementById(`status-${room_id}`);
+            const badge = document.getElementById(`status - ${room_id}`);
             if (badge) {
                 badge.innerText = status;
-                badge.className = `badge badge-${status.toLowerCase().replace(' ', '')}`;
+                badge.className = `badge badge - ${status.toLowerCase().replace(' ', '')}`;
             }
         });
 
