@@ -34,3 +34,4 @@ Thumbs.db
 # Caché
 .cache/
 .eslintcache
+backups/
