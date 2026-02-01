@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Blinder Dashboard | Mis Chispazos</title>
+    <title>Blinder Dashboard | Mis Flechazos</title>
     <link rel="stylesheet" href="/style.css?v=2.1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -80,7 +80,7 @@
     <div class="app-container">
         <header class="nav">
             <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/blinder-dashboard'">Mis
-                Chispazos ✨</h1>
+                Flechazos 💘</h1>
             <div class="nav-actions">
                 <button onclick="switchTab('profile')" class="settings-btn" title="Perfil">👤</button>
             </div>
@@ -91,7 +91,7 @@
             <div id="roomsView" class="view-section">
                 <div id="noChispazos" class="text-center p-3 hidden">
                     <div class="hero-emoji">🌵</div>
-                    <h2 class="mb-1">Aún no hay chispazos</h2>
+                    <h2 class="mb-1">Aún no hay flechazos</h2>
                     <p class="text-dim mb-2">Tu Cupido está trabajando en encontrarte el match ideal. ¡Recibirás una
                         notificación cuando suceda!</p>
                     <button onclick="shareLink()" class="btn-main w-full">🤝 Invitar a más amigos</button>
@@ -139,7 +139,7 @@
         <div class="bottom-nav">
             <button class="nav-item active" onclick="switchTab('rooms')">
                 <span class="nav-icon">⚡</span>
-                <span>Chispazos</span>
+                <span>Flechazos</span>
             </button>
             <button class="nav-item" onclick="switchTab('profile')">
                 <span class="nav-icon">👤</span>
@@ -167,7 +167,7 @@
         </div>
     </div>
 
-    <div id="notification" class="toast">¡Nuevo chispazo detectado! ⚡</div>
+    <div id="notification" class="toast">¡Nuevo flechazo detectado! 💘</div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -232,7 +232,7 @@
                 if (!data.rooms || data.rooms.length === 0) {
                     document.getElementById('noChispazos').innerHTML = `
                         <div class="empty-state-icon">🌵</div>
-                        <h2 class="mb-1">Aún no hay chispazos</h2>
+                        <h2 class="mb-1">Aún no hay flechazos</h2>
                         <p class="text-dim mb-2">¡Tu próxima conexión está cerca!</p>
                         <button onclick="shareLink()" class="btn-main w-full">🤝 Compartir Perfil</button>`;
                     document.getElementById('noChispazos').classList.remove('hidden');
@@ -347,7 +347,7 @@
         }
 
         async function deleteAccount() {
-            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu perfil? Esta acción no se puede deshacer y perderás todos tus chispazos.")) {
+            if (confirm("⚠️ ¿Estás seguro de que quieres borrar tu perfil? Esta acción no se puede deshacer y perderás todos tus flechazos.")) {
                 const res = await fetch('/api/user/delete-account', { method: 'POST' });
                 if (res.ok) {
                     alert("Perfil borrado con éxito.");
