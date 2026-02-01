@@ -352,7 +352,7 @@
 
         async function shareRoom(roomId) {
             try {
-                const res = await fetch(`/ api / rooms / ${roomId} / share`, { method: 'POST' });
+                const res = await fetch(`/api/rooms/${roomId}/share`, { method: 'POST' });
                 if (!res.ok) return alert("Error al generar enlace.");
                 const data = await res.json();
                 if (data.url) {
@@ -428,26 +428,26 @@
                 const res = await fetch('/api/cupido/blinders');
                 const blinders = await res.json();
                 blindersList.innerHTML = blinders.map(b => `
-                    < div class= "room-card" >
-                    <div style="display: flex; align-items: center; gap: 1.2rem;">
-                        <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
-                            ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
+                    <div class="room-card">
+                        <div style="display: flex; align-items: center; gap: 1.2rem;">
+                            <div style="width: 65px; height: 65px; border-radius: 50%; overflow: hidden; background: var(--glass); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center;">
+                                ${b.photo_url ? `<img src="${b.photo_url}" style="width:100%; height:100%; object-fit:cover;">` : '<span style="font-size: 1.5rem;">👤</span>'}
+                            </div>
+                            <div style="flex:1;">
+                                <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
+                            </div>
+                            <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel || 1}</div>
                         </div>
-                        <div style="flex:1;">
-                            <div style="font-weight: 700; font-size: 1.1rem;">${b.full_name} ${b.revealLevel >= 3 ? `(${b.age})` : ''}</div>
-                            <div style="font-size: 0.85rem; color: var(--text-dim); font-style: italic; margin-top: 2px;">"${b.tagline}"</div>
-                        </div>
-                        <div class="badge badge-activo" style="font-size: 0.7rem;">Lvl ${b.revealLevel}</div>
                     </div>
-                    </div >
-                    `).join('');
+                `).join('');
                 if (blinders.length === 0) {
                     blindersList.innerHTML = `
-                    < div class= "text-center p-3" >
+                        <div class="text-center p-3">
                             <div class="empty-state-icon">👻</div>
                             <p class="text-dim">No tienes blinders aún.</p>
                             <p class="fs-small text-dim">¡Comparte tu link viral para atraer solteros!</p>
-                        </div > `;
+                        </div>`;
                 }
             } catch (err) { console.error(err); }
         }
