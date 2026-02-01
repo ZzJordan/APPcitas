@@ -763,15 +763,43 @@ h1 {
     gap: 5px;
     color: var(--text-dim);
     font-size: 0.7rem;
-    /* Texto un poco más pequeño */
     font-weight: 500;
     cursor: pointer;
-    background: none;
+    background: transparent;
+    /* Ensure explicit transparent */
+    appearance: none;
+    /* Reset native button style */
+    -webkit-appearance: none;
+    /* Reset native iOS button style */
     border: none;
     transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
     opacity: 0.7;
     flex: 1;
-    /* Distribución equitativa */
+}
+
+/* Compact Card for Mobile Lists */
+.compact-card {
+    background: var(--glass);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 1rem;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.compact-card .icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    flex-shrink: 0;
+    /* Prevent icon from shrinking */
 }
 
 .nav-item svg,
