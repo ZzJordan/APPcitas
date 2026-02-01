@@ -13,6 +13,23 @@ const compression = require('compression');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 const webpush = require('web-push');
+const rateLimit = require('express-rate-limit');
+
+// Security: Rate Limiters
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Limit each IP to 20 login/register requests per windowMs
+  message: { error: "Demasiados intentos, por favor intenta de nuevo en 15 minutos." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200, // Limit API requests
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // SendGrid Configuration
 const sgMail = require('@sendgrid/mail');
@@ -379,7 +396,7 @@ async function sendPushToUser(userId, data) {
   }
 }
 
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', authLimiter, async (req, res) => {
   const { username, password } = req.body;
   try {
     const { rows } = await pool.query("SELECT * FROM cupidos WHERE username = $1", [username]);
@@ -401,17 +418,17 @@ app.post('/api/login', async (req, res) => {
 });
 
 
-app.post('/api/logout', (req, res) => {
+app.post('/api/logout', authLimiter, (req, res) => {
   req.session.destroy();
   res.status(200).json({ message: "Sesión cerrada" });
 });
 
-app.get('/api/user', isAuthenticated, (req, res) => {
+app.get('/api/user', apiLimiter, isAuthenticated, (req, res) => {
   res.json({ username: req.session.username, userId: req.session.userId, role: req.session.userRole });
 });
 
 // --- Password Recovery ---
-app.post('/api/forgot-password', async (req, res) => {
+app.post('/api/forgot-password', authLimiter, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: "Email requerido" });
 
@@ -472,7 +489,7 @@ app.post('/api/forgot-password', async (req, res) => {
   }
 });
 
-app.post('/api/reset-password', async (req, res) => {
+app.post('/api/reset-password', authLimiter, async (req, res) => {
   const { token, newPassword } = req.body;
   if (!token || !newPassword) return res.status(400).json({ error: "Datos incompletos" });
   if (newPassword.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
@@ -491,7 +508,7 @@ app.post('/api/reset-password', async (req, res) => {
 });
 
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', authLimiter, async (req, res) => {
   const { username, password, email, role, fullName, tel, city, age } = req.body;
   const userRole = role === 'blinder' ? 'blinder' : 'cupido';
 
