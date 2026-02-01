@@ -2,8 +2,24 @@
 
 Este archivo registra los cambios importantes y la evolución del proyecto.
 
-## [v1.2.0] - 2026-01-31 (Actual)
+## [v2.0.0] - 2026-02-01
+
+### UX & Analytics Upgrade - "The Insight Update"
+
+- **Cupido Dashboard (UX)**:
+  - Botón de información de sala rediseñado: tamaño aumentado (44px) para mejor accesibilidad táctil.
+  - Nuevas animaciones y feedback visual.
+- **Analytics en Tiempo Real**:
+  - Popup de información de sala expandido.
+  - **Métricas de Sala**: Visualización de tiempo activo total.
+  - **Conteo de Mensajes**: Desglose total y por usuario.
+  - **Ratio de Conversación**: Barra visual (ratio bar) que muestra el % de participación de cada usuario en la conversación.
+- **Backend**:
+  - Actualización de endpoint `/api/rooms` para calcular estadísticas de mensajes al vuelo.
+  - Mejor cálculo de tiempo activo incluyendo sesiones en vivo.
+
 ### Seguridad y Estabilidad - "The Fortified Edition"
+
 - **Seguridad en Registro**:
   - Implementada validación estricta en el registro de Blinders.
   - Se rechazan intentos de registro sin token de invitación o enlace de sala válido.
@@ -16,7 +32,9 @@ Este archivo registra los cambios importantes y la evolución del proyecto.
   - Eliminado código legacy de `sqlite3`.
 
 ## [v1.1.0] - 2026-01-31
+
 ### Migración a PostgreSQL & QR - "The Production Ready Update"
+
 - **Base de Datos**:
   - Migración completa de SQLite a PostgreSQL.
   - Implementación de `connect-pg-simple` para sesiones persistentes.
@@ -26,7 +44,9 @@ Este archivo registra los cambios importantes y la evolución del proyecto.
   - **Cuentas Master**: Generación automática de cuentas de prueba para QA.
 
 ## [v1.0.0] - 2026-01-30
+
 ### Lanzamiento Inicial - "MVP"
+
 - **Core**:
   - servidor Express básico.
   - Websockets para chat en tiempo real.
