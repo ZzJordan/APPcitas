@@ -20,8 +20,9 @@
     <div class="container hero">
         <!-- View: Login -->
         <div id="loginView" class="premium-card">
-            <img id="hero-emoji" src="/cupido_icon.png" class="hero-emoji-main" alt="Role Icon"
-                style="height: 100px; width: auto; display: block; margin: 0 auto 1.5rem auto; filter: drop-shadow(0 0 15px rgba(255, 77, 109, 0.4));">
+            <img id="hero-emoji" src="/cupido_icon.png" class="hero-emoji-main" alt="Role Icon" style="height: 180px; width: auto; display: block; margin: 0 auto 2rem auto; 
+                        filter: drop-shadow(0 0 30px rgba(255, 77, 109, 0.5)); 
+                        transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);">
             <h1 class="primary-text-gradient text-center mb-1">Cupido's Project</h1>
 
             <div class="role-selector-container" id="role-selector">
@@ -181,17 +182,27 @@
                 else opt.classList.remove('active');
             });
 
-            if (role === 'cupido') {
-                cupidoSection.classList.remove('hidden');
-                blinderSection.classList.add('hidden');
-                emoji.src = '/cupido_icon.png';
-                emoji.style.filter = 'drop-shadow(0 0 15px rgba(255, 77, 109, 0.4))';
-            } else {
-                cupidoSection.classList.add('hidden');
-                blinderSection.classList.remove('hidden');
-                emoji.src = '/blinder_icon.png';
-                emoji.style.filter = 'drop-shadow(0 0 15px rgba(220, 38, 38, 0.4))';
-            }
+            // Animate Out
+            emoji.style.transform = 'scale(0) rotate(-45deg)';
+            emoji.style.opacity = '0';
+
+            setTimeout(() => {
+                if (role === 'cupido') {
+                    cupidoSection.classList.remove('hidden');
+                    blinderSection.classList.add('hidden');
+                    emoji.src = '/cupido_icon.png';
+                    emoji.style.filter = 'drop-shadow(0 0 30px rgba(255, 77, 109, 0.6))';
+                } else {
+                    cupidoSection.classList.add('hidden');
+                    blinderSection.classList.remove('hidden');
+                    emoji.src = '/blinder_icon.png';
+                    emoji.style.filter = 'drop-shadow(0 0 30px rgba(220, 38, 38, 0.6))';
+                }
+
+                // Animate In
+                emoji.style.transform = 'scale(1) rotate(0deg)';
+                emoji.style.opacity = '1';
+            }, 300);
 
         }
 
