@@ -20,7 +20,8 @@
     <div class="container hero">
         <!-- View: Login -->
         <div id="loginView" class="premium-card">
-            <div id="hero-emoji" class="hero-emoji-main">🛡️</div>
+            <img id="hero-emoji" src="/cupido_icon.png" class="hero-emoji-main" alt="Role Icon"
+                style="height: 100px; width: auto; display: block; margin: 0 auto 1.5rem auto; filter: drop-shadow(0 0 15px rgba(255, 77, 109, 0.4));">
             <h1 class="primary-text-gradient text-center mb-1">Cupido's Project</h1>
 
             <div class="role-selector-container" id="role-selector">
@@ -183,13 +184,13 @@
             if (role === 'cupido') {
                 cupidoSection.classList.remove('hidden');
                 blinderSection.classList.add('hidden');
-                emoji.innerText = '🛡️';
-                emoji.style.transform = 'scale(1) rotate(0deg)';
+                emoji.src = '/cupido_icon.png';
+                emoji.style.filter = 'drop-shadow(0 0 15px rgba(255, 77, 109, 0.4))';
             } else {
                 cupidoSection.classList.add('hidden');
                 blinderSection.classList.remove('hidden');
-                emoji.innerText = '✨';
-                emoji.style.transform = 'scale(1) rotate(15deg)';
+                emoji.src = '/blinder_icon.png';
+                emoji.style.filter = 'drop-shadow(0 0 15px rgba(220, 38, 38, 0.4))';
             }
 
         }
