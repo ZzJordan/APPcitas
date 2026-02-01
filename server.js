@@ -165,6 +165,48 @@ const isAuthenticated = (req, res, next) => {
   res.redirect('/login');
 };
 
+// --- TEMP SEED ROUTE ---
+app.get('/api/seed-test-matches', isAuthenticated, async (req, res) => {
+  try {
+    const c1 = await pool.query("SELECT id FROM cupidos WHERE username = 'cupido1'");
+    if (!c1.rows.length) return res.send("cupido1 not found");
+    const cupidoId = c1.rows[0].id;
+
+    const blinders = [];
+    for (let i = 1; i <= 4; i++) {
+      const b = await pool.query("SELECT id FROM cupidos WHERE username = $1", [`blinder${i}`]);
+      if (b.rows[0]) blinders.push(b.rows[0].id);
+    }
+
+    if (blinders.length < 4) return res.send("Missing blinders users");
+
+    // Helper to create room
+    const create = async (uA, uB, nA, nB) => {
+      const linkA = crypto.randomUUID();
+      const linkB = crypto.randomUUID();
+      const ins = await pool.query(`
+                INSERT INTO rooms (cupido_id, friendA_name, friendB_name, linkA, linkB, user_a_id, user_b_id, status, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, 'activo', NOW())
+                ON CONFLICT (linkA) DO NOTHING
+                RETURNING id`,
+        [cupidoId, nA, nB, linkA, linkB, uA, uB]
+      );
+
+      if (ins.rows[0]) {
+        await pool.query("INSERT INTO user_rooms (cupido_id, room_id, role) VALUES ($1, $2, 'cupido') ON CONFLICT DO NOTHING", [cupidoId, ins.rows[0].id]);
+      }
+    };
+
+    await create(blinders[0], blinders[1], "Blinder Master 1", "Blinder Master 2");
+    await create(blinders[2], blinders[3], "Blinder Master 3", "Blinder Master 4");
+
+    res.send("Created test matches!");
+  } catch (e) {
+    console.error(e);
+    res.status(500).send(e.toString());
+  }
+});
+
 // Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
