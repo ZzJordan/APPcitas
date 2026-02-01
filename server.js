@@ -166,22 +166,26 @@ const isAuthenticated = (req, res, next) => {
 };
 
 // --- TEMP SEED ROUTE ---
+// --- TEMP SEED ROUTE ---
 app.get('/api/seed-test-matches', isAuthenticated, async (req, res) => {
   try {
     const c1 = await pool.query("SELECT id FROM cupidos WHERE username = 'cupido1'");
     if (!c1.rows.length) return res.send("cupido1 not found");
     const cupidoId = c1.rows[0].id;
 
-    const blinders = [];
-    for (let i = 1; i <= 4; i++) {
-      const b = await pool.query("SELECT id FROM cupidos WHERE username = $1", [`blinder${i}`]);
-      if (b.rows[0]) blinders.push(b.rows[0].id);
-    }
+    // Helper to get user info by username suffix
+    const getBlinder = async (i) => {
+      const u = await pool.query("SELECT id, username FROM cupidos WHERE username = $1", [`blinder${i}`]);
+      if (!u.rows.length) return null;
+      const p = await pool.query("SELECT full_name FROM blinder_profiles WHERE user_id = $1", [u.rows[0].id]);
+      return {
+        id: u.rows[0].id,
+        name: p.rows[0]?.full_name || u.rows[0].username
+      };
+    };
 
-    if (blinders.length < 4) return res.send("Missing blinders users");
-
-    // Helper to create room
-    const create = async (uA, uB, nA, nB) => {
+    const createdRooms = [];
+    const create = async (bA, bB) => {
       const linkA = crypto.randomUUID();
       const linkB = crypto.randomUUID();
       const ins = await pool.query(`
@@ -189,18 +193,25 @@ app.get('/api/seed-test-matches', isAuthenticated, async (req, res) => {
                 VALUES ($1, $2, $3, $4, $5, $6, $7, 'activo', NOW())
                 ON CONFLICT (linkA) DO NOTHING
                 RETURNING id`,
-        [cupidoId, nA, nB, linkA, linkB, uA, uB]
+        [cupidoId, bA.name, bB.name, linkA, linkB, bA.id, bB.id]
       );
 
       if (ins.rows[0]) {
         await pool.query("INSERT INTO user_rooms (cupido_id, room_id, role) VALUES ($1, $2, 'cupido') ON CONFLICT DO NOTHING", [cupidoId, ins.rows[0].id]);
+        createdRooms.push(`${bA.name} ↔ ${bB.name}`);
       }
     };
 
-    await create(blinders[0], blinders[1], "Blinder Master 1", "Blinder Master 2");
-    await create(blinders[2], blinders[3], "Blinder Master 3", "Blinder Master 4");
+    // Try creating matches for 1-2, 3-4, 5-6
+    for (let i = 1; i <= 5; i += 2) {
+      const bA = await getBlinder(i);
+      const bB = await getBlinder(i + 1);
+      if (bA && bB) {
+        await create(bA, bB);
+      }
+    }
 
-    res.send("Created test matches!");
+    res.send(`Created test matches: ${createdRooms.join(', ') || 'None (maybe already exist or users missing)'}`);
   } catch (e) {
     console.error(e);
     res.status(500).send(e.toString());
