@@ -9,6 +9,7 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "connect-pg-simple": "^10.0.0",

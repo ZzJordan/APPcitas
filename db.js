@@ -105,6 +105,21 @@ const initDb = async () => {
             );
         `);
 
+        // 4b. Table: cupido_profiles
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cupido_profiles (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER UNIQUE REFERENCES cupidos(id),
+                full_name TEXT,
+                age INTEGER,
+                city TEXT,
+                tagline TEXT,
+                photo_url TEXT,
+                tel TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
         // 5. Table: solteros
         await client.query(`
             CREATE TABLE IF NOT EXISTS solteros (

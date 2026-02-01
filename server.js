@@ -14,6 +14,14 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 const webpush = require('web-push');
 
+// SendGrid Configuration
+const sgMail = require('@sendgrid/mail');
+if (process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+} else {
+  console.warn("⚠️ SENDGRID_API_KEY missing. Email sending will be mocked.");
+}
+
 // Web Push Configuration
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -410,25 +418,57 @@ app.post('/api/forgot-password', async (req, res) => {
   try {
     const { rows } = await pool.query("SELECT id, username FROM cupidos WHERE email = $1", [email]);
     const user = rows[0];
-    if (!user) return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+
+    // Always return success to prevent email enumeration
+    if (!user) {
+      // Fake delay to mimic processing time
+      await new Promise(resolve => setTimeout(resolve, 200));
+      return res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
+    }
 
     const token = crypto.randomBytes(20).toString('hex');
-    // Postgres timestamp string
-    // const expires = new Date(Date.now() + 3600000).toISOString(); 
-    // easiest is to let node pass Date object, pg handles it
+    const resetUrl = `${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`;
 
+    // Update DB with token and expiration (1 hour)
     await pool.query("UPDATE cupidos SET recovery_token = $1, token_expires = NOW() + interval '1 hour' WHERE id = $2", [token, user.id]);
 
-    // MOCK EMAIL LOGIC
-    console.log(`-----------------------------------------`);
-    console.log(`📨 MOCK EMAIL TO: ${email}`);
-    console.log(`SUBJECT: Recuperación de contraseña`);
-    console.log(`${req.protocol}://${req.get('host')}/reset-password.html?token=${token}`);
-    console.log(`-----------------------------------------`);
+    // Send Email via SendGrid
+    if (process.env.SENDGRID_API_KEY) {
+      const msg = {
+        to: email,
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@cupidosproject.com',
+        subject: 'Restablecer Contraseña - Cupidos Project',
+        text: `Hola ${user.username},\n\nPara restablecer tu contraseña, haz clic en el siguiente enlace:\n${resetUrl}\n\nSi no solicitaste esto, ignora este mensaje.\n\nEl enlace expira en 1 hora.`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+            <h2 style="color: #333;">Restablecer Contraseña</h2>
+            <p>Hola <strong>${user.username}</strong>,</p>
+            <p>Hemos recibido una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para continuar:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" style="background-color: #ff4757; color: white; padding: 12px 24px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">Cambiar Contraseña</a>
+            </div>
+            <p style="color: #666; font-size: 14px;">O copia y pega este enlace en tu navegador:</p>
+            <p style="color: #666; font-size: 12px; word-break: break-all;">${resetUrl}</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+            <p style="color: #999; font-size: 12px;">Si no solicitaste este cambio, puedes ignorar este correo de forma segura. El enlace expirará en 1 hora.</p>
+          </div>
+        `,
+      };
+      await sgMail.send(msg);
+      console.log(`📨 SendGrid Email sent to ${email}`);
+    } else {
+      // Mock for local dev without keys
+      console.log(`-----------------------------------------`);
+      console.log(`📨 MOCK EMAIL TO: ${email}`);
+      console.log(`SUBJECT: Recuperación de contraseña`);
+      console.log(`LINK: ${resetUrl}`);
+      console.log(`-----------------------------------------`);
+    }
 
     res.status(200).json({ message: "Si el correo está registrado, recibirás un enlace de recuperación." });
   } catch (err) {
-    res.status(500).json({ error: "Error al generar token" });
+    console.error("Forgot Password Error:", err);
+    res.status(500).json({ error: "Error al procesar solicitud" });
   }
 });
 
@@ -452,30 +492,52 @@ app.post('/api/reset-password', async (req, res) => {
 
 
 app.post('/api/register', async (req, res) => {
-  const { username, password, email, role } = req.body;
+  const { username, password, email, role, fullName, tel, city, age } = req.body;
   const userRole = role === 'blinder' ? 'blinder' : 'cupido';
 
   if (!username || !password || !email) return res.status(400).json({ error: "Datos incompletos" });
   if (username.length < 4) return res.status(400).json({ error: "El usuario debe tener al menos 4 caracteres" });
   if (password.length < 6) return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
 
+  const client = await pool.connect();
+
   try {
+    await client.query('BEGIN');
+
     const hashedPassword = await bcrypt.hash(password, 10);
-    // RETURNING id is key for Postgres
-    const { rows } = await pool.query(
+
+    // 1. Create User
+    const { rows } = await client.query(
       "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, $4) RETURNING id",
       [username, hashedPassword, email, userRole]
     );
     const userId = rows[0].id;
 
+    // 2. Create Profile if Cupido
+    if (userRole === 'cupido') {
+      // Even if empty, create the profile entry so we have a place for data later
+      await client.query(
+        "INSERT INTO cupido_profiles (user_id, full_name, tel, city, age) VALUES ($1, $2, $3, $4, $5)",
+        [userId, fullName || '', tel || '', city || '', age || null]
+      );
+    }
+    // Note: Blinder profile creation via this generic route is not fully supported yet (usually done via invite link)
+    // but if we wanted to support it, we'd add similar logic here for blinder_profiles.
+
+    await client.query('COMMIT');
+
     req.session.userId = userId;
     req.session.username = username;
     req.session.userRole = userRole;
     res.status(201).json({ message: "Registro exitoso", role: userRole });
+
   } catch (err) {
-    if (err.code === '23505') return res.status(400).json({ error: "El usuario ya existe" }); // Unique violation
-    console.error(err);
+    await client.query('ROLLBACK');
+    if (err.code === '23505') return res.status(400).json({ error: "El usuario ya existe" });
+    console.error("Register Error:", err);
     res.status(500).json({ error: "Error al registrar" });
+  } finally {
+    client.release();
   }
 });
 

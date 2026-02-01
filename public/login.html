@@ -109,6 +109,24 @@
                         <option value="blinder">Blinder (Buscador de matches)</option>
                     </select>
                 </div>
+
+                <div class="input-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="regFullName" placeholder="Tu nombre real" required>
+                </div>
+                <div class="input-group">
+                    <label>Teléfono (Para recuperación)</label>
+                    <input type="tel" id="regTel" placeholder="+34 600 000 000" required>
+                </div>
+                <div class="input-group">
+                    <label>Edad</label>
+                    <input type="number" id="regAge" placeholder="25">
+                </div>
+                <div class="input-group">
+                    <label>Ciudad</label>
+                    <input type="text" id="regCity" placeholder="Madrid">
+                </div>
+
                 <div class="input-group">
                     <label>Contraseña Maestra (mín. 6 caracteres)</label>
                     <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
@@ -252,10 +270,24 @@
 
             try {
                 const role = document.getElementById('regRole').value;
+                const fullName = document.getElementById('regFullName').value;
+                const tel = document.getElementById('regTel').value;
+                const city = document.getElementById('regCity').value;
+                const age = document.getElementById('regAge').value;
+
                 const res = await fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: user, password: pass, email: email, role: role })
+                    body: JSON.stringify({
+                        username: user,
+                        password: pass,
+                        email: email,
+                        role: role,
+                        fullName,
+                        tel,
+                        city,
+                        age
+                    })
                 });
 
 
