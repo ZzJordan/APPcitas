@@ -10,97 +10,165 @@
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
-    <style>
-        .hero {
-            text-align: center;
-            animation: fadeIn 0.8s ease-out;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 2rem;
-        }
-
-        .btn-main {
-            margin-top: 2rem;
-            padding: 1.2rem 2.5rem;
-            font-size: 1.1rem;
-            min-width: 250px;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-    </style>
-
 </head>
 
-<body>
+
+<body class="auth-page">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
 
     <div class="container hero">
-        <div id="hero-emoji" class="hero-emoji-main">🛡️</div>
+        <!-- View: Login -->
+        <div id="loginView" class="premium-card">
+            <div id="hero-emoji" class="hero-emoji-main">🛡️</div>
+            <h1 class="primary-text-gradient text-center mb-1">Cupido's Project</h1>
 
-        <h1 class="primary-text-gradient">Cupido's Project</h1>
-
-        <div class="role-selector-container" id="role-selector">
-            <div class="selector-bg"></div>
-            <div class="role-option active" onclick="setRole('cupido')">CUPIDO</div>
-            <div class="role-option" onclick="setRole('blinder')">BLINDER</div>
-        </div>
-
-        <div class="content-sections-wrapper">
-            <div id="cupido-content" class="content-section">
-                <p class="subtitle white-text font-800 fs-large mb-1">Panel de Gestión</p>
-                <p class="text-dim mb-1">
-                    La plataforma exclusiva donde los cupidos modernos gestionan encuentros mágicos y coordinan a sus
-                    solteros con total discreción.
-                </p>
-                <a href="/login?role=cupido" class="btn-main">Acceso Cupido &rarr;</a>
+            <div class="role-selector-container" id="role-selector">
+                <div class="selector-bg"></div>
+                <div class="role-option active" onclick="setRole('cupido')">CUPIDO</div>
+                <div class="role-option" onclick="setRole('blinder')">BLINDER</div>
             </div>
 
-            <div id="blinder-content" class="content-section hidden">
-                <p class="subtitle white-text font-800 fs-large mb-1">Tu Perfil Privado</p>
-                <p class="text-dim mb-1">
-                    ¿Has sido invitado a una conexión? Accede para gestionar tu perfil, ver tus chats activos y
-                    descubrir quién está esperando para conocerte.
+            <div class="content-sections-wrapper">
+                <div id="cupido-login-section" class="content-section">
+                    <p class="subtitle text-center mb-2">Acceso Exclusivo Cupido</p>
+                    <form id="loginForm">
+                        <div class="input-group">
+                            <label>Usuario Cupido</label>
+                            <input type="text" id="username" placeholder="Tu usuario" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Contraseña</label>
+                            <input type="password" id="cupido-password" placeholder="••••••••" required>
+                        </div>
+                        <div class="text-right mb-1">
+                            <a href="/forgot-password.html" class="fs-small text-dim">¿Olvidaste tu contraseña?</a>
+                        </div>
+                        <button type="submit" class="btn-main w-full mt-1" id="loginBtn">Entrar al Panel Cupido</button>
+                        <div id="errorMessage" class="error"></div>
+                    </form>
+
+                    <div class="text-center mt-2 pt-1 glass-border-top">
+                        <p class="text-dim fs-small mb-1">¿Eres nuevo cupido? Únete al proyecto:</p>
+                        <a href="javascript:void(0)" onclick="showRegister()"
+                            class="btn-main btn-glass w-full fs-small px-2">
+                            Crear mi Perfil Cupido &rarr;
+                        </a>
+                    </div>
+                </div>
+
+                <div id="blinder-login-section" class="content-section hidden">
+                    <p class="subtitle text-center mb-2">Acceso Exclusivo Blinder</p>
+
+                    <form id="blinderLoginForm">
+                        <div class="input-group">
+                            <label>Usuario Blinder</label>
+                            <input type="text" id="blinderUsername" placeholder="Tu usuario" required>
+                        </div>
+                        <div class="input-group">
+                            <label>Contraseña</label>
+                            <input type="password" id="blinderPassword" placeholder="••••••••" required>
+                        </div>
+                        <div class="text-right mb-1">
+                            <a href="/forgot-password.html" class="fs-small text-dim">¿Olvidaste tu contraseña?</a>
+                        </div>
+                        <button type="submit" class="btn-main w-full mt-1">Entrar al Panel Blinder</button>
+                        <div id="blinderErrorMessage" class="error"></div>
+                    </form>
+
+                    <div class="text-center mt-2 pt-1 glass-border-top">
+                        <p class="text-dim fs-small mb-1">¿Eres nuevo? Únete al proyecto:</p>
+                        <a href="/join/blinder/profile" class="btn-main btn-glass w-full fs-small px-2">
+                            Crear mi Perfil Blinder &rarr;
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+
+
+        <div id="registerView" class="premium-card" style="display: none;">
+            <div class="hero-emoji-main">✨</div>
+            <h1 class="primary-text-gradient text-center mb-1">Registro Cupido</h1>
+            <p class="subtitle text-center mb-2">Crea tu perfil profesional</p>
+
+            <form id="registerForm">
+                <div class="input-group">
+                    <label>Nombre de Usuario (mín. 4 caracteres)</label>
+                    <input type="text" id="regUsername" placeholder="Ej: cupido_master" required minlength="4">
+                </div>
+                <div class="input-group">
+                    <label>Correo de Recuperación</label>
+                    <input type="email" id="regEmail" placeholder="tu@correo.com" required>
+                </div>
+                <div class="input-group">
+                    <label>Tipo de Perfil</label>
+                    <select id="regRole" class="input-glass mb-1 w-full">
+                        <option value="cupido">Cupido (Creador de matches)</option>
+                        <option value="blinder">Blinder (Buscador de matches)</option>
+                    </select>
+                </div>
+
+                <div class="input-group">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="regFullName" placeholder="Tu nombre real" required>
+                </div>
+                <div class="input-group">
+                    <label>Teléfono (Para recuperación)</label>
+                    <input type="tel" id="regTel" placeholder="+34 600 000 000" required>
+                </div>
+                <div class="input-group">
+                    <label>Edad</label>
+                    <input type="number" id="regAge" placeholder="25">
+                </div>
+                <div class="input-group">
+                    <label>Ciudad</label>
+                    <input type="text" id="regCity" placeholder="Madrid">
+                </div>
+
+                <div class="input-group">
+                    <label>Contraseña Maestra (mín. 6 caracteres)</label>
+                    <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+                </div>
+
+                <button type="submit" class="btn-main w-full mt-1" id="registerBtn">Crear Cuenta</button>
+                <div id="regError" class="error"></div>
+            </form>
+
+
+            <div class="text-center mt-2">
+                <p class="text-dim fs-small">
+                    ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()" class="font-800"
+                        style="color: var(--primary);">Inicia Sesión</a>
                 </p>
-                <a href="/login?role=blinder" class="btn-main">Acceso Blinder &rarr;</a>
             </div>
         </div>
+
     </div>
 
-
-
     <script>
+        // Start by checking session logic
         async function checkSession() {
             try {
                 const res = await fetch('/api/user');
                 const data = await res.json();
                 if (data.userId) {
+                    // Already logged in
                     if (data.role === 'cupido') window.location.href = '/cupido-dashboard';
                     else if (data.role === 'blinder') window.location.href = '/blinder-dashboard';
                 }
             } catch (e) {
-                console.log('No active session');
+                // Not logged in, stay on page
             }
         }
         checkSession();
 
         function setRole(role) {
             const selector = document.getElementById('role-selector');
-            const cupidoContent = document.getElementById('cupido-content');
-            const blinderContent = document.getElementById('blinder-content');
+            const cupidoSection = document.getElementById('cupido-login-section');
+            const blinderSection = document.getElementById('blinder-login-section');
             const emoji = document.getElementById('hero-emoji');
             const options = document.querySelectorAll('.role-option');
 
@@ -113,27 +181,148 @@
             });
 
             if (role === 'cupido') {
-                cupidoContent.classList.remove('hidden');
-                blinderContent.classList.add('hidden');
+                cupidoSection.classList.remove('hidden');
+                blinderSection.classList.add('hidden');
                 emoji.innerText = '🛡️';
                 emoji.style.transform = 'scale(1) rotate(0deg)';
             } else {
-                cupidoContent.classList.add('hidden');
-                blinderContent.classList.remove('hidden');
+                cupidoSection.classList.add('hidden');
+                blinderSection.classList.remove('hidden');
                 emoji.innerText = '✨';
                 emoji.style.transform = 'scale(1) rotate(15deg)';
             }
+
         }
+
+        function showRegister() {
+            document.getElementById('loginView').style.display = 'none';
+            document.getElementById('registerView').style.display = 'block';
+        }
+        function showLogin() {
+            document.getElementById('loginView').style.display = 'block';
+            document.getElementById('registerView').style.display = 'none';
+        }
+        window.showRegister = showRegister;
+        window.showLogin = showLogin;
+
+
+        document.getElementById('loginForm').onsubmit = async (e) => handleLogin(e, 'username', 'cupido-password', 'loginBtn', 'errorMessage');
+        document.getElementById('blinderLoginForm').onsubmit = async (e) => handleLogin(e, 'blinderUsername', 'blinderPassword', 'blinderLoginBtn', 'blinderErrorMessage'); // Add ID to button in HTML too if needed, or querySelector
+
+        async function handleLogin(e, userFieldId, passFieldId, btnId, errFieldId) {
+            e.preventDefault();
+            // Fallback for button if passed ID doesn't exist (blinder btn has no ID)
+            let btn = document.getElementById(btnId);
+            if (!btn) btn = e.target.querySelector('button[type="submit"]');
+
+            const user = document.getElementById(userFieldId).value;
+            const pass = document.getElementById(passFieldId).value;
+            const errEl = document.getElementById(errFieldId);
+
+            const originalBtnText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = 'Verificando...';
+            errEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    btn.innerText = '¡Correcto!';
+                    btn.style.background = '#4ade80';
+                    setTimeout(() => {
+                        if (data.role === 'admin') location.href = '/admin-dashboard';
+                        else if (data.role === 'blinder') location.href = '/blinder-dashboard';
+                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
+                        else location.href = '/dashboard';
+                    }, 500);
+                } else {
+                    const data = await res.json();
+                    errEl.innerText = data.error || 'Acceso denegado';
+                    errEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerText = originalBtnText;
+                }
+            } catch (err) {
+                errEl.innerText = 'Error de conexión';
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = originalBtnText;
+            }
+        };
+
+
+        document.getElementById('registerForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('registerBtn');
+            const user = document.getElementById('regUsername').value;
+            const email = document.getElementById('regEmail').value;
+            const pass = document.getElementById('regPassword').value;
+            const errEl = document.getElementById('regError');
+
+            btn.disabled = true;
+            btn.innerText = 'Registrando...';
+            errEl.style.display = 'none';
+
+            try {
+                const role = document.getElementById('regRole').value;
+                const fullName = document.getElementById('regFullName').value;
+                const tel = document.getElementById('regTel').value;
+                const city = document.getElementById('regCity').value;
+                const age = document.getElementById('regAge').value;
+
+                const res = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: user,
+                        password: pass,
+                        email: email,
+                        role: role,
+                        fullName,
+                        tel,
+                        city,
+                        age
+                    })
+                });
+
+
+                if (res.ok) {
+                    const data = await res.json();
+                    btn.innerText = '¡Registrado!';
+                    btn.style.background = '#4ade80';
+                    setTimeout(() => {
+                        if (data.role === 'blinder') location.href = '/blinder-dashboard';
+                        else if (data.role === 'cupido') location.href = '/dashboard';
+                        else location.href = '/dashboard';
+                    }, 500);
+                } else {
+
+                    const data = await res.json();
+                    errEl.innerText = data.error || 'Error al registrar';
+                    errEl.style.display = 'block';
+                    btn.disabled = false;
+                    btn.innerText = 'Registrar Cupido';
+                }
+            } catch (err) {
+                errEl.innerText = 'Error de conexión';
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.innerText = 'Registrar Cupido';
+            }
+        };
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('SW registrado', reg))
-                    .catch(err => console.log('SW falló', err));
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
             });
         }
     </script>
 </body>
-
 
 </html>
