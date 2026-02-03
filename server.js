@@ -41,19 +41,32 @@ if (process.env.SENDGRID_API_KEY) {
   console.warn("⚠️ SENDGRID_API_KEY missing. Checking for SMTP...");
 }
 
-// SMTP Transporter (Fallback)
+// 1. SMTP Transporter (Generic Fallback)
 let smtpTransport = null;
 if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
   smtpTransport = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: process.env.SMTP_PORT || 587,
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   });
   console.log("📧 SMTP Configured via Nodemailer");
+}
+
+// 2. SendGrid SMTP Transporter (Alternative)
+let sgSmtpTransport = null;
+if (process.env.SENDGRID_API_KEY) {
+  sgSmtpTransport = nodemailer.createTransport({
+    host: 'smtp.sendgrid.net',
+    port: 587,
+    auth: {
+      user: 'apikey',
+      pass: process.env.SENDGRID_API_KEY
+    }
+  });
 }
 
 async function sendVerificationEmail(email, token, req) {
@@ -75,7 +88,7 @@ async function sendVerificationEmail(email, token, req) {
   console.log(verifyUrl);
   console.log(`----------------------------------------------------------------`);
 
-  // Priority 1: SendGrid
+  // Priority 1: SendGrid Web API (Standard)
   if (process.env.SENDGRID_API_KEY) {
     const msg = {
       to: email,
@@ -85,16 +98,32 @@ async function sendVerificationEmail(email, token, req) {
     };
     try {
       await sgMail.send(msg);
-      console.log(`📨 Live verification email sent to ${email} (SendGrid)`);
+      console.log(`📨 Live verification email sent to ${email} (SendGrid API)`);
       return;
     } catch (error) {
-      console.error('❌ SendGrid Error:', error);
+      console.error('❌ SendGrid API Error:', error);
       if (error.response) console.error(error.response.body);
-      console.log('⚠️ Falling back to SMTP if available...');
+      console.log('⚠️ Falling back to SendGrid SMTP...');
     }
   }
 
-  // Priority 2: SMTP (Nodemailer)
+  // Priority 2: SendGrid SMTP (Nodemailer) - PROPOSED FIX
+  if (sgSmtpTransport) {
+    try {
+      await sgSmtpTransport.sendMail({
+        from: process.env.SENDGRID_FROM_EMAIL || 'noreply@cupidosproject.com',
+        to: email,
+        subject: emailSubject,
+        html: emailHtml
+      });
+      console.log(`📨 Live verification email sent to ${email} (SendGrid SMTP)`);
+      return;
+    } catch (sgErr) {
+      console.error("❌ SendGrid SMTP Error:", sgErr);
+    }
+  }
+
+  // Priority 3: Generic SMTP (Nodemailer)
   if (smtpTransport) {
     try {
       await smtpTransport.sendMail({
@@ -106,11 +135,11 @@ async function sendVerificationEmail(email, token, req) {
       console.log(`📨 Live verification email sent to ${email} (SMTP)`);
       return;
     } catch (smtpErr) {
-      console.error("❌ SMTP Error:", smtpErr);
+      console.error("❌ Generic SMTP Error:", smtpErr);
     }
   }
 
-  // Priority 3: Mock
+  // Priority 4: Mock
   console.log(`📨 MOCK EMAIL MODE ACTIVE (No working transport found)`);
 }
 
