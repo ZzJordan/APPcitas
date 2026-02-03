@@ -615,14 +615,22 @@ app.post('/api/register', authLimiter, async (req, res) => {
     await client.query('COMMIT');
 
     // Send Verification Email (Safe Wrapper)
+    let emailStatus = "";
+    const verifyUrl = `${req.protocol}://${req.get('host')}/verify-email?token=${verificationToken}`;
+
     try {
       await sendVerificationEmail(email, verificationToken, req);
     } catch (emailErr) {
       console.error("⚠️ Email sending failed (non-fatal):", emailErr);
+      emailStatus = " (El correo falló, usa el enlace abajo)";
     }
 
     // Do NOT auto-login
-    res.status(201).json({ message: "Registro exitoso. Revisa tu correo para verificar tu cuenta.", role: userRole });
+    // DEV: Returning link in message so user can click it if email fails (common in unverified SendGrid setups)
+    res.status(201).json({
+      message: `Registro exitoso. Revisa tu correo.${emailStatus} <br><br> <a href="${verifyUrl}" style="color: #fff; text-decoration: underline; font-weight: bold;">[CLICK AQUÍ PARA VERIFICAR MANUALMENTE]</a>`,
+      role: userRole
+    });
 
   } catch (err) {
     await client.query('ROLLBACK');

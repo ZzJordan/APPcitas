@@ -404,7 +404,7 @@
 
                     // Show success message container instead of redirecting
                     // We can reuse the error element but styled differently or hide the form
-                    errEl.innerText = data.message || "Registro exitoso. Verifique su correo.";
+                    errEl.innerHTML = data.message || "Registro exitoso. Verifique su correo.";
                     errEl.style.color = '#4ade80';
                     errEl.style.background = 'rgba(74, 222, 128, 0.1)';
                     errEl.style.border = '1px solid #4ade80';
