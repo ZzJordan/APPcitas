@@ -31,16 +31,43 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// SendGrid Configuration
+// Email Configuration (SendGrid & Nodemailer)
 const sgMail = require('@sendgrid/mail');
+const nodemailer = require('nodemailer');
+
 if (process.env.SENDGRID_API_KEY) {
   sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 } else {
-  console.warn("⚠️ SENDGRID_API_KEY missing. Email sending will be mocked.");
+  console.warn("⚠️ SENDGRID_API_KEY missing. Checking for SMTP...");
+}
+
+// SMTP Transporter (Fallback)
+let smtpTransport = null;
+if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+  smtpTransport = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: process.env.SMTP_PORT || 587,
+    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+  console.log("📧 SMTP Configured via Nodemailer");
 }
 
 async function sendVerificationEmail(email, token, req) {
   const verifyUrl = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+
+  const emailSubject = 'Verifica tu cuenta - Cupidos Project';
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2>Bienvenido a Cupidos Project</h2>
+      <p>Por favor verifica tu correo haciendo clic en el siguiente enlace:</p>
+      <a href="${verifyUrl}" style="background: #ff4757; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verificar Cuenta</a>
+      <p>O copia este enlace: ${verifyUrl}</p>
+    </div>
+  `;
 
   // ALWAYS log the link for development/debugging purposes
   console.log(`----------------------------------------------------------------`);
@@ -48,33 +75,43 @@ async function sendVerificationEmail(email, token, req) {
   console.log(verifyUrl);
   console.log(`----------------------------------------------------------------`);
 
+  // Priority 1: SendGrid
   if (process.env.SENDGRID_API_KEY) {
     const msg = {
       to: email,
       from: process.env.SENDGRID_FROM_EMAIL || 'noreply@cupidosproject.com',
-      subject: 'Verifica tu cuenta - Cupidos Project',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2>Bienvenido a Cupidos Project</h2>
-          <p>Por favor verifica tu correo haciendo clic en el siguiente enlace:</p>
-          <a href="${verifyUrl}" style="background: #ff4757; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verificar Cuenta</a>
-          <p>O copia este enlace: ${verifyUrl}</p>
-        </div>
-      `
+      subject: emailSubject,
+      html: emailHtml
     };
     try {
       await sgMail.send(msg);
-      console.log(`📨 Live verification email sent to ${email}`);
+      console.log(`📨 Live verification email sent to ${email} (SendGrid)`);
+      return;
     } catch (error) {
       console.error('❌ SendGrid Error:', error);
-      if (error.response) {
-        console.error(error.response.body);
-      }
-      console.log('⚠️ Email failed to send, but you can use the DEBUG LINK above.');
+      if (error.response) console.error(error.response.body);
+      console.log('⚠️ Falling back to SMTP if available...');
     }
-  } else {
-    console.log(`📨 MOCK EMAIL MODE ACTIVE (No API Key)`);
   }
+
+  // Priority 2: SMTP (Nodemailer)
+  if (smtpTransport) {
+    try {
+      await smtpTransport.sendMail({
+        from: process.env.SMTP_FROM || process.env.SMTP_USER,
+        to: email,
+        subject: emailSubject,
+        html: emailHtml
+      });
+      console.log(`📨 Live verification email sent to ${email} (SMTP)`);
+      return;
+    } catch (smtpErr) {
+      console.error("❌ SMTP Error:", smtpErr);
+    }
+  }
+
+  // Priority 3: Mock
+  console.log(`📨 MOCK EMAIL MODE ACTIVE (No working transport found)`);
 }
 
 // Web Push Configuration
