@@ -42,6 +42,12 @@ if (process.env.SENDGRID_API_KEY) {
 async function sendVerificationEmail(email, token, req) {
   const verifyUrl = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
 
+  // ALWAYS log the link for development/debugging purposes
+  console.log(`----------------------------------------------------------------`);
+  console.log(`🔗 EMAIL VERIFICATION LINK (DEBUG):`);
+  console.log(verifyUrl);
+  console.log(`----------------------------------------------------------------`);
+
   if (process.env.SENDGRID_API_KEY) {
     const msg = {
       to: email,
@@ -56,10 +62,18 @@ async function sendVerificationEmail(email, token, req) {
         </div>
       `
     };
-    await sgMail.send(msg);
-    console.log(`📨 Verification email sent to ${email}`);
+    try {
+      await sgMail.send(msg);
+      console.log(`📨 Live verification email sent to ${email}`);
+    } catch (error) {
+      console.error('❌ SendGrid Error:', error);
+      if (error.response) {
+        console.error(error.response.body);
+      }
+      console.log('⚠️ Email failed to send, but you can use the DEBUG LINK above.');
+    }
   } else {
-    console.log(`📨 MOCK VERIFY EMAIL: ${verifyUrl}`);
+    console.log(`📨 MOCK EMAIL MODE ACTIVE (No API Key)`);
   }
 }
 
@@ -554,6 +568,7 @@ app.post('/api/reset-password', authLimiter, async (req, res) => {
 
 
 app.post('/api/register', authLimiter, async (req, res) => {
+  console.log("👉 Register Request:", req.body);
   const { username, password, email, role, fullName, tel, city, age } = req.body;
   const userRole = role === 'blinder' ? 'blinder' : 'cupido';
 
@@ -564,10 +579,15 @@ app.post('/api/register', authLimiter, async (req, res) => {
   const client = await pool.connect();
 
   try {
+    // 0. Pre-check for existence to avoid ambiguous DB errors
+    const checkRes = await client.query("SELECT id FROM cupidos WHERE username = $1 OR email = $2", [username, email]);
+    if (checkRes.rows.length > 0) {
+      return res.status(400).json({ error: "El usuario o el correo ya están registrados." });
+    }
+
     await client.query('BEGIN');
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const verificationToken = crypto.randomBytes(32).toString('hex');
 
     // 1. Create User
@@ -578,32 +598,37 @@ app.post('/api/register', authLimiter, async (req, res) => {
     const userId = rows[0].id;
 
     // 2. Create Profile
+    const safeAge = (age && !isNaN(parseInt(age))) ? parseInt(age) : null;
+
     if (userRole === 'cupido') {
       await client.query(
         "INSERT INTO cupido_profiles (user_id, full_name, tel, city, age) VALUES ($1, $2, $3, $4, $5)",
-        [userId, fullName || '', tel || '', city || '', age || null]
+        [userId, fullName || '', tel || '', city || '', safeAge]
       );
     } else if (userRole === 'blinder') {
-      // Support for direct Blinder registration (orphan profile initially)
       await client.query(
         "INSERT INTO blinder_profiles (user_id, full_name, tel, city, age) VALUES ($1, $2, $3, $4, $5)",
-        [userId, fullName || '', tel || '', city || '', age || null]
+        [userId, fullName || '', tel || '', city || '', safeAge]
       );
     }
 
     await client.query('COMMIT');
 
-    // Send Verification Email
-    await sendVerificationEmail(email, verificationToken, req);
+    // Send Verification Email (Safe Wrapper)
+    try {
+      await sendVerificationEmail(email, verificationToken, req);
+    } catch (emailErr) {
+      console.error("⚠️ Email sending failed (non-fatal):", emailErr);
+    }
 
     // Do NOT auto-login
     res.status(201).json({ message: "Registro exitoso. Revisa tu correo para verificar tu cuenta.", role: userRole });
 
   } catch (err) {
     await client.query('ROLLBACK');
-    if (err.code === '23505') return res.status(400).json({ error: "El usuario ya existe" });
-    console.error("Register Error:", err);
-    res.status(500).json({ error: "Error al registrar" });
+    console.error("❌ Register Error:", err);
+    if (err.code === '23505') return res.status(400).json({ error: "El usuario creía no existir, pero la DB dice que sí." });
+    res.status(500).json({ error: "Error interno al registrar: " + err.message });
   } finally {
     client.release();
   }

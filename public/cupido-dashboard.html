@@ -374,8 +374,12 @@
         }
 
         function showRoomInfo(roomId) {
+            console.log('showRoomInfo called with ID:', roomId);
             const room = currentRooms.find(r => r.id == roomId);
-            if (!room) return;
+            if (!room) {
+                console.warn('Room not found for ID:', roomId);
+                return;
+            }
             const createdDate = new Date(room.created_at).toLocaleDateString();
 
             // Helper for stats if missing (backward compatibility)
@@ -383,8 +387,8 @@
             const activeTime = room.active_time_str || "0m";
 
             document.getElementById('infoContent').innerHTML = `
-                < div style = "background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);" >
-                    <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id.substring(0, 8)}...</span></p>
+                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                    <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id}</span></p>
                     <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
                     <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
                     <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.8rem 0;">
@@ -514,10 +518,10 @@
         };
 
         socket.on('status-change', ({ room_id, status }) => {
-            const badge = document.getElementById(`status - ${room_id}`);
+            const badge = document.getElementById(`status-${room_id}`);
             if (badge) {
                 badge.innerText = status;
-                badge.className = `badge badge - ${status.toLowerCase().replace(' ', '')}`;
+                badge.className = `badge badge-${status.toLowerCase().replace(' ', '')}`;
             }
         });
 
