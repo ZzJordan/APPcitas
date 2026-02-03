@@ -203,15 +203,38 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    btn.innerText = '¡Perfil Creado! Entrando...';
-                    setTimeout(() => {
-                        location.href = data.redirectUrl || '/blinder-dashboard';
-                    }, 1000);
+
+                    if (data.requireVerification) {
+                        btn.innerText = '¡Revisa tu Email!';
+                        btn.style.background = '#4ade80';
+                        errEl.innerText = data.message;
+                        errEl.style.color = '#4ade80';
+                        errEl.style.display = 'block';
+
+                        // Switch to login tab after delay so they know where to go next
+                        setTimeout(() => {
+                            switchAuthTab('login');
+                            const loginMsg = document.getElementById('loginError');
+                            loginMsg.innerText = "Una vez verificado, inicia sesión aquí.";
+                            loginMsg.style.color = '#4ade80'; // Green for hint
+                            loginMsg.style.display = 'block';
+                            // Reset register button
+                            btn.disabled = false;
+                            btn.innerText = 'Crear mi Perfil';
+                            btn.style.background = ''; // reset
+                        }, 3000);
+                    } else {
+                        btn.innerText = '¡Perfil Creado! Entrando...';
+                        setTimeout(() => {
+                            location.href = data.redirectUrl || '/blinder-dashboard';
+                        }, 1000);
+                    }
                 } else {
 
                     const data = await res.json();
                     errEl.innerText = data.error || 'Error al crear perfil';
                     errEl.style.display = 'block';
+                    errEl.style.color = '#ef4444'; // Red for error
                     btn.disabled = false;
                     btn.innerText = 'Crear mi Perfil';
                 }

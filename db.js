@@ -47,6 +47,20 @@ const initDb = async () => {
             if (e.code !== '42701') console.warn("Migration Warning (cupidos.created_at):", e.message);
         }
 
+        try {
+            await client.query(`ALTER TABLE cupidos ADD COLUMN IF NOT EXISTS is_verified BOOLEAN DEFAULT FALSE;`);
+        } catch (e) {
+            if (e.code !== '42701') console.warn("Migration Warning (cupidos.is_verified):", e.message);
+        }
+
+        try {
+            await client.query(`ALTER TABLE cupidos ADD COLUMN IF NOT EXISTS verification_token TEXT;`);
+            // Migration: Auto-verify existing users (heuristic: no token means old user)
+            await client.query("UPDATE cupidos SET is_verified = TRUE WHERE is_verified = FALSE AND verification_token IS NULL");
+        } catch (e) {
+            if (e.code !== '42701') console.warn("Migration Warning (cupidos.verification_token):", e.message);
+        }
+
         // 2. Table: rooms
         await client.query(`
             CREATE TABLE IF NOT EXISTS rooms (

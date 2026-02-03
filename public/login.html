@@ -234,6 +234,18 @@
             }
         }
         checkSession();
+        checkVerified();
+
+        function checkVerified() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('verified') === 'true') {
+                const errEl = document.getElementById('errorMessage');
+                errEl.innerText = '¡Cuenta verificada! Ya puedes iniciar sesión.';
+                errEl.style.color = '#4ade80';
+                errEl.style.display = 'block';
+                errEl.style.fontWeight = 'bold';
+            }
+        }
 
         function setRole(role) {
             const selector = document.getElementById('role-selector');
@@ -387,13 +399,30 @@
 
                 if (res.ok) {
                     const data = await res.json();
-                    btn.innerText = '¡Registrado!';
+                    btn.innerText = '¡Revisa tu Email!';
                     btn.style.background = '#4ade80';
+
+                    // Show success message container instead of redirecting
+                    // We can reuse the error element but styled differently or hide the form
+                    errEl.innerText = data.message || "Registro exitoso. Verifique su correo.";
+                    errEl.style.color = '#4ade80';
+                    errEl.style.background = 'rgba(74, 222, 128, 0.1)';
+                    errEl.style.border = '1px solid #4ade80';
+                    errEl.style.padding = '10px';
+                    errEl.style.borderRadius = '8px';
+                    errEl.style.display = 'block';
+
+                    // Hide inputs to prevent modification
+                    const inputs = document.querySelectorAll(`#registerForm${suffix} input`);
+                    inputs.forEach(i => i.disabled = true);
+
+                    // After a delay, maybe switch to login? or just stay there
                     setTimeout(() => {
-                        if (data.role === 'blinder') location.href = '/blinder-dashboard';
-                        else if (data.role === 'cupido') location.href = '/cupido-dashboard';
-                        else location.href = '/dashboard';
-                    }, 500);
+                        showLogin();
+                        document.getElementById('errorMessage').innerText = "Por favor verifica tu correo antes de entrar.";
+                        document.getElementById('errorMessage').style.display = 'block';
+                        document.getElementById('errorMessage').style.color = 'var(--text-dim)';
+                    }, 4000);
                 } else {
                     const data = await res.json();
                     errEl.innerText = data.error || 'Error al registrar';

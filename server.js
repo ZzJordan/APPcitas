@@ -39,6 +39,30 @@ if (process.env.SENDGRID_API_KEY) {
   console.warn("⚠️ SENDGRID_API_KEY missing. Email sending will be mocked.");
 }
 
+async function sendVerificationEmail(email, token, req) {
+  const verifyUrl = `${req.protocol}://${req.get('host')}/verify-email?token=${token}`;
+
+  if (process.env.SENDGRID_API_KEY) {
+    const msg = {
+      to: email,
+      from: process.env.SENDGRID_FROM_EMAIL || 'noreply@cupidosproject.com',
+      subject: 'Verifica tu cuenta - Cupidos Project',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2>Bienvenido a Cupidos Project</h2>
+          <p>Por favor verifica tu correo haciendo clic en el siguiente enlace:</p>
+          <a href="${verifyUrl}" style="background: #ff4757; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verificar Cuenta</a>
+          <p>O copia este enlace: ${verifyUrl}</p>
+        </div>
+      `
+    };
+    await sgMail.send(msg);
+    console.log(`📨 Verification email sent to ${email}`);
+  } else {
+    console.log(`📨 MOCK VERIFY EMAIL: ${verifyUrl}`);
+  }
+}
+
 // Web Push Configuration
 if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
   webpush.setVapidDetails(
@@ -246,6 +270,23 @@ app.get('/api/seed-test-matches', isAuthenticated, async (req, res) => {
 // Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+
+app.get('/verify-email', async (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(400).send("Token inválido");
+
+  try {
+    const { rows } = await pool.query("SELECT id FROM cupidos WHERE verification_token = $1", [token]);
+    const user = rows[0];
+    if (!user) return res.status(400).send("Token inválido o expirado.");
+
+    await pool.query("UPDATE cupidos SET is_verified = TRUE, verification_token = NULL WHERE id = $1", [user.id]);
+    res.redirect('/login?verified=true');
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error al verificar.");
+  }
+});
 app.get('/dashboard', isAuthenticated, (req, res) => {
   if (req.session.userRole === 'blinder') return res.redirect('/blinder-dashboard');
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
@@ -403,6 +444,10 @@ app.post('/api/login', authLimiter, async (req, res) => {
     const user = rows[0];
     if (!user) return res.status(401).json({ error: "Usuario no encontrado" });
 
+    if (!user.is_verified) {
+      return res.status(401).json({ error: "Debes verificar tu correo electrónico primero." });
+    }
+
     const match = await bcrypt.compare(password, user.password);
     if (match) {
       req.session.userId = user.id;
@@ -523,10 +568,12 @@ app.post('/api/register', authLimiter, async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
     // 1. Create User
     const { rows } = await client.query(
-      "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, $4) RETURNING id",
-      [username, hashedPassword, email, userRole]
+      "INSERT INTO cupidos (username, password, email, role, is_verified, verification_token) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+      [username, hashedPassword, email, userRole, false, verificationToken]
     );
     const userId = rows[0].id;
 
@@ -546,10 +593,11 @@ app.post('/api/register', authLimiter, async (req, res) => {
 
     await client.query('COMMIT');
 
-    req.session.userId = userId;
-    req.session.username = username;
-    req.session.userRole = userRole;
-    res.status(201).json({ message: "Registro exitoso", role: userRole });
+    // Send Verification Email
+    await sendVerificationEmail(email, verificationToken, req);
+
+    // Do NOT auto-login
+    res.status(201).json({ message: "Registro exitoso. Revisa tu correo para verificar tu cuenta.", role: userRole });
 
   } catch (err) {
     await client.query('ROLLBACK');
@@ -668,25 +716,28 @@ app.post('/api/blinder/register-join', async (req, res) => {
     await client.query('BEGIN');
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    // Create with is_verified = false
     const userRes = await client.query(
-      "INSERT INTO cupidos (username, password, email, role) VALUES ($1, $2, $3, 'blinder') RETURNING id",
-      [username, hashedPassword, email]
+      "INSERT INTO cupidos (username, password, email, role, is_verified, verification_token) VALUES ($1, $2, $3, 'blinder', false, $4) RETURNING id",
+      [username, hashedPassword, email, verificationToken]
     );
     const userId = userRes.rows[0].id;
 
-    // Room Session
+    // Room Session (Wait until login to assign?)
+    // Actually, if they are not verified, we probably should NOT assign them to the room yet, 
+    // OR we can assign them but they can't access it until they login (which requires verification).
+    // Let's bind them now so the "reservation" is made, but they can't use it.
+
     let sessionToken = null;
     if (contextRoomId && contextRoleLetter) {
-      sessionToken = crypto.randomUUID();
-      const sessionField = contextRoleLetter === 'A' ? 'linkA_session' : 'linkB_session'; // watch casing
-      // Use dynamic SQL for column name carefully or switch
-      // Safest is direct logic:
-      if (contextRoleLetter === 'A') {
-        await client.query("UPDATE rooms SET linkA_session = $1, user_a_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
-      } else {
-        await client.query("UPDATE rooms SET linkB_session = $1, user_b_id = $2 WHERE id = $3", [sessionToken, userId, contextRoomId]);
-      }
+      // ... Logic to bind room ... 
+      // We will do this logic, but since they can't login, they can't use the session key yet.
+      // Actually, we should probably NOT give them the session cookie yet.
     }
+
+    // ... skipping session cookie logic for now ...
 
     // Blinder Profile
     await client.query(
@@ -695,18 +746,25 @@ app.post('/api/blinder/register-join', async (req, res) => {
       [userId, contextCupidoId, fullName, age, city, tagline, photo || '', tel]
     );
 
-    await client.query('COMMIT');
-
-    req.session.userId = userId;
-    req.session.username = username;
-    req.session.userRole = 'blinder';
-
-    if (sessionToken && contextRoomId) {
-      const cookieName = `chat_token_${contextRoomId}_${contextRoleLetter}`;
-      res.setHeader('Set-Cookie', `${cookieName}=${sessionToken}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+    // Also bind room if valid context
+    if (contextRoomId && contextRoleLetter) {
+      if (contextRoleLetter === 'A') {
+        await client.query("UPDATE rooms SET user_a_id = $1 WHERE id = $2", [userId, contextRoomId]);
+      } else {
+        await client.query("UPDATE rooms SET user_b_id = $1 WHERE id = $2", [userId, contextRoomId]);
+      }
     }
 
-    res.status(201).json({ message: "OK", role: 'blinder', redirectUrl: roomLink ? `/chat/${roomLink}` : '/blinder-dashboard' });
+    await client.query('COMMIT');
+
+    // Send Verification
+    await sendVerificationEmail(email, verificationToken, req);
+
+    // NO LOGIN. Respond telling user to verify.
+    res.status(201).json({
+      message: "Cuenta creada. Por favor verifica tu email antes de entrar.",
+      requireVerification: true
+    });
 
   } catch (err) {
     await client.query('ROLLBACK');
@@ -730,6 +788,11 @@ app.post('/api/blinder/login-join', async (req, res) => {
     const userRes = await client.query("SELECT * FROM cupidos WHERE username = $1", [username]);
     const user = userRes.rows[0];
     if (!user) return res.status(401).json({ error: "Usuario no encontrado" });
+
+    // CHECK VERIFICATION
+    if (!user.is_verified) {
+      return res.status(401).json({ error: "Debes verificar tu correo electrónico primero." });
+    }
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(401).json({ error: "Contraseña incorrecta" });
