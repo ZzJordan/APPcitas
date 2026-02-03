@@ -959,23 +959,59 @@ app.post('/api/user/delete-account', isAuthenticated, async (req, res) => {
 
   try {
     await client.query('BEGIN');
+
+    // 1. Common cleanup independent of role
+    await client.query("DELETE FROM push_subscriptions WHERE user_id = $1", [userId]);
+
+    // Also remove from user_rooms access (member of a room)
+    // Note: If they created the room (cupido_id), that's handled below.
+    // If they are just assigned to a side (user_a_id/user_b_id in rooms table):
+    await client.query("UPDATE rooms SET user_a_id = NULL WHERE user_a_id = $1", [userId]);
+    await client.query("UPDATE rooms SET user_b_id = NULL WHERE user_b_id = $1", [userId]);
+
+    // 2. Role Specific Cleanup
     if (role === 'blinder') {
       await client.query("DELETE FROM blinder_profiles WHERE user_id = $1", [userId]);
-      await client.query("DELETE FROM cupidos WHERE id = $1", [userId]);
     } else {
+      // Cupido: Has created rooms, invites, contacts, profile, etc.
+
+      // Delete invite tokens
       await client.query("DELETE FROM invite_tokens WHERE cupido_id = $1", [userId]);
+
+      // Delete contacts (Solteros)
       await client.query("DELETE FROM solteros WHERE cupido_id = $1", [userId]);
+
+      // Delete Cupido Profile
+      await client.query("DELETE FROM cupido_profiles WHERE user_id = $1", [userId]);
+
+      // Delete Blinder Profiles created by this Cupido (if strictly owned? usually user_id is unique key). 
+      // If blinder_profiles are linked via cupido_id:
       await client.query("DELETE FROM blinder_profiles WHERE cupido_id = $1", [userId]);
+
+      // Delete User Rooms (junction table) for rooms this cupido owns or is part of
       await client.query("DELETE FROM user_rooms WHERE cupido_id = $1", [userId]);
+
+      // Complicated: Rooms owned by this Cupido
+      // We must delete messages in those rooms first
+      await client.query(`
+        DELETE FROM messages 
+        WHERE room_id IN (SELECT id FROM rooms WHERE cupido_id = $1)
+      `, [userId]);
+
+      // Finally delete the rooms
       await client.query("DELETE FROM rooms WHERE cupido_id = $1", [userId]);
-      await client.query("DELETE FROM cupidos WHERE id = $1", [userId]);
     }
+
+    // 3. Finally Delete User
+    await client.query("DELETE FROM cupidos WHERE id = $1", [userId]);
+
     await client.query('COMMIT');
     req.session.destroy();
     res.json({ message: "Cuenta borrada" });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(500).json({ error: "Error" });
+    console.error("Delete Account Error:", err);
+    res.status(500).json({ error: "Error al borrar cuenta" });
   } finally {
     client.release();
   }
