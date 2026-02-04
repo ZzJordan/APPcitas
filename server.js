@@ -1276,7 +1276,7 @@ app.post('/api/rooms/:id/share', isAuthenticated, async (req, res) => {
       token = crypto.randomUUID();
       await pool.query("UPDATE rooms SET share_token = $1 WHERE id = $2", [token, roomId]);
     }
-    res.json({ token, url: `${req.protocol}://${req.get('host')}/dashboard?join_room=${token}` });
+    res.json({ token, url: `${req.protocol}://${req.get('host')}/cupido-dashboard?join_room=${token}` });
 
   } catch (e) {
     console.error(e);
