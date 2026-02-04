@@ -1635,16 +1635,23 @@ io.on('connection', (socket) => {
 
         // NOTIFY DASHBOARD (Real-time Preview)
         // We do this here after successful processing
+        // NOTIFY DASHBOARD (Real-time Preview)
+        // We do this here after successful processing
         try {
-          const cRes = await pool.query("SELECT cupido_id FROM rooms WHERE id = $1", [room_id]);
-          if (cRes.rows.length > 0) {
-            const cupidoId = cRes.rows[0].cupido_id;
-            io.to(`dashboard_${cupidoId}`).emit('preview-update', {
+          // Notify both the Owner AND any Cupidos with shared access
+          const cRes = await pool.query(`
+            SELECT cupido_id FROM rooms WHERE id = $1
+            UNION
+            SELECT cupido_id FROM user_rooms WHERE room_id = $1
+          `, [room_id]);
+
+          cRes.rows.forEach(row => {
+            io.to(`dashboard_${row.cupido_id}`).emit('preview-update', {
               room_id: room_id,
               text: type === 'image' ? '📷 Imagen' : text,
               sender: sender
             });
-          }
+          });
         } catch (ignore) { }
 
       }
