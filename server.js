@@ -1242,7 +1242,7 @@ app.get('/api/rooms/:id', isAuthenticated, async (req, res) => {
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b
       FROM rooms r 
-      WHERE r.cupido_id = $1 AND r.id = $2
+      WHERE r.id = $2 AND (r.cupido_id = $1 OR EXISTS (SELECT 1 FROM user_rooms ur WHERE ur.room_id = r.id AND ur.cupido_id = $1))
     `, [userId, roomId]);
 
     if (roomRes.rows.length === 0) return res.status(404).json({ error: "Sala no encontrada" });
