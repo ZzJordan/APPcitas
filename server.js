@@ -1523,6 +1523,17 @@ function formatDuration(seconds) {
     }
   });
 
+  // Init DB in background with readiness flag
+  let isDbReady = false;
+
+  // Middleware to check readiness (Optional: Apply to /api routes only or all)
+  app.use((req, res, next) => {
+    if (!isDbReady && req.path.startsWith('/api/') && req.path !== '/healthz') {
+      return res.status(503).json({ error: 'Server warming up, please retry in a moment.' });
+    }
+    next();
+  });
+
   // Start Server immediately (Optimistic Start)
   server.listen(port, '0.0.0.0', () => {
     console.log(`🚀 Cupido's Project LIVE on PORT ${port}`);
@@ -1530,9 +1541,10 @@ function formatDuration(seconds) {
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
 
-  // Init DB in background
+  // Execute Init
   initDb().then(async () => {
-    console.log("✅ initDb() completed in background.");
+    isDbReady = true;
+    console.log("✅ initDb() completed. API is ready.");
     // Clear stale statuses
     try {
       await pool.query("UPDATE rooms SET active_since = NULL");
@@ -1541,7 +1553,7 @@ function formatDuration(seconds) {
     }
   }).catch(err => {
     console.error("❌ FATAL DB ERROR (Background):", err);
-    // In production, maybe we should exit, but for now let's keep running to serve static files at least
+    // In production, keep running for static files, but API will stay 503
   });
 
 })();
