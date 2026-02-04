@@ -358,6 +358,11 @@
             try {
                 const res = await fetch('/api/rooms');
                 const data = await res.json();
+
+                if (data.my_id) {
+                    socket.emit('join-dashboard', { cupido_id: data.my_id });
+                }
+
                 if (data.owned.length === 0) {
                     roomsList.innerHTML = `
                     <div class="text-center p-3">

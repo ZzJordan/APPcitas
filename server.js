@@ -1198,7 +1198,7 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
         WHERE ur.cupido_id = $1 AND r.cupido_id != $1
         ORDER BY ur.accessed_at DESC`, [userId]);
 
-    res.json({ owned: enrichedOwned, accessed: accessedRes.rows });
+    res.json({ owned: enrichedOwned, accessed: accessedRes.rows, my_id: userId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error" });
