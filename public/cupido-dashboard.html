@@ -380,18 +380,19 @@
 
                         // Determine sender name
                         let senderLabel = "";
-                        if (r.last_sender === 'A') senderLabel = `(${r.friendA_name}): `;
-                        else if (r.last_sender === 'B') senderLabel = `(${r.friendB_name}): `;
+                        if (r.last_sender === 'A') senderLabel = `${r.friendA_name}:`;
+                        else if (r.last_sender === 'B') senderLabel = `${r.friendB_name}:`;
 
                         actionArea = `
                             <div class="sneak-peek-container" id="preview-${r.id}" style="background: rgba(0,0,0,0.2); border-radius: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.05); margin: 10px 0; position: relative; overflow: hidden;">
                                 <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
                                     <span>👀</span> Vistazo rápido
                                 </div>
-                                <div id="preview-text-${r.id}" style="font-style: italic; color: rgba(255,255,255,0.7); filter: blur(4px); user-select: none; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                                    ${senderLabel}${msgText}
+                                <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    <span id="preview-sender-${r.id}" style="font-weight: bold; color: var(--primary); margin-right: 4px;">${senderLabel}</span>
+                                    <span id="preview-msg-${r.id}" style="font-style: italic; color: rgba(255,255,255,0.8); filter: blur(2.5px); user-select: none; pointer-events: none;">${msgText}</span>
                                 </div>
-                                <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60%; background: linear-gradient(to top, rgba(20,20,20,0.8), transparent);"></div>
+                                <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: linear-gradient(to top, rgba(20,20,20,0.5), transparent);"></div>
                                 <div style="position: absolute; bottom: 8px; right: 12px; font-size: 0.6rem; color: var(--primary); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
                                     Top Secret
                                 </div>
@@ -442,19 +443,21 @@
         // Real-time Preview Update
         socket.on('preview-update', (data) => {
             const { room_id, text, sender } = data;
-            const textField = document.getElementById(`preview-text-${room_id}`);
+            const msgField = document.getElementById(`preview-msg-${room_id}`);
+            const senderField = document.getElementById(`preview-sender-${room_id}`);
             const container = document.getElementById(`preview-${room_id}`);
 
-            if (textField && container) {
+            if (msgField && container) {
                 // Find names from cached data
                 const room = currentRooms.find(r => r.id === room_id);
                 let senderName = '';
                 if (room) {
-                    if (sender === 'A') senderName = `(${room.friendA_name}): `;
-                    else if (sender === 'B') senderName = `(${room.friendB_name}): `;
+                    if (sender === 'A') senderName = `${room.friendA_name}:`;
+                    else if (sender === 'B') senderName = `${room.friendB_name}:`;
                 }
 
-                textField.innerText = `${senderName} ${text}`;
+                if (senderField) senderField.innerText = senderName;
+                msgField.innerText = text;
 
                 // Visual Pulse Effect
                 container.style.transition = 'box-shadow 0.2s, transform 0.2s';
@@ -466,8 +469,6 @@
                     container.style.transform = 'scale(1)';
                 }, 300);
             } else {
-                // If it was still in pill mode, maybe reload to show preview now?
-                // Or just wait for reload.
                 loadRooms();
             }
         });
