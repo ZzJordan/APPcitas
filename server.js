@@ -634,7 +634,8 @@ app.post('/api/reset-password', authLimiter, async (req, res) => {
 
 
 app.post('/api/register', authLimiter, async (req, res) => {
-  console.log("👉 Register Request:", req.body);
+  const { password: _p, ...safeBody } = req.body;
+  console.log("👉 Register Request:", safeBody);
   const { username, password, email, role, fullName, tel, city, age } = req.body;
   const userRole = role === 'blinder' ? 'blinder' : 'cupido';
 
