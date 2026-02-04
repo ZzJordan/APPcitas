@@ -417,12 +417,13 @@
                     inputs.forEach(i => i.disabled = true);
 
                     // After a delay, maybe switch to login? or just stay there
-                    setTimeout(() => {
-                        showLogin();
-                        document.getElementById('errorMessage').innerText = "Por favor verifica tu correo antes de entrar.";
-                        document.getElementById('errorMessage').style.display = 'block';
-                        document.getElementById('errorMessage').style.color = 'var(--text-dim)';
-                    }, 4000);
+                    // Do not auto-redirect so user can see the link
+                    // setTimeout(() => {
+                    //     showLogin();
+                    //     document.getElementById('errorMessage').innerText = "Por favor verifica tu correo antes de entrar.";
+                    //     document.getElementById('errorMessage').style.display = 'block';
+                    //     document.getElementById('errorMessage').style.color = 'var(--text-dim)';
+                    // }, 60000);
                 } else {
                     const data = await res.json();
                     errEl.innerText = data.error || 'Error al registrar';
