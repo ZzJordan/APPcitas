@@ -14,6 +14,7 @@ const crypto = require('crypto');
 const QRCode = require('qrcode');
 const webpush = require('web-push');
 const rateLimit = require('express-rate-limit');
+const { execSync } = require('child_process');
 
 // Security: Rate Limiters
 const authLimiter = rateLimit({
@@ -1513,6 +1514,18 @@ function formatDuration(seconds) {
   try {
     await initDb();
     console.log("✅ initDb() completed.");
+
+    // Webhook GitHub Auto-Deploy
+    app.post('/webhook-deploy', express.raw({ type: 'application/json' }), async (req, res) => {
+      try {
+        console.log("🔄 Webhook Triggered: Deploying...");
+        execSync('cd ~/APPcitas && ~/deploy.sh', { stdio: 'inherit' });
+        res.json({ success: true, message: 'Deployed OK' });
+      } catch (e) {
+        console.error("❌ Deploy Error:", e);
+        res.status(500).json({ error: e.message });
+      }
+    });
 
     // Clear stale statuses
     await pool.query("UPDATE rooms SET active_since = NULL");
