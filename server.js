@@ -953,10 +953,10 @@ app.post('/api/blinder/login-join', async (req, res) => {
       }
     }
 
-    // 4. Update Profile if needed (optional, maybe link to new cupido?)
-    // If arriving via token of a new Cupido, shoud we update cupido_id? 
-    // Usually blinder belongs to who invited first, but we can add multiple links in future.
-    // For now, let's just create the room link.
+    // 4. Update Profile Association (Link Blinder to this Cupido)
+    if (contextCupidoId) {
+      await client.query("UPDATE blinder_profiles SET cupido_id = $1 WHERE user_id = $2", [contextCupidoId, user.id]);
+    }
 
     await client.query('COMMIT');
 
@@ -1392,6 +1392,15 @@ app.post('/api/request-new-link', async (req, res) => {
 
 app.get('/chat/:link', async (req, res) => {
   const { link } = req.params;
+
+  // Cache Buster: Force v=4 param
+  if (req.query.v !== '4') {
+    const newUrl = req.originalUrl.includes('?')
+      ? `${req.originalUrl}&v=4`
+      : `${req.originalUrl}?v=4`;
+    return res.redirect(newUrl);
+  }
+
   try {
     const { rows } = await pool.query("SELECT * FROM rooms WHERE linkA = $1 OR linkB = $2", [link, link]);
     const room = rows[0];
@@ -1406,56 +1415,37 @@ app.get('/chat/:link', async (req, res) => {
 
     // LOGIC FIX: Re-entry and Auto-Association
 
-    // 1. Link is currently UNCLAIMED in DB
-    if (!sessionVal) {
-      // Logic: If user is logged in AND is the assigned user (from registration), Auto-Claim it.
-      if (req.session.userId && req.session.userId === assignedUserId) {
-        // Auto-Claim
-        const newSession = crypto.randomUUID();
-        const colName = isA ? 'linkA_session' : 'linkB_session';
-        // Use dynamic query carefully or just branches
-        if (isA) {
-          await pool.query("UPDATE rooms SET linkA_session = $1 WHERE id = $2", [newSession, room.id]);
+    // LOGIC REFACTOR: Ownership First
+    // We check if the link has an ASSIGNED USER in the DB.
+    // If assignedUserId is present, the link is CLAIMED permanently by that user.
+    // 'sessionVal' (cookie) is just a secondary check for auto-login without session.
+
+    // 1. Link is CLAIMED (Has an Owner)
+    if (assignedUserId) {
+      // Authenticated check
+      if (req.session.userId) {
+        if (req.session.userId === assignedUserId) {
+          // SUCCESS: Updating/Setting Cookie just in case
+          if (sessionVal) {
+            res.setHeader('Set-Cookie', `${cookieName}=${sessionVal}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+          }
+          return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
         } else {
-          await pool.query("UPDATE rooms SET linkB_session = $1 WHERE id = $2", [newSession, room.id]);
+          // Logged in as WRONG user
+          console.log(`[Chat Access] Wrong user ${req.session.userId} for room ${room.id} (Owner: ${assignedUserId})`);
+          // Redirect to their dashboard instead of Blocking, so they can see their own chats
+          return res.redirect('/blinder-dashboard');
         }
-
-        // Set Cookie and Proceed
-        res.setHeader('Set-Cookie', `${cookieName}=${newSession}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
-        return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
       }
 
-      // If user has no cookie (and didn't auto-claim above), redirect to Join/Login to claim.
-      if (!clientToken) {
-        return res.redirect(`/join/blinder/profile?link=${link}`);
-      }
-
-      // If client HAS a cookie but DB thinks it's unclaimed? 
-      // This logic path is rare (maybe DB reset?). We let them through or reset?
-      // Defaulting to redirect if ensure consistency implies we should claim it.
-      // But let's stick to simple redirect if state is mismatched.
-      return res.redirect(`/join/blinder/profile?link=${link}`);
+      // Unauthenticated -> Force Login
+      // We do NOT send to Join/Register because it's already owned.
+      const returnUrl = encodeURIComponent(req.originalUrl);
+      return res.redirect(`/login?returnTo=${returnUrl}&msg=owned`);
     }
 
-    // 2. Link IS CLAIMED in DB (sessionVal exists)
-    // Check if client matches
-    if (clientToken === sessionVal) {
-      // All good, valid session
-      return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-    }
-
-    // INVALID/MISSING COOKIE for Claimed Link
-    // Check if current logged-in user IS the owner
-    if (req.session.userId && req.session.userId === assignedUserId) {
-      // It's the owner returning on a new device/session
-      // Re-issue the cookie for the EXISTING session token
-      res.setHeader('Set-Cookie', `${cookieName}=${sessionVal}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
-      return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
-    }
-
-    // If we are here: Link is used, User is not owner (or not logged in), and no valid cookie.
-    // They cannot enter.
-    // Redirect to Join (where they can login if they are the owner)
+    // 2. Link is UNCLAIMED (No Owner yet)
+    // Redirect to Join/Register flow
     return res.redirect(`/join/blinder/profile?link=${link}`);
 
   } catch (err) {

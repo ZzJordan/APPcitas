@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cupido-project-v2';
+const CACHE_NAME = 'cupido-project-v3';
 const ASSETS = [
     '/',
     '/index.html',
@@ -43,40 +43,25 @@ self.addEventListener('activate', (event) => {
 
 // Fetch Event
 self.addEventListener('fetch', (event) => {
-    // 1. Navigation Requests (HTML): Network First, Fallback to Cache
-    if (event.request.mode === 'navigate') {
-        event.respondWith(
-            fetch(event.request)
-                .then((networkResponse) => {
-                    return caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, networkResponse.clone());
-                        return networkResponse;
-                    });
-                })
-                .catch(() => {
-                    return caches.match(event.request);
-                })
-        );
+    const url = new URL(event.request.url);
+
+    // 1. API Requests -> Network Only (Never Cache)
+    if (url.pathname.startsWith('/api/')) {
+        event.respondWith(fetch(event.request));
         return;
     }
 
-    // 2. Static Assets: Cache First, Fallback to Network
-    if (event.request.method === 'GET') {
+    // 2. Navigation (HTML) -> Network First
+    if (event.request.mode === 'navigate') {
         event.respondWith(
-            caches.match(event.request).then((cachedResponse) => {
-                if (cachedResponse) return cachedResponse;
-
-                return fetch(event.request).then((response) => {
-                    if (!response || response.status !== 200 || response.type !== 'basic') {
+            fetch(event.request)
+                .then((response) => {
+                    return caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, response.clone());
                         return response;
-                    }
-                    const responseToCache = response.clone();
-                    // Cache dynamic GETs if likely static (heuristic or explicit list)
-                    // For now, we only aggressively cache if in ASSETS, essentially.
-                    // But to support dynamic images created by users, we might want to cache them too?
-                    // Let's stick to the previous logic but safer:
-                    // Only cache if it was in our ASSETS list or looks like an asset
-                    const url = new URL(event.request.url);
+                    });
+                })
+                .catch(() => {
                     if (ASSETS.includes(url.pathname)) {
                         caches.open(CACHE_NAME).then((cache) => {
                             cache.put(event.request, responseToCache);
@@ -84,7 +69,7 @@ self.addEventListener('fetch', (event) => {
                     }
                     return response;
                 });
-            })
+    })
         );
     }
 });
