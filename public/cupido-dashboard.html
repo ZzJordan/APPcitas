@@ -363,7 +363,9 @@
                     socket.emit('join-dashboard', { cupido_id: data.my_id });
                 }
 
-                if (data.owned.length === 0) {
+                const allRooms = [...data.owned, ...(data.accessed || [])];
+
+                if (allRooms.length === 0) {
                     roomsList.innerHTML = `
                     <div class="text-center p-3">
                         <div class="hero-emoji">🌵</div>
@@ -374,9 +376,9 @@
                     return;
                 }
 
-                currentRooms = data.owned; // Cache for socket updates
+                currentRooms = allRooms; // Cache for socket updates
 
-                roomsList.innerHTML = data.owned.map(r => {
+                roomsList.innerHTML = allRooms.map(r => {
                     const bothUsed = r.linkA_used && r.linkB_used;
                     let actionArea = '';
 
