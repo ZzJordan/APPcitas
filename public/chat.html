@@ -550,6 +550,7 @@
         async function init() {
             try {
                 await initDB();
+                msgContainer.appendChild(typingEl); // Move this UP to ensure it's a child before insertBefore is called
                 const storedSession = sessionStorage.getItem(`chat_session_${link}`);
                 const res = await fetch(`/api/chat-info/${link}`);
 
@@ -608,7 +609,7 @@
 
 
                 socket.emit('join-room', { link });
-                msgContainer.appendChild(typingEl);
+                // msgContainer.appendChild(typingEl); // Moved up
                 scrollToBottom();
 
                 // Join User Presence
