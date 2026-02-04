@@ -738,6 +738,20 @@
             }
         });
 
+        // Reconnection Logic
+        socket.on('connect', () => {
+            console.log("Socket connected/reconnected");
+            if (chatId) {
+                console.log("Re-joining room:", chatId);
+                socket.emit('join-room', { link });
+
+                // Re-join user channel
+                fetch('/api/user').then(r => r.json()).then(userData => {
+                    if (userData.userId) socket.emit('join-user', { userId: userData.userId });
+                }).catch(e => { });
+            }
+        });
+
         // Listen for incoming images
         socket.on('new-image', (data) => {
             if (data.sender !== myRole) {

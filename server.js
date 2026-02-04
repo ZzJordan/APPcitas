@@ -249,29 +249,42 @@ const offlineMessageQueue = new Map(); // userId -> [pending message objects]
 async function updateAndNotifyStatus(room_id, cupido_id) {
   if (!room_id || !cupido_id) return;
 
+  // 1. Determine Status (Memory Only) - fast & immediate
+  const statusObj = roomStatus[room_id];
+  const presenceA = !!(statusObj && statusObj.A);
+  const presenceB = !!(statusObj && statusObj.B);
+
+  // Emit Presence to Chat Room immediately (Critical for User experience)
+  io.to(`room_${room_id}`).emit('presence-update', { A: presenceA, B: presenceB });
+
   try {
-    const res = await pool.query("SELECT active_since FROM rooms WHERE id = $1", [room_id]);
+    // 2. DB Sync & Dashboard Updates
+    const res = await pool.query("SELECT active_since, friendA_name, friendB_name FROM rooms WHERE id = $1", [room_id]);
     const row = res.rows[0];
     const currentActiveSince = row ? row.active_since : null;
 
-    // Logic remains same, only DB calls change
-    const statusObj = roomStatus[room_id];
+    // Postgres driver might return lowercase column names
+    const nameA = row ? (row.frienda_name || row.friendA_name || 'A') : 'A';
+    const nameB = row ? (row.friendb_name || row.friendB_name || 'B') : 'B';
+
     let statusText = 'pendiente';
-    const isNowActive = (statusObj && statusObj.A && statusObj.B);
+    const isNowActive = (presenceA && presenceB);
 
     if (isNowActive) statusText = 'activo';
-    else if (statusObj && statusObj.A) statusText = 'A conectado';
-    else if (statusObj && statusObj.B) statusText = 'B conectado';
+    else if (presenceA) statusText = `${nameA} conectado`;
+    else if (presenceB) statusText = `${nameB} conectado`;
     else if (statusObj) statusText = 'desconectado';
 
     const now = Date.now();
 
-    // Use BigInt for timestamps if needed or just numbers. Postgres active_since is BIGINT.
     if (isNowActive && !currentActiveSince) {
+      // Transition to Active
       await pool.query("UPDATE rooms SET status = $1, active_since = $2 WHERE id = $3", [statusText, now, room_id]);
       io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
       io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: now });
+
     } else if (!isNowActive && currentActiveSince) {
+      // Transition to Inactive (Pause timer)
       const duration = Math.floor((now - Number(currentActiveSince)) / 1000);
       await pool.query(
         "UPDATE rooms SET status = $1, active_since = NULL, total_active_seconds = COALESCE(total_active_seconds, 0) + $2 WHERE id = $3",
@@ -279,15 +292,16 @@ async function updateAndNotifyStatus(room_id, cupido_id) {
       );
       io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
       io.to(`dashboard_${cupido_id}`).emit('time-update', { room_id, active_since: null, added_seconds: duration });
+
     } else {
+      // Just status change (e.g. A active -> B active, but never both)
       await pool.query("UPDATE rooms SET status = $1 WHERE id = $2", [statusText, room_id]);
       io.to(`dashboard_${cupido_id}`).emit('status-change', { room_id, status: statusText });
     }
 
-    io.to(`room_${room_id}`).emit('presence-update', {
-      A: !!(statusObj && statusObj.A),
-      B: !!(statusObj && statusObj.B)
-    });
+    // Debug Log
+    console.log(`[Status] Room ${room_id}: A=${presenceA}, B=${presenceB} -> ${statusText}`);
+
   } catch (err) {
     console.error("Error updating status:", err);
   }
