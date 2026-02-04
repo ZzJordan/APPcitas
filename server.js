@@ -1158,7 +1158,8 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
       ORDER BY created_at DESC
     `, [userId]);
 
-    const enrichedOwned = ownedRes.rows.map(r => {
+    // Helper to format room data
+    const enrichRoomData = (rows) => rows.map(r => {
       let currentActiveSeconds = parseInt(r.total_active_seconds || 0, 10);
       if (r.active_since) {
         currentActiveSeconds += Math.floor((Date.now() - Number(r.active_since)) / 1000);
@@ -1192,13 +1193,22 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
       };
     });
 
+    const enrichedOwned = enrichRoomData(ownedRes.rows);
+
     const accessedRes = await pool.query(`
-        SELECT r.*, ur.role as accessed_role, ur.accessed_at
+        SELECT r.*, ur.role as accessed_role, ur.accessed_at,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id) as total_messages,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b,
+        (SELECT text FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_message,
+        (SELECT sender FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_sender
         FROM rooms r JOIN user_rooms ur ON r.id = ur.room_id
         WHERE ur.cupido_id = $1 AND r.cupido_id != $1
         ORDER BY ur.accessed_at DESC`, [userId]);
 
-    res.json({ owned: enrichedOwned, accessed: accessedRes.rows, my_id: userId });
+    const enrichedAccessed = enrichRoomData(accessedRes.rows);
+
+    res.json({ owned: enrichedOwned, accessed: enrichedAccessed, my_id: userId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error" });
