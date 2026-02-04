@@ -1151,7 +1151,8 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id) as total_messages,
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b,
-        (SELECT text FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_message
+        (SELECT text FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_message,
+        (SELECT sender FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_sender
       FROM rooms r 
       WHERE cupido_id = $1 
       ORDER BY created_at DESC
@@ -1178,6 +1179,7 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
         linkA_used: !!r.linka_session,
         linkB_used: !!r.linkb_session,
         last_message: r.last_message,
+        last_sender: r.last_sender,
         active_time_str: formatDuration(currentActiveSeconds),
         active_seconds: currentActiveSeconds,
         stats: {
@@ -1620,6 +1622,21 @@ io.on('connection', (socket) => {
             tag: `chat-${room_id}`
           });
         }
+
+        // NOTIFY DASHBOARD (Real-time Preview)
+        // We do this here after successful processing
+        try {
+          const cRes = await pool.query("SELECT cupido_id FROM rooms WHERE id = $1", [room_id]);
+          if (cRes.rows.length > 0) {
+            const cupidoId = cRes.rows[0].cupido_id;
+            io.to(`dashboard_${cupidoId}`).emit('preview-update', {
+              room_id: room_id,
+              text: type === 'image' ? '📷 Imagen' : text,
+              sender: sender
+            });
+          }
+        } catch (ignore) { }
+
       }
     } catch (e) {
       console.error("Msg Error", e);
