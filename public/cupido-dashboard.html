@@ -724,6 +724,36 @@
             }
         })();
 
+        // Check for Room Invite
+        async function checkJoinRoom() {
+            const params = new URLSearchParams(window.location.search);
+            const token = params.get('join_room');
+            if (!token) return;
+
+            try {
+                const res = await fetch('/api/rooms/join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    alert(data.message || "¡Te has unido a la sala!");
+                    // Remove param from URL
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.pushState({ path: newUrl }, '', newUrl);
+                    loadRooms();
+                } else {
+                    console.error("Join error:", data);
+                    // alert("Error al unirse: " + (data.error || "Desconocido"));
+                }
+            } catch (err) {
+                console.error("Join request failed", err);
+            }
+        }
+        checkJoinRoom();
+
         switchTab('rooms');
     </script>
     <script src="/notifications.js"></script>
