@@ -334,8 +334,13 @@
                     const data = await res.json();
                     btn.innerText = '¡Correcto!';
                     btn.style.background = '#4ade80';
+
+                    const params = new URLSearchParams(window.location.search);
+                    const returnTo = params.get('returnTo');
+
                     setTimeout(() => {
-                        if (data.role === 'admin') location.href = '/admin-dashboard';
+                        if (returnTo) location.href = decodeURIComponent(returnTo);
+                        else if (data.role === 'admin') location.href = '/admin-dashboard';
                         else if (data.role === 'blinder') location.href = '/blinder-dashboard';
                         else if (data.role === 'cupido') location.href = '/cupido-dashboard';
                         else location.href = '/dashboard';
@@ -439,12 +444,8 @@
             }
         };
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
-            });
-        }
     </script>
+    <script src="/notifications.js"></script>
 </body>
 
 </html>

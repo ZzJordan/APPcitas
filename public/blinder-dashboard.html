@@ -73,6 +73,171 @@
         .dropdown-item.danger:hover {
             background: rgba(255, 77, 109, 0.1);
         }
+
+        /* New Dashboard Styles */
+        .dashboard-header h2 {
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .avatar-small {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: white;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            display: inline-block;
+        }
+
+        .status-dot.online {
+            background: #4ade80;
+            box-shadow: 0 0 8px #4ade80;
+        }
+
+        .cupido-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+        }
+
+        .glass-inset {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .info-icon {
+            width: 16px;
+            height: 16px;
+            background: var(--text-dim);
+            color: black;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+
+        /* Step Progress */
+        .step-progress {
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding: 0 10px;
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 6px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            z-index: 0;
+        }
+
+        .progress-line .progress-fill {
+            height: 100%;
+            background: var(--primary-gradient);
+            border-radius: 2px;
+            transition: width 1s linear;
+        }
+
+        .step {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0.5;
+            transition: all 0.3s;
+        }
+
+        .step.active {
+            opacity: 1;
+        }
+
+        .step-dot {
+            width: 30px;
+            height: 16px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .step.active .step-dot {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+            box-shadow: 0 0 10px rgba(255, 77, 109, 0.4);
+        }
+
+        .step-label {
+            font-size: 0.7rem;
+        }
+
+        .shadow-lg {
+            box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .hover-scale:active {
+            transform: scale(0.98);
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .animate-slide-up {
+            animation: slideUp 0.5s ease-out backwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 
@@ -251,38 +416,80 @@
 
         function renderRooms() {
             const container = document.getElementById('chispazosContainer');
-            container.innerHTML = activeRooms.map(room => `
-                <div class="chispazo-card" id="room-${room.room_id}">
-                    <div class="flex-center-y mb-1">
-                        <div class="dot-pulse" style="display: ${room.status === 'activo' ? 'inline-block' : 'none'}"></div>
-                        <span class="fs-small text-dim">${room.status.toUpperCase()}</span>
-                    </div>
-                    
-                    <h3 class="mb-0">Match con ${room.other_name}</h3>
-                    <p class="fs-small text-dim mb-1">Guía: ${room.cupido_name}</p>
 
-                    <div class="text-center py-1">
-                        <div class="reveal-mini-timer" id="timer-${room.room_id}">00:00:00</div>
-                        <div class="progress-bar mt-1">
-                            <div class="progress-fill" id="progress-${room.room_id}" style="width: 0%"></div>
+            // Personal greeting (using first room's my_name if available, or just generic)
+            const myName = activeRooms.length > 0 ? activeRooms[0].my_name : 'Blinder';
+            const headerHTML = `
+                <div class="dashboard-header mb-2 animate-fade-in">
+                    <h2 class="fs-h1 mb-0">Hola, <span class="text-gradient">${myName}</span> 👋</h2>
+                    <p class="text-dim">Aquí están tus conexiones activas.</p>
+                </div>
+            `;
+
+            const roomsHTML = activeRooms.map(room => `
+                <div class="chispazo-card animate-slide-up" id="room-${room.room_id}">
+                    <div class="card-header flex-center-y justify-between mb-1">
+                        <div class="flex-center-y gap-2">
+                             <div class="avatar-small" style="background: ${room.status === 'activo' ? 'var(--primary-gradient)' : 'var(--glass)'}">
+                                ${room.other_name.charAt(0)}
+                             </div>
+                             <div>
+                                <h3 class="mb-0 fs-large">${room.other_name}</h3>
+                                <div class="flex-center-y gap-1">
+                                    <span class="status-dot ${room.status === 'activo' ? 'online' : ''}"></span>
+                                    <span class="fs-small text-dim">${room.status === 'activo' ? 'En línea ahora' : 'Desconectado'}</span>
+                                </div>
+                             </div>
+                        </div>
+                        <div class="cupido-badge" title="Cupido asignado">
+                            💘 ${room.cupido_name}
                         </div>
                     </div>
 
-                    <div class="level-info mb-2">
-                        <span>Básico</span>
-                        <span>Visual</span>
-                        <span>Full</span>
+                    <div class="level-progress-container mb-2 p-1 glass-inset">
+                        <div class="flex-center-y justify-between mb-1">
+                             <span class="fs-small font-bold flex-center-y gap-1">
+                                ⏳ Nivel de Revelación
+                                <span class="info-icon" onclick="showTimerInfo()">?</span>
+                             </span>
+                             <span class="fs-mono fs-small" id="timer-${room.room_id}">00:00:00</span>
+                        </div>
+                        
+                        <div class="step-progress">
+                            <div class="step ${room.active_seconds >= 0 ? 'active' : ''}">
+                                <div class="step-dot">Start</div>
+                            </div>
+                            <div class="step ${room.active_seconds >= 900 ? 'active' : ''}">
+                                <div class="step-dot">15m</div>
+                                <span class="step-label">Fotos</span>
+                            </div>
+                             <div class="step ${room.active_seconds >= 1800 ? 'active' : ''}">
+                                <div class="step-dot">30m</div>
+                                <span class="step-label">Datos</span>
+                            </div>
+                            <div class="progress-line">
+                                <div class="progress-fill" id="progress-${room.room_id}" style="width: 0%"></div>
+                            </div>
+                        </div>
                     </div>
 
-                    <button onclick="location.href='/chat/${room.link}'" class="btn-main w-full btn-glass">
-                        💬 Entrar al Chat
+                    <button onclick="location.href='/chat/${room.link}'" class="btn-main w-full shadow-lg hover-scale">
+                        💬 Chatear con ${room.other_name}
                     </button>
                 </div>
             `).join('');
 
+            container.innerHTML = headerHTML + roomsHTML;
+
             // Start individual timers
             updateAllTimers();
-            setInterval(updateAllTimers, 1000);
+            // Clear existing interval to avoid duplicates if re-rendering
+            if (window.timerInterval) clearInterval(window.timerInterval);
+            window.timerInterval = setInterval(updateAllTimers, 1000);
+        }
+
+        function showTimerInfo() {
+            alert("⏰ El contador avanza solo cuando AMBOS están conectados en el chat.\n\n• 15 min: Se revelan fotos borrosas.\n• 30 min: Se revelan datos de contacto y fotos reales.\n\n¡Invita a la otra persona a conectarse!");
         }
 
         function updateAllTimers() {
@@ -292,25 +499,28 @@
                 if (!timerEl || !progressEl) return;
 
                 // Simple increment for client-side display (assuming 1s interval)
-                room.active_seconds = (room.active_seconds || 0) + 1;
+                // Note: Real sync updates on page reload or socket event, this is visual only
+                if (room.status === 'activo') {
+                    room.active_seconds = (room.active_seconds || 0) + 1;
+                }
 
                 const diffMin = room.active_seconds / 60;
-                let targetMin = 0;
-                if (diffMin < 15) targetMin = 15;
-                else if (diffMin < 30) targetMin = 30;
-                else targetMin = 30;
 
-                const remainingSec = Math.max(0, (targetMin * 60) - room.active_seconds);
-                const h = Math.floor(remainingSec / 3600);
-                const m = Math.floor((remainingSec % 3600) / 60);
-                const s = Math.floor(remainingSec % 60);
+                // Progress is based on 30 mins cap
+                const progressPct = Math.min(100, (room.active_seconds / 1800) * 100);
+
+                const h = Math.floor(room.active_seconds / 3600);
+                const m = Math.floor((room.active_seconds % 3600) / 60);
+                const s = Math.floor(room.active_seconds % 60);
 
                 if (diffMin >= 30) {
-                    timerEl.innerText = "ACCESO TOTAL 🔥";
+                    timerEl.innerText = "🔓 DESBLOQUEADO";
+                    timerEl.style.color = "#4ade80";
                     progressEl.style.width = "100%";
+                    progressEl.style.background = "#4ade80";
                 } else {
                     timerEl.innerText = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                    progressEl.style.width = `${Math.min(100, (diffMin / 30) * 100)}%`;
+                    progressEl.style.width = `${progressPct}%`;
                 }
             });
         }

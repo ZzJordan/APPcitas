@@ -300,7 +300,8 @@ const isAuthenticated = (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(401).json({ error: "No autenticado" });
   }
-  res.redirect('/login');
+  const returnUrl = encodeURIComponent(req.originalUrl);
+  res.redirect(`/login?returnTo=${returnUrl}`);
 };
 
 // --- TEMP SEED ROUTE ---
@@ -1184,6 +1185,63 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
   }
 });
 
+// Get Single Room Details (Refresh)
+app.get('/api/rooms/:id', isAuthenticated, async (req, res) => {
+  const roomId = req.params.id;
+  const userId = req.session.userId;
+  if (!roomId || isNaN(roomId)) return res.status(400).json({ error: "ID inválido" });
+
+  try {
+    const roomRes = await pool.query(`
+      SELECT r.*, 
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id) as total_messages,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b
+      FROM rooms r 
+      WHERE r.cupido_id = $1 AND r.id = $2
+    `, [userId, roomId]);
+
+    if (roomRes.rows.length === 0) return res.status(404).json({ error: "Sala no encontrada" });
+
+    const r = roomRes.rows[0];
+
+    let currentActiveSeconds = parseInt(r.total_active_seconds || 0, 10);
+    if (r.active_since) {
+      currentActiveSeconds += Math.floor((Date.now() - Number(r.active_since)) / 1000);
+    }
+
+    const totalMsgs = parseInt(r.total_messages || 0, 10);
+    const msgsA = parseInt(r.msgs_a || 0, 10);
+    const msgsB = parseInt(r.msgs_b || 0, 10);
+
+    const enrichedRoom = {
+      ...r,
+      id: r.id,
+      friendA_name: r.frienda_name || r.friendA_name, // pg lowercasing handling
+      friendB_name: r.friendb_name || r.friendB_name,
+      status: r.status,
+      linkA: r.linka || r.linkA,
+      linkB: r.linkb || r.linkB,
+      linkA_used: !!r.linka_session,
+      linkB_used: !!r.linkb_session,
+      active_time_str: formatDuration(currentActiveSeconds),
+      active_seconds: currentActiveSeconds,
+      stats: {
+        total_messages: totalMsgs,
+        msgs_A: msgsA,
+        msgs_B: msgsB,
+        ratio_A: totalMsgs > 0 ? Math.round((msgsA / totalMsgs) * 100) : 0,
+        ratio_B: totalMsgs > 0 ? Math.round((msgsB / totalMsgs) * 100) : 0
+      }
+    };
+
+    res.json(enrichedRoom);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al obtener sala" });
+  }
+});
+
 // Generate Room Share Token
 app.post('/api/rooms/:id/share', isAuthenticated, async (req, res) => {
   const roomId = req.params.id;
@@ -1289,20 +1347,71 @@ app.get('/chat/:link', async (req, res) => {
   try {
     const { rows } = await pool.query("SELECT * FROM rooms WHERE linkA = $1 OR linkB = $2", [link, link]);
     const room = rows[0];
-    if (!room) return res.redirect('/login');
+    if (!room) return res.redirect('/login'); // Link doesn't exist
 
-    const isA = (link === room.linka); // check lowercase
+    const isA = (link === room.linka); // check lowercase from pg check
     const sessionVal = isA ? room.linka_session : room.linkb_session;
+    const assignedUserId = isA ? room.user_a_id : room.user_b_id;
 
     const cookieName = `chat_token_${room.id}_${isA ? 'A' : 'B'}`;
     const clientToken = req.headers.cookie?.split('; ').find(row => row.startsWith(cookieName))?.split('=')[1];
 
-    if (!sessionVal && !clientToken) {
+    // LOGIC FIX: Re-entry and Auto-Association
+
+    // 1. Link is currently UNCLAIMED in DB
+    if (!sessionVal) {
+      // Logic: If user is logged in AND is the assigned user (from registration), Auto-Claim it.
+      if (req.session.userId && req.session.userId === assignedUserId) {
+        // Auto-Claim
+        const newSession = crypto.randomUUID();
+        const colName = isA ? 'linkA_session' : 'linkB_session';
+        // Use dynamic query carefully or just branches
+        if (isA) {
+          await pool.query("UPDATE rooms SET linkA_session = $1 WHERE id = $2", [newSession, room.id]);
+        } else {
+          await pool.query("UPDATE rooms SET linkB_session = $1 WHERE id = $2", [newSession, room.id]);
+        }
+
+        // Set Cookie and Proceed
+        res.setHeader('Set-Cookie', `${cookieName}=${newSession}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+        return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+      }
+
+      // If user has no cookie (and didn't auto-claim above), redirect to Join/Login to claim.
+      if (!clientToken) {
+        return res.redirect(`/join/blinder/profile?link=${link}`);
+      }
+
+      // If client HAS a cookie but DB thinks it's unclaimed? 
+      // This logic path is rare (maybe DB reset?). We let them through or reset?
+      // Defaulting to redirect if ensure consistency implies we should claim it.
+      // But let's stick to simple redirect if state is mismatched.
       return res.redirect(`/join/blinder/profile?link=${link}`);
     }
-    res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+
+    // 2. Link IS CLAIMED in DB (sessionVal exists)
+    // Check if client matches
+    if (clientToken === sessionVal) {
+      // All good, valid session
+      return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+    }
+
+    // INVALID/MISSING COOKIE for Claimed Link
+    // Check if current logged-in user IS the owner
+    if (req.session.userId && req.session.userId === assignedUserId) {
+      // It's the owner returning on a new device/session
+      // Re-issue the cookie for the EXISTING session token
+      res.setHeader('Set-Cookie', `${cookieName}=${sessionVal}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`);
+      return res.sendFile(path.join(__dirname, 'public', 'chat.html'));
+    }
+
+    // If we are here: Link is used, User is not owner (or not logged in), and no valid cookie.
+    // They cannot enter.
+    // Redirect to Join (where they can login if they are the owner)
+    return res.redirect(`/join/blinder/profile?link=${link}`);
 
   } catch (err) {
+    console.error("Chat Route Error:", err);
     res.redirect('/login');
   }
 });

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cupido-project-v1';
+const CACHE_NAME = 'cupido-project-v2';
 const ASSETS = [
     '/',
     '/index.html',
@@ -11,24 +11,20 @@ const ASSETS = [
     '/style.css',
     '/manifest.json',
     '/app-icon.png',
-    'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap'
+    'https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap'
 ];
 
 // Install Event
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            // We use 'addAll' inside a try-catch equivalent by mapping.
-            // If one fails, we log it but don't crash the whole SW if possible, 
-            // OR we stick to addAll but ensure the list is clean.
-            // Google Fonts (external) can sometimes cause CORS issues in SW addAll if not CORS-enabled transparently.
-            // Removing external font from explicit pre-cache is often safer.
             const SAFE_ASSETS = ASSETS.filter(a => !a.startsWith('http'));
             return cache.addAll(SAFE_ASSETS).catch(err => {
                 console.warn("SW Precache warning:", err);
             });
         })
     );
+    // Force immediate activation
     self.skipWaiting();
 });
 
@@ -41,39 +37,56 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
+    // Force immediate control
     self.clients.claim();
 });
 
 // Fetch Event
 self.addEventListener('fetch', (event) => {
-    // Solo cachear peticiones GET
-    if (event.request.method !== 'GET') return;
-
-    event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            if (cachedResponse) return cachedResponse;
-
-            return fetch(event.request).then((response) => {
-                // No cachear si no es una respuesta válida
-                if (!response || response.status !== 200 || response.type !== 'basic') {
-                    return response;
-                }
-
-                // Clonar la respuesta para guardarla en caché si es un asset estático
-                const responseToCache = response.clone();
-                const url = new URL(event.request.url);
-                if (ASSETS.includes(url.pathname)) {
-                    caches.open(CACHE_NAME).then((cache) => {
-                        cache.put(event.request, responseToCache);
+    // 1. Navigation Requests (HTML): Network First, Fallback to Cache
+    if (event.request.mode === 'navigate') {
+        event.respondWith(
+            fetch(event.request)
+                .then((networkResponse) => {
+                    return caches.open(CACHE_NAME).then((cache) => {
+                        cache.put(event.request, networkResponse.clone());
+                        return networkResponse;
                     });
-                }
+                })
+                .catch(() => {
+                    return caches.match(event.request);
+                })
+        );
+        return;
+    }
 
-                return response;
-            }).catch(() => {
-                // Si falla el fetch y no hay caché, podríamos devolver una página offline dedicada aquí
-            });
-        })
-    );
+    // 2. Static Assets: Cache First, Fallback to Network
+    if (event.request.method === 'GET') {
+        event.respondWith(
+            caches.match(event.request).then((cachedResponse) => {
+                if (cachedResponse) return cachedResponse;
+
+                return fetch(event.request).then((response) => {
+                    if (!response || response.status !== 200 || response.type !== 'basic') {
+                        return response;
+                    }
+                    const responseToCache = response.clone();
+                    // Cache dynamic GETs if likely static (heuristic or explicit list)
+                    // For now, we only aggressively cache if in ASSETS, essentially.
+                    // But to support dynamic images created by users, we might want to cache them too?
+                    // Let's stick to the previous logic but safer:
+                    // Only cache if it was in our ASSETS list or looks like an asset
+                    const url = new URL(event.request.url);
+                    if (ASSETS.includes(url.pathname)) {
+                        caches.open(CACHE_NAME).then((cache) => {
+                            cache.put(event.request, responseToCache);
+                        });
+                    }
+                    return response;
+                });
+            })
+        );
+    }
 });
 
 // --- Push Notifications ---

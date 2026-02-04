@@ -57,6 +57,25 @@
         .dropdown-item.danger:hover {
             background: rgba(255, 77, 109, 0.1);
         }
+
+        /* Greeting Styles */
+        .dashboard-header {
+            padding: 0.5rem 0.5rem 1rem 0.5rem;
+        }
+
+        .dashboard-header h2 {
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            font-size: 1.8rem;
+        }
+
+        .text-gradient {
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
     </style>
 
 </head>
@@ -75,6 +94,12 @@
         <main>
             <!-- Views Container -->
             <div id="roomsView" class="view-section">
+                <!-- Greeting Area -->
+                <div class="dashboard-header mb-1">
+                    <h2 class="mb-0" id="cupidoGreeting">Hola, Cupido 👋</h2>
+                    <p class="text-dim">Gestiona tus flechazos activos.</p>
+                </div>
+
                 <div class="p-2 mb-2 glass-dashed text-center">
                     <button onclick="openModal()" class="btn-main w-full">
                         <span>+ Nueva Conexión</span>
@@ -246,8 +271,13 @@
 
         // Identify for Global Notifications
         fetch('/api/user').then(r => r.json()).then(user => {
-            if (user.userId) socket.emit('join-user', { userId: user.userId });
-            if (user.userId) socket.emit('join-dashboard', { cupido_id: user.userId });
+            if (user.userId) {
+                socket.emit('join-user', { userId: user.userId });
+                socket.emit('join-dashboard', { cupido_id: user.userId });
+            }
+            if (user.username) {
+                document.getElementById('cupidoGreeting').innerHTML = `Hola, <span class="text-gradient">${user.username}</span> 👋`;
+            }
         }).catch(e => console.warn(e));
 
         // Modal Logic
@@ -373,58 +403,69 @@
             } catch (e) { console.error(e); }
         }
 
-        function showRoomInfo(roomId) {
+        async function showRoomInfo(roomId) {
             console.log('showRoomInfo called with ID:', roomId);
-            const room = currentRooms.find(r => r.id == roomId);
-            if (!room) {
-                console.warn('Room not found for ID:', roomId);
-                return;
-            }
-            const createdDate = new Date(room.created_at).toLocaleDateString();
 
-            // Helper for stats if missing (backward compatibility)
-            const stats = room.stats || { total_messages: 0, msgs_A: 0, msgs_B: 0, ratio_A: 0, ratio_B: 0 };
-            const activeTime = room.active_time_str || "0m";
-
-            document.getElementById('infoContent').innerHTML = `
-                <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
-                    <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id}</span></p>
-                    <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
-                    <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
-                    <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.8rem 0;">
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
-                        <div class="glass-card p-1 text-center" style="background: rgba(255,255,255,0.05);">
-                            <div style="font-size: 1.2rem;">⏱️</div>
-                            <small class="text-dim">Tiempo Activo</small>
-                            <div style="font-weight: bold;">${activeTime}</div>
-                        </div>
-                        <div class="glass-card p-1 text-center" style="background: rgba(255,255,255,0.05);">
-                            <div style="font-size: 1.2rem;">💬</div>
-                            <small class="text-dim">Mensajes</small>
-                            <div style="font-weight: bold;">${stats.total_messages}</div>
-                        </div>
-                    </div>
-
-                    <div class="mb-1">
-                        <strong class="text-dim" style="display:block; margin-bottom: 0.5rem;">🗣️ Ratio de Conversación</strong>
-                        
-                        <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
-                            <span>✨ ${room.friendA_name} (${stats.ratio_A}%)</span>
-                            <span>🔥 ${room.friendB_name} (${stats.ratio_B}%)</span>
-                        </div>
-                        <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; display: flex;">
-                            <div style="width: ${stats.ratio_A}%; background: #ff4d6d; height: 100%;"></div>
-                            <div style="width: ${stats.ratio_B}%; background: #4ecdc4; height: 100%;"></div>
-                        </div>
-                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
-                            <span>${stats.msgs_A} msgs</span>
-                            <span>${stats.msgs_B} msgs</span>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Initial loading state
+            document.getElementById('infoContent').innerHTML = '<div class="text-center p-3"><div class="spinner"></div><p class="text-dim fs-small mt-1">Sincronizando...</p></div>';
             document.getElementById('infoModal').style.display = 'flex';
+
+            try {
+                const res = await fetch(`/api/rooms/${roomId}`);
+                if (!res.ok) throw new Error("Error fetching room");
+                const room = await res.json();
+
+                const createdDate = new Date(room.created_at).toLocaleDateString();
+                const stats = room.stats || { total_messages: 0, msgs_A: 0, msgs_B: 0, ratio_A: 0, ratio_B: 0 };
+                const activeTime = room.active_time_str || "0m";
+
+                document.getElementById('infoContent').innerHTML = `
+                    <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
+                        <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id}</span></p>
+                        <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
+                        <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
+                        <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.8rem 0;">
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
+                            <div class="glass-card p-1 text-center" style="background: rgba(255,255,255,0.05);">
+                                <div style="font-size: 1.2rem;">⏱️</div>
+                                <small class="text-dim">Tiempo Activo</small>
+                                <div style="font-weight: bold;">${activeTime}</div>
+                            </div>
+                            <div class="glass-card p-1 text-center" style="background: rgba(255,255,255,0.05);">
+                                <div style="font-size: 1.2rem;">💬</div>
+                                <small class="text-dim">Mensajes</small>
+                                <div style="font-weight: bold;">${stats.total_messages}</div>
+                            </div>
+                        </div>
+
+                        <div class="mb-1">
+                            <strong class="text-dim" style="display:block; margin-bottom: 0.5rem;">🗣️ Ratio de Conversación</strong>
+                            
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 4px;">
+                                <span>✨ ${room.friendA_name} (${stats.ratio_A}%)</span>
+                                <span>🔥 ${room.friendB_name} (${stats.ratio_B}%)</span>
+                            </div>
+                            <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; display: flex;">
+                                <div style="width: ${stats.ratio_A}%; background: #ff4d6d; height: 100%;"></div>
+                                <div style="width: ${stats.ratio_B}%; background: #4ecdc4; height: 100%;"></div>
+                            </div>
+                             <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-dim); margin-top: 4px;">
+                                <span>${stats.msgs_A} msgs</span>
+                                <span>${stats.msgs_B} msgs</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                console.error(err);
+                document.getElementById('infoContent').innerHTML = `
+                    <div class="text-center p-3">
+                        <p class="text-danger">No se pudo cargar la información actualizada.</p>
+                        <button onclick="closeInfoModal()" class="btn-main btn-glass mt-1">Cerrar</button>
+                    </div>
+                `;
+            }
         }
 
         async function loadBlinders() {
