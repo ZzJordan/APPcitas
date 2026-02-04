@@ -1621,13 +1621,19 @@ io.on('connection', (socket) => {
       }
     }
     if (socket.room_id && socket.sender && roomStatus[socket.room_id]) {
-      roomStatus[socket.room_id][socket.sender] = null;
-      updateAndNotifyStatus(socket.room_id, socket.cupido_id);
+      // FIX: Only clear if this socket is the one actively holding the slot
+      if (roomStatus[socket.room_id][socket.sender] === socket.id) {
+        roomStatus[socket.room_id][socket.sender] = null;
+        updateAndNotifyStatus(socket.room_id, socket.cupido_id);
+      }
     }
     if (socket.isBlinder && socket.userId) {
-      connectedBlinders.delete(socket.userId);
-      if (socket.blinderCupidoId) {
-        io.to(`dashboard_${socket.blinderCupidoId}`).emit('blinder-status', { blinderId: socket.userId, isConnected: false });
+      const stored = connectedBlinders.get(socket.userId);
+      if (stored && stored.socketId === socket.id) {
+        connectedBlinders.delete(socket.userId);
+        if (socket.blinderCupidoId) {
+          io.to(`dashboard_${socket.blinderCupidoId}`).emit('blinder-status', { blinderId: socket.userId, isConnected: false });
+        }
       }
     }
   });
