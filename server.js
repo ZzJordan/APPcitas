@@ -86,7 +86,7 @@ async function sendVerificationEmail(email, token, req) {
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2>Bienvenido a Cupidos Project</h2>
       <p>Por favor verifica tu correo haciendo clic en el siguiente enlace:</p>
-      <a href="${verifyUrl}" style="background: #ff4757; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Verificar Cuenta</a>
+      <a href="${verifyUrl}" style="background: #4ade80; color: white; padding: 12px 24px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">Verificar Cuenta</a>
       <p>O copia este enlace: ${verifyUrl}</p>
     </div>
   `;
