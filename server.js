@@ -1511,32 +1511,37 @@ function formatDuration(seconds) {
   console.log("🌀 Starting server process...");
   console.log(`ENV PORT check: ${rawPort ? 'Found: ' + rawPort : 'Not found, using fallback'}`);
 
-  try {
-    await initDb();
-    console.log("✅ initDb() completed.");
+  // Webhook GitHub Auto-Deploy
+  app.post('/webhook-deploy', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      console.log("🔄 Webhook Triggered: Deploying...");
+      execSync('cd ~/APPcitas && ~/deploy.sh', { stdio: 'inherit' });
+      res.json({ success: true, message: 'Deployed OK' });
+    } catch (e) {
+      console.error("❌ Deploy Error:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
 
-    // Webhook GitHub Auto-Deploy
-    app.post('/webhook-deploy', express.raw({ type: 'application/json' }), async (req, res) => {
-      try {
-        console.log("🔄 Webhook Triggered: Deploying...");
-        execSync('cd ~/APPcitas && ~/deploy.sh', { stdio: 'inherit' });
-        res.json({ success: true, message: 'Deployed OK' });
-      } catch (e) {
-        console.error("❌ Deploy Error:", e);
-        res.status(500).json({ error: e.message });
-      }
-    });
+  // Start Server immediately (Optimistic Start)
+  server.listen(port, '0.0.0.0', () => {
+    console.log(`🚀 Cupido's Project LIVE on PORT ${port}`);
+    console.log(`🔗 Interface available on http://0.0.0.0:${port}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
 
+  // Init DB in background
+  initDb().then(async () => {
+    console.log("✅ initDb() completed in background.");
     // Clear stale statuses
-    await pool.query("UPDATE rooms SET active_since = NULL");
+    try {
+      await pool.query("UPDATE rooms SET active_since = NULL");
+    } catch (e) {
+      console.warn("Could not clear stale rooms:", e.message);
+    }
+  }).catch(err => {
+    console.error("❌ FATAL DB ERROR (Background):", err);
+    // In production, maybe we should exit, but for now let's keep running to serve static files at least
+  });
 
-    server.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 Cupido's Project LIVE on PORT ${port}`);
-      console.log(`🔗 Interface available on http://0.0.0.0:${port}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-  } catch (err) {
-    console.error("FATAL STARTUP ERROR:", err);
-    process.exit(1);
-  }
 })();
