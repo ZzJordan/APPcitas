@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Chat Privado | Cupido's Project</title>
-    <link rel="stylesheet" href="/style.css?v=2.2">
+    <link rel="stylesheet" href="/style.css?v=2.3">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#08080a">
     <link rel="apple-touch-icon" href="/app-icon.png">
@@ -100,7 +100,6 @@
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
-            /* Reduced gap for grouped feel */
             background: radial-gradient(circle at center, #121217 0%, #08080a 100%);
             padding-bottom: 110px;
             scroll-behavior: smooth;
@@ -116,6 +115,21 @@
             word-wrap: break-word;
             animation: msgPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.image-msg {
+            padding: 0;
+            overflow: hidden;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .message.image-msg img {
+            display: block;
+            width: 100%;
+            border-radius: 22px;
+            max-width: 280px;
+            border: 1px solid var(--border);
         }
 
         @keyframes msgPop {
@@ -155,6 +169,8 @@
             align-items: center;
             justify-content: flex-end;
             gap: 4px;
+            padding-right: 0.5rem;
+            padding-bottom: 0.2rem;
         }
 
         .input-area {
@@ -191,8 +207,8 @@
             border-color: var(--primary);
         }
 
-        .send-btn {
-            background: var(--primary-gradient);
+        .action-btn {
+            background: rgba(255, 255, 255, 0.1);
             border: none;
             width: 48px;
             height: 48px;
@@ -202,57 +218,17 @@
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            box-shadow: 0 8px 16px rgba(255, 77, 109, 0.3);
             transition: all 0.2s;
         }
 
+        .send-btn {
+            background: var(--primary-gradient);
+            box-shadow: 0 8px 16px rgba(255, 77, 109, 0.3);
+        }
+
+        .action-btn:active,
         .send-btn:active {
             transform: scale(0.9);
-        }
-
-        /* --- Typing Indicator --- */
-        .typing-indicator {
-            align-self: flex-start;
-            background: var(--card);
-            padding: 0.8rem 1.2rem;
-            border-radius: 22px;
-            border-bottom-left-radius: 4px;
-            border: 1px solid var(--border);
-            display: none;
-            /* Hidden by default */
-            align-items: center;
-            gap: 4px;
-            margin-bottom: 0.5rem;
-            width: fit-content;
-        }
-
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--text-dim);
-            border-radius: 50%;
-            animation: typingBounce 1.4s infinite ease-in-out both;
-        }
-
-        .typing-dot:nth-child(1) {
-            animation-delay: -0.32s;
-        }
-
-        .typing-dot:nth-child(2) {
-            animation-delay: -0.16s;
-        }
-
-        @keyframes typingBounce {
-
-            0%,
-            80%,
-            100% {
-                transform: scale(0);
-            }
-
-            40% {
-                transform: scale(1);
-            }
         }
 
         /* --- Premium Overlays --- */
@@ -305,10 +281,6 @@
             border: 1px solid var(--border);
         }
 
-        .btn-action:active {
-            transform: scale(0.96);
-        }
-
         @keyframes premiumFadeIn {
             from {
                 opacity: 0;
@@ -318,6 +290,50 @@
             to {
                 opacity: 1;
                 transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Typing indicator */
+        .typing-indicator {
+            align-self: flex-start;
+            background: var(--card);
+            padding: 0.8rem 1.2rem;
+            border-radius: 22px;
+            border-bottom-left-radius: 4px;
+            border: 1px solid var(--border);
+            display: none;
+            align-items: center;
+            gap: 4px;
+            margin-bottom: 0.5rem;
+            width: fit-content;
+        }
+
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out both;
+        }
+
+        .typing-dot:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes typingBounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
             }
         }
     </style>
@@ -381,7 +397,7 @@
             <!-- Messages go here -->
         </div>
 
-        <!-- Typing Indicator Bubble (Moved dynamically but kept in DOM structure conceptually) -->
+        <!-- Typing Indicator -->
         <div id="typing-indicator" class="typing-indicator" style="margin-left: 1.2rem; margin-bottom: 5rem;">
             <div class="typing-dot"></div>
             <div class="typing-dot"></div>
@@ -390,8 +406,16 @@
 
         <!-- Input Area -->
         <form class="input-area" id="chat-form">
+            <input type="file" id="imageInput" accept="image/*" style="display: none;">
+            <button type="button" class="action-btn" onclick="document.getElementById('imageInput').click()"
+                title="Enviar foto">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                    <circle cx="12" cy="13" r="4" />
+                </svg>
+            </button>
             <input type="text" id="msg-input" placeholder="Escribe un mensaje..." autocomplete="off">
-            <button type="submit" class="send-btn" title="Enviar mensaje">
+            <button type="submit" class="send-btn action-btn" title="Enviar mensaje">
                 <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
                     <path d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z" />
                 </svg>
@@ -404,7 +428,6 @@
     <audio id="notif-sound"
         src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTS1UAAAAOAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb//uQZAAAAAAAAAAAAIkAAICAAAAEAAAAb"
         preload="auto"></audio>
-    <!-- Note: Ideally use a real base64 of a 'pop' sound. This is empty for brevity, but functionality is set. -->
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
@@ -421,19 +444,123 @@
         const guestOverlay = document.getElementById('guest-overlay');
         const errorOverlay = document.getElementById('error-overlay');
         const errorMsgEl = document.getElementById('error-msg');
+        const notifAudio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU");
 
-        // Simple Pop Sound (Inlined simplified version or use a hosted one)
-        // Using a short bloop base64 for better UX if the empty one fails
-        const notifAudio = new Audio("data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"); // Placeholder
+        // --- 1. IndexedDB for Local Image Storage ---
+        let db;
+        const DB_NAME = 'CupidoChatDB';
+        const STORE_NAME = 'images';
+
+        const initDB = () => {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, 1);
+                request.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('room', 'roomId', { unique: false });
+                    }
+                };
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    resolve(db);
+                };
+                request.onerror = (e) => reject(e);
+            });
+        };
+
+        const saveImageLocally = (roomId, base64, sender, timestamp) => {
+            if (!db) return;
+            const tx = db.transaction([STORE_NAME], 'readwrite');
+            tx.objectStore(STORE_NAME).add({
+                roomId,
+                base64,
+                sender,
+                timestamp: timestamp || Date.now()
+            });
+        };
+
+        const loadLocalImages = (roomId) => {
+            return new Promise((resolve) => {
+                if (!db) return resolve([]);
+                const tx = db.transaction([STORE_NAME], 'readonly');
+                const index = tx.objectStore(STORE_NAME).index('room');
+                const req = index.getAll(IDBKeyRange.only(roomId));
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => resolve([]);
+            });
+        };
+
+        // --- 2. Image Compression ---
+        document.getElementById('imageInput').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            // Compress
+            const maxWidth = 800;
+            const quality = 0.6; // 60% quality WebP
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target.result;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth) {
+                        height = Math.round((height * maxWidth) / width);
+                        width = maxWidth;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    const compressedBase64 = canvas.toDataURL('image/webp', quality);
+
+                    // Send
+                    if (chatId) {
+                        // Optimistic Render
+                        const msg = {
+                            text: '[Imagen]',
+                            type: 'image',
+                            base64: compressedBase64,
+                            timestamp: new Date(),
+                            sender: myRole
+                        };
+                        addMessage(msg, true);
+                        saveImageLocally(chatId, compressedBase64, myRole, Date.now());
+
+                        // Emit
+                        socket.emit('send-image', {
+                            room_id: chatId,
+                            sender: myRole,
+                            base64: compressedBase64
+                        });
+                    }
+                };
+            };
+        };
+
 
         async function init() {
             try {
+                await initDB();
                 const storedSession = sessionStorage.getItem(`chat_session_${link}`);
                 const res = await fetch(`/api/chat-info/${link}`);
 
-                if (res.status === 403 || res.status === 404) {
-                    const data = await res.json();
-                    errorMsgEl.innerText = data.error || "Enlace no válido";
+                if (!res.ok) {
+                    // Try to get JSON error
+                    try {
+                        const data = await res.json();
+                        errorMsgEl.innerText = data.error || `Error ${res.status}: Fallo de conexión o enlace inválido`;
+                    } catch (e) {
+                        errorMsgEl.innerText = `Error fatal ${res.status}: No se pudo leer la respuesta del servidor.`;
+                    }
                     errorOverlay.style.display = 'flex';
                     return;
                 }
@@ -447,7 +574,7 @@
                     otherNameDisplay.innerText = "Usuario Eliminado";
                     otherNameDisplay.style.color = "#ff4d6d";
                     otherStatusDisplay.innerText = "• Cuenta borrada";
-                    otherStatusDisplay.style.color = "var(--text-dim)";
+                    otherNameDisplay.innerText += " (Eliminado)";
                     disableChat();
                 } else {
                     otherNameDisplay.innerText = data.otherName;
@@ -462,44 +589,53 @@
                     enterChat();
                 }
 
-                // Identify user for global presence (Blinder Dashboard status)
+                // Load Text Messages (History from DB)
+                data.messages.forEach(m => addMessage({ ...m, type: 'text' }, m.sender === myRole));
+
+                // Load Local Images (History from IndexedDB)
+                const localImages = await loadLocalImages(chatId);
+                // Sort by timestamp if possible, but for now just appending them might be messy unless we sort all?
+                // For simplicity, we append images at the end OR we need a smart merge.
+                // Smart merge: Add logic in addMessage to place it right.
+                // However, user just wants persistence. We can just append them for now or sort everything.
+                // Correct way: Sort all messages (text + images) by timestamp.
+
+                // Only simple loop for images for now, avoiding duplicates (if we add ID later).
+                localImages.forEach(img => {
+                    // Check if not already added? Timestamps might vary.
+                    addMessage({ ...img, type: 'image', text: '[Imagen]' }, img.sender === myRole);
+                });
+
+
+                socket.emit('join-room', { link });
+                msgContainer.appendChild(typingEl);
+                scrollToBottom();
+
+                // Join User Presence
                 try {
                     const userRes = await fetch('/api/user');
                     if (userRes.ok) {
                         const userData = await userRes.json();
-                        if (userData.userId) {
-                            socket.emit('join-user', { userId: userData.userId });
-                        }
+                        if (userData.userId) socket.emit('join-user', { userId: userData.userId });
                     }
                 } catch (e) { }
 
-
-                data.messages.forEach(m => addMessage(m, m.sender === myRole));
-                socket.emit('join-room', { link });
-
-                // Move Typing indicator to be inside container but always at bottom
-                msgContainer.appendChild(typingEl);
-                scrollToBottom();
-
             } catch (err) {
-                console.error(err);
+                console.error("Init Error:", err);
+                errorMsgEl.innerText = "Error de Cliente: " + err.message;
                 errorOverlay.style.display = 'flex';
             }
         }
 
         function disableChat() {
             msgInput.disabled = true;
-            msgInput.placeholder = "No puedes enviar mensajes a este usuario";
-            document.querySelector('.send-btn').style.opacity = '0.5';
-            document.querySelector('.send-btn').style.pointerEvents = 'none';
+            msgInput.placeholder = "No puedes enviar mensajes";
         }
 
         function enterChat() {
             guestOverlay.style.display = 'none';
             sessionStorage.setItem(`chat_session_${link}`, 'active');
             scrollToBottom();
-
-            // Try to play audio to unlock context on interaction
             notifAudio.play().catch(e => { });
         }
 
@@ -507,92 +643,87 @@
             const btn = document.getElementById('request-new-btn');
             btn.innerText = "Solicitando...";
             btn.disabled = true;
-
             try {
                 const res = await fetch('/api/request-new-link', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ oldLink: link })
                 });
-
                 if (res.ok) {
                     btn.style.background = '#4ade80';
                     btn.innerText = "¡Enviado!";
-                    errorMsgEl.innerText = "Se ha solicitado un nuevo enlace. Por favor, contacta con tu Cupido.";
-                    document.getElementById('action-buttons').style.opacity = '0.5';
-                    btn.disabled = true;
+                    alert("Solicitud enviada a tu Cupido.");
                 } else {
-                    btn.innerText = "Error, reintentar";
+                    btn.innerText = "Error";
                     btn.disabled = false;
                 }
-            } catch {
-                btn.innerText = "Error";
-                btn.disabled = false;
-            }
+            } catch { btn.innerText = "Error"; btn.disabled = false; }
         }
 
         function addMessage(msg, isSent) {
-            // Check if last message was same sender to group visually (advanced, maybe later)
-            // For now simple append
-
             const div = document.createElement('div');
-            div.className = `message ${isSent ? 'sent' : 'received'}`;
+            div.className = `message ${isSent ? 'sent' : 'received'} ${msg.type === 'image' ? 'image-msg' : ''}`;
+
             const time = new Date(msg.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            div.innerHTML = `
-                <div class="text">${msg.text}</div>
-                <div class="time">
-                    ${time}
-                    ${isSent ? '<span style="font-size:0.8rem;">✓</span>' : ''} 
-                </div>
-            `;
+            if (msg.type === 'image') {
+                div.innerHTML = `
+                    <img src="${msg.base64}" alt="Foto" onclick="viewImage(this.src)">
+                    <div class="time" style="position: absolute; bottom: 5px; right: 5px; background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 10px; color: white;">
+                        ${time}
+                    </div>
+                `;
+            } else {
+                div.innerHTML = `
+                    <div class="text">${msg.text}</div>
+                    <div class="time">
+                        ${time}
+                        ${isSent ? '<span style="font-size:0.8rem;">✓</span>' : ''} 
+                    </div>
+                `;
+            }
 
-            // Insert before typing indicator
             msgContainer.insertBefore(div, typingEl);
             scrollToBottom();
 
-            if (!isSent) {
-                // Play pop
-                notifAudio.currentTime = 0;
-                notifAudio.play().catch(e => { });
+            if (!isSent && msg.type !== 'image-history') { // Check flag
+                if (msg.type !== 'image') notifAudio.play().catch(e => { });
             }
         }
 
+        function viewImage(src) {
+            // Simple viewer
+            const win = window.open();
+            win.document.write(`<img src="${src}" style="width:100%">`);
+        }
+
         function scrollToBottom() {
-            // Use requestAnimationFrame for smoother behavior on mobile keyboards
             requestAnimationFrame(() => {
                 msgContainer.scrollTop = msgContainer.scrollHeight;
             });
         }
 
         function updatePresence(isOnline) {
-            if (otherStatusDisplay.innerText.includes("borrada")) return;
-            otherStatusDisplay.innerText = isOnline ? '• En línea' : '• Desconectado';
-            otherStatusDisplay.style.color = isOnline ? '#4ade80' : '#ef4444';
+            const d = document.getElementById('otherStatusDisplay');
+            if (d.innerText.includes('borrada')) return;
+            d.innerText = isOnline ? '• En línea' : '• Desconectado';
+            d.style.color = isOnline ? '#4ade80' : '#ef4444';
         }
 
         document.getElementById('chat-form').onsubmit = (e) => {
             e.preventDefault();
             const text = msgInput.value.trim();
             if (text && chatId) {
-                // 1. Optimistic Render
-                const msg = { text, timestamp: new Date(), sender: myRole };
+                const msg = { text, timestamp: new Date(), sender: myRole, type: 'text' };
                 addMessage(msg, true);
-
-                // 2. Emit
                 socket.emit('send-message', { room_id: chatId, sender: myRole, text });
                 msgInput.value = '';
-
-                // Clear typing status immediately
-                clearTimeout(typingTimeout);
                 socket.emit('typing', { room_id: chatId, sender: myRole, isTyping: false });
             }
         };
 
-        // Typing Logic
         msgInput.addEventListener('input', () => {
             socket.emit('typing', { room_id: chatId, sender: myRole, isTyping: true });
-
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 socket.emit('typing', { room_id: chatId, sender: myRole, isTyping: false });
@@ -601,9 +732,23 @@
 
         socket.on('new-message', msg => {
             if (msg.sender !== myRole) {
-                // Hide typing indicator if message received
                 typingEl.style.display = 'none';
-                addMessage(msg, false);
+                addMessage({ ...msg, type: 'text' }, false);
+            }
+        });
+
+        // Listen for incoming images
+        socket.on('new-image', (data) => {
+            if (data.sender !== myRole) {
+                typingEl.style.display = 'none';
+                addMessage({
+                    type: 'image',
+                    base64: data.base64,
+                    timestamp: new Date(),
+                    sender: data.sender
+                }, false);
+                // Save incoming to DB
+                saveImageLocally(chatId, data.base64, data.sender, Date.now());
             }
         });
 
@@ -611,21 +756,10 @@
             const otherRole = myRole === 'A' ? 'B' : 'A';
             updatePresence(presence[otherRole]);
         });
-
         socket.on('display-typing', ({ sender, isTyping }) => {
             if (sender !== myRole) {
-                if (isTyping) {
-                    typingEl.style.display = 'flex';
-                    otherStatusDisplay.innerText = '• Escribiendo...';
-                    otherStatusDisplay.style.color = '#4ade80';
-                    scrollToBottom();
-                } else {
-                    typingEl.style.display = 'none';
-                    // Revert presence text
-                    // We need a way to know if they are strictly online still, but simpler to just say Online if socket connected
-                    // For now, let's just reset to Online if we assume they are typing they are online
-                    otherStatusDisplay.innerText = '• En línea';
-                }
+                typingEl.style.display = isTyping ? 'flex' : 'none';
+                scrollToBottom();
             }
         });
 

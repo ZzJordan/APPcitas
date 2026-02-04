@@ -1317,27 +1317,75 @@ app.delete('/api/rooms/:id', isAuthenticated, async (req, res) => {
 app.post('/api/request-new-link', async (req, res) => {
   const { oldLink } = req.body;
   try {
-    const { rows } = await pool.query("SELECT id, cupido_id, linkA, linkB FROM rooms WHERE linkA = $1 OR linkB = $2", [oldLink, oldLink]);
+    const { rows } = await pool.query("SELECT id, cupido_id, linkA, linkB, friendA_name, friendB_name FROM rooms WHERE linkA = $1 OR linkB = $2", [oldLink, oldLink]);
     const room = rows[0];
     if (!room) return res.status(404).json({ error: "No encontrado" });
 
     const isA = (oldLink === room.linka); // pg lowercase
+    const requesterName = isA ? room.frienda_name : room.friendb_name;
     const newLink = crypto.randomUUID();
 
-    const linkCol = isA ? 'linkA' : 'linkB';
-    const sessionCol = isA ? 'linkA_session' : 'linkB_session';
-    // Safe dynamic column because we control the string literal above mostly
-    // But query params easier:
+    // Update DB
     if (isA) {
       await pool.query("UPDATE rooms SET linkA = $1, linkA_session = NULL WHERE id = $2", [newLink, room.id]);
     } else {
       await pool.query("UPDATE rooms SET linkB = $1, linkB_session = NULL WHERE id = $2", [newLink, room.id]);
     }
 
-    io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', { room_id: room.id, role: isA ? 'A' : 'B', new_link: newLink });
+    // Notify Dashboard via Socket
+    io.to(`dashboard_${room.cupido_id}`).emit('link-regenerated', {
+      room_id: room.id,
+      role: isA ? 'A' : 'B',
+      new_link: newLink,
+      requester: requesterName
+    });
+
+    // Notify via Email
+    const cupidoRes = await pool.query("SELECT email, username FROM cupidos WHERE id = $1", [room.cupido_id]);
+    const cupido = cupidoRes.rows[0];
+
+    if (cupido && cupido.email) {
+      const emailSubject = `📢 Solicitud de nuevo enlace - ${requesterName}`;
+      const dashboardUrl = `${req.protocol}://${req.get('host')}/cupido-dashboard`;
+      const emailHtml = `
+            <div style="font-family: 'Outfit', sans-serif; color: #111; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+                <h2 style="color: #ff4d6d;">Nuevo Link Solicitado</h2>
+                <p>Hola <strong>${cupido.username}</strong>,</p>
+                <p>Tu blinder <strong>${requesterName}</strong> ha tenido problemas para entrar y ha solicitado un nuevo enlace.</p>
+                
+                <div style="background: #fdf2f4; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #ff4d6d;">
+                    <p style="margin: 0; font-size: 0.9rem; color: #666;">Nuevo Enlace Generado:</p>
+                    <p style="margin: 5px 0 0 0; font-weight: bold; font-family: monospace; font-size: 1.1rem; word-break: break-all;">
+                        ${req.protocol}://${req.get('host')}/join/blinder/profile?link=${newLink}
+                    </p>
+                </div>
+
+                <p>Por favor, copia este enlace y envíaselo a ${requesterName}.</p>
+                <a href="${dashboardUrl}" style="background: #111; color: white; padding: 12px 24px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">Ir al Dashboard</a>
+            </div>
+        `;
+
+      const msg = {
+        to: cupido.email,
+        from: process.env.SENDGRID_FROM_EMAIL || 'no-reply@cupidosproject.com',
+        subject: emailSubject,
+        html: emailHtml
+      };
+
+      // Use existing transport logic (sgMail or Nodemailer) - copying generic send logic here briefly
+      if (sgMail && process.env.SENDGRID_API_KEY) {
+        sgMail.send(msg).catch(e => console.error("SendGrid Error:", e));
+      } else if (smtpTransport) {
+        smtpTransport.sendMail(msg).catch(e => console.error("SMTP Error:", e));
+      } else {
+        console.log("📨 Email simulation:", msg);
+      }
+    }
+
     res.json({ message: "OK" });
 
   } catch (err) {
+    console.error("Request Link Error:", err);
     res.status(500).json({ error: "Error" });
   }
 });
@@ -1426,7 +1474,10 @@ app.get('/api/chat-info/:link', async (req, res) => {
       [link, link]
     );
     const room = rows[0];
-    if (!room) return res.status(404).json({ error: "No" });
+    if (!room) {
+      console.log(`[API Chat Info] Room not found for link: ${link}`);
+      return res.status(404).json({ error: "No" });
+    }
 
     const sender = (link === room.linka) ? 'A' : 'B';
     const otherRole = (sender === 'A') ? 'B' : 'A';
@@ -1454,8 +1505,8 @@ app.get('/api/chat-info/:link', async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Error" });
+    console.error("[API Chat Info] Error Details:", err);
+    res.status(500).json({ error: "Server Error: " + err.message });
   }
 });
 
@@ -1504,6 +1555,11 @@ io.on('connection', (socket) => {
         socket.to(`room_${room.id}`).emit('user_joined', { role: socket.sender });
       })
       .catch(e => console.error(e));
+  });
+
+  socket.on('send-image', ({ room_id, sender, base64 }) => {
+    // Just broadcast, NO DB SAVE
+    io.to(`room_${room_id}`).emit('new-image', { sender, base64 });
   });
 
   socket.on('send-message', async ({ room_id, sender, text }) => {
