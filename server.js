@@ -314,9 +314,23 @@ const isAuthenticated = (req, res, next) => {
   if (req.path.startsWith('/api/')) {
     return res.status(401).json({ error: "No autenticado" });
   }
-  const returnUrl = encodeURIComponent(req.originalUrl);
-  res.redirect(`/login?returnTo=${returnUrl}`);
+
+  // Fix for legacy redirects or wrong paths
+  let returnUrl = req.originalUrl;
+  if (returnUrl.startsWith('/dashboard')) {
+    returnUrl = returnUrl.replace('/dashboard', '/cupido-dashboard');
+  }
+
+  const encodedUrl = encodeURIComponent(returnUrl);
+  res.redirect(`/login?returnTo=${encodedUrl}`);
 };
+
+// Legacy Redirect
+app.get('/dashboard', (req, res) => {
+  // Keep query params
+  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  res.redirect('/cupido-dashboard' + query);
+});
 
 // --- TEMP SEED ROUTE ---
 // --- TEMP SEED ROUTE ---
