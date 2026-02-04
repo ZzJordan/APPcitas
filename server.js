@@ -53,6 +53,10 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    // Fail fast if SMTP is stuck
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000
   });
   console.log("📧 SMTP Configured via Nodemailer");
 }
@@ -66,7 +70,11 @@ if (process.env.SENDGRID_API_KEY) {
     auth: {
       user: 'apikey',
       pass: process.env.SENDGRID_API_KEY
-    }
+    },
+    // Fail fast if SendGrid SMTP is stuck
+    connectionTimeout: 5000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000
   });
 }
 
