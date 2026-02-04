@@ -247,7 +247,7 @@
             <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/blinder-dashboard'">Mis
                 Flechazos 💘</h1>
             <div class="nav-actions">
-                <button onclick="switchTab('profile')" class="settings-btn" title="Perfil">👤</button>
+                <button id="headerProfileBtn" onclick="toggleProfile()" class="settings-btn" title="Perfil">👤</button>
             </div>
         </header>
 
@@ -281,6 +281,11 @@
                         <button id="installBtn" class="btn-main w-full">Instalar</button>
                     </div>
 
+                    <button onclick="openEditProfile()" class="btn-main w-full mb-1 btn-glass"
+                        style="border-color: var(--primary);">
+                        ✏️ Editar Perfil
+                    </button>
+
                     <div id="pushArea" class="glass-card text-center p-2 mb-2" style="display:none;">
                         <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">🔔</div>
                         <h3 class="mb-1">Notificaciones</h3>
@@ -311,7 +316,39 @@
                 <span>Perfil</span>
             </button>
         </div>
-        </main>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div id="editProfileModal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="premium-card" style="max-width: 90%; width: 400px; max-height: 90vh; overflow-y: auto;">
+            <div class="flex-center-y justify-between mb-2">
+                <h2 class="mb-0">Editar Perfil</h2>
+                <button onclick="document.getElementById('editProfileModal').style.display='none'"
+                    style="background:none; border:none; color:white; font-size:1.5rem;">&times;</button>
+            </div>
+
+            <form id="editProfileForm">
+                <div class="input-group mb-1">
+                    <label>Nombre Completo</label>
+                    <input type="text" id="editName" required class="input-glass w-full">
+                </div>
+                <div class="input-group mb-1">
+                    <label>Email de Recuperación</label>
+                    <input type="email" id="editEmail" required class="input-glass w-full">
+                </div>
+                <div class="input-group mb-1">
+                    <label>Teléfono</label>
+                    <input type="tel" id="editTel" class="input-glass w-full">
+                </div>
+                <div class="input-group mb-2">
+                    <label>URL Foto Perfil</label>
+                    <input type="text" id="editPhoto" placeholder="https://..." class="input-glass w-full">
+                </div>
+
+                <button type="submit" class="btn-main w-full">Guardar Cambios</button>
+            </form>
+        </div>
     </div>
 
     <!-- PWA Install Popup -->
@@ -349,6 +386,15 @@
             document.getElementById('settingsMenu').classList.toggle('show');
         }
 
+        function toggleProfile() {
+            const profileView = document.getElementById('profileView');
+            if (profileView.style.display !== 'none') {
+                switchTab('rooms');
+            } else {
+                switchTab('profile');
+            }
+        }
+
         // Close menu when clicking outside
         // Close menu when clicking outside (removed menu logic, kept for cleanup if any fragments remain)
         function switchTab(tab) {
@@ -361,11 +407,15 @@
                 // View Logic
                 document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
 
+                const headerBtn = document.getElementById('headerProfileBtn');
+
                 if (tab === 'rooms') {
                     document.getElementById('roomsView').style.display = 'block';
+                    if (headerBtn) headerBtn.innerText = '👤';
                     loadDashboard(); // Refresh data
                 } else {
                     document.getElementById('profileView').style.display = 'block';
+                    if (headerBtn) headerBtn.innerText = '✕';
                 }
                 triggerHaptic();
             };
@@ -567,6 +617,56 @@
                 }
             }
         }
+
+        // --- Edit Profile Logic ---
+        async function openEditProfile() {
+            const modal = document.getElementById('editProfileModal');
+            modal.style.display = 'flex';
+
+            try {
+                const res = await fetch('/api/user/profile');
+                if (!res.ok) throw new Error("Error fetching profile");
+                const data = await res.json();
+
+                document.getElementById('editName').value = data.full_name || '';
+                document.getElementById('editEmail').value = data.email || '';
+                document.getElementById('editTel').value = data.tel || '';
+                document.getElementById('editPhoto').value = data.photo_url || '';
+            } catch (e) {
+                console.error(e);
+                alert("Error cargando perfil");
+                modal.style.display = 'none';
+            }
+        }
+
+        document.getElementById('editProfileForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                full_name: document.getElementById('editName').value,
+                email: document.getElementById('editEmail').value,
+                tel: document.getElementById('editTel').value,
+                photo_url: document.getElementById('editPhoto').value
+            };
+
+            try {
+                const res = await fetch('/api/user/profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert("Perfil actualizado correctamente");
+                    document.getElementById('editProfileModal').style.display = 'none';
+                    loadDashboard(); // Refresh name
+                } else {
+                    const d = await res.json();
+                    alert("Error: " + (d.error || 'Desconocido'));
+                }
+            } catch (e) {
+                alert("Error de conexión");
+            }
+        };
 
         loadDashboard();
 

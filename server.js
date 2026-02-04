@@ -1007,6 +1007,10 @@ app.get('/api/blinder/dashboard', isAuthenticated, async (req, res) => {
   const userId = req.session.userId;
 
   try {
+    // 1. Get Real Profile Name First
+    const profileRes = await pool.query("SELECT full_name FROM blinder_profiles WHERE user_id = $1", [userId]);
+    const realName = profileRes.rows[0]?.full_name || req.session.username;
+
     const { rows } = await pool.query(`
         SELECT r.id as room_id, r.friendA_name, r.friendB_name, r.status, r.active_since, r.total_active_seconds, 
                c.username as cupido_name, r.linkA, r.linkB, r.user_a_id, r.user_b_id
@@ -1024,21 +1028,19 @@ app.get('/api/blinder/dashboard', isAuthenticated, async (req, res) => {
       }
 
       const roleLetter = (room.user_a_id === userId) ? 'A' : 'B';
-      const myName = roleLetter === 'A' ? room.frienda_name : room.friendb_name; // lowercase from pg driver? usually yes unless quoted
-      // Actually pg returns lowercase column names by default.
-      // friendA_name -> frienda_name probably.
-      // Let's assume standard casing for now or use snake_case in future.
-      // With unquoted identifiers in CREATE TABLE, Postgres lowercases them.
-      // friendA_name becomes frienda_name.
 
-      const r_friendA = room.frienda_name || room.friendA_name; // fallback
+      // Postgres lowercases columns if unquoted
+      const r_friendA = room.frienda_name || room.friendA_name;
       const r_friendB = room.friendb_name || room.friendB_name;
       const r_linkA = room.linka || room.linkA;
       const r_linkB = room.linkb || room.linkB;
 
       const myLink = roleLetter === 'A' ? r_linkA : r_linkB;
       const otherName = roleLetter === 'A' ? r_friendB : r_friendA;
-      const myNameReal = roleLetter === 'A' ? r_friendA : r_friendB;
+
+      // FIX: Use Real Name from Profile instead of Room Name
+      // const myNameReal = roleLetter === 'A' ? r_friendA : r_friendB; 
+      const myNameReal = realName;
 
       return {
         room_id: room.room_id,
@@ -1148,7 +1150,8 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
       SELECT r.*, 
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id) as total_messages,
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
-        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b,
+        (SELECT text FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_message
       FROM rooms r 
       WHERE cupido_id = $1 
       ORDER BY created_at DESC
@@ -1174,6 +1177,7 @@ app.get('/api/rooms', isAuthenticated, async (req, res) => {
         linkB: r.linkb,
         linkA_used: !!r.linka_session,
         linkB_used: !!r.linkb_session,
+        last_message: r.last_message,
         active_time_str: formatDuration(currentActiveSeconds),
         active_seconds: currentActiveSeconds,
         stats: {
@@ -1651,6 +1655,81 @@ io.on('connection', (socket) => {
       }
     }
   });
+});
+
+// ---------------- PROFILE EDITING ----------------
+
+app.get('/api/user/profile', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const role = req.session.userRole;
+  try {
+    const userRes = await pool.query("SELECT email, username FROM cupidos WHERE id = $1", [userId]);
+    const user = userRes.rows[0];
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    let profile = {};
+    if (role === 'blinder') {
+      const pRes = await pool.query("SELECT full_name, tel, photo_url FROM blinder_profiles WHERE user_id = $1", [userId]);
+      if (pRes.rows.length > 0) profile = pRes.rows[0];
+    } else {
+      const pRes = await pool.query("SELECT full_name, tel, city, age FROM cupido_profiles WHERE user_id = $1", [userId]);
+      if (pRes.rows.length > 0) profile = pRes.rows[0];
+    }
+
+    res.json({
+      email: user.email,
+      username: user.username,
+      full_name: profile.full_name || '',
+      tel: profile.tel || '',
+      photo_url: profile.photo_url || ''
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetch profile" });
+  }
+});
+
+app.post('/api/user/profile', isAuthenticated, async (req, res) => {
+  const userId = req.session.userId;
+  const role = req.session.userRole;
+  const { full_name, email, tel, photo_url } = req.body;
+
+  if (!email || !full_name) return res.status(400).json({ error: "Nombre y email requeridos" });
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 1. Update User (check uniqueness of email first if changed?)
+    // Simplified: optimistic update
+    await client.query("UPDATE cupidos SET email = $1 WHERE id = $2", [email, userId]);
+
+    // 2. Update Profile
+    if (role === 'blinder') {
+      // Upsert logic or assume exists
+      const pRes = await client.query("UPDATE blinder_profiles SET full_name = $1, tel = $2, photo_url = $3 WHERE user_id = $4",
+        [full_name, tel, photo_url, userId]);
+      if (pRes.rowCount === 0) {
+        // Insert if missing (unlikely)
+        await client.query("INSERT INTO blinder_profiles (user_id, full_name, tel, photo_url) VALUES ($1, $2, $3, $4)",
+          [userId, full_name, tel, photo_url]);
+      }
+    } else {
+      await client.query("UPDATE cupido_profiles SET full_name = $1, tel = $2 WHERE user_id = $3",
+        [full_name, tel, userId]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: "Perfil actualizado" });
+
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    if (err.code === '23505') return res.status(400).json({ error: "El email ya está en uso" });
+    res.status(500).json({ error: "Error updating profile" });
+  } finally {
+    client.release();
+  }
 });
 
 // Utility: QR Code

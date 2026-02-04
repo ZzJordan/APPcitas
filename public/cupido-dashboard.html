@@ -86,7 +86,7 @@
             <h1 class="text-left fs-h1" style="cursor: pointer;" onclick="location.href='/cupido-dashboard'">Panel
                 Cupido ✨</h1>
             <div class="nav-actions">
-                <button onclick="switchTab('profile')" class="settings-btn" title="Perfil">👤</button>
+                <button id="headerProfileBtn" onclick="toggleProfile()" class="settings-btn" title="Perfil">👤</button>
             </div>
 
         </header>
@@ -307,6 +307,15 @@
             }
         }
 
+        function toggleProfile() {
+            const profileView = document.getElementById('profileView');
+            if (profileView.style.display !== 'none') {
+                switchTab('rooms');
+            } else {
+                switchTab('profile');
+            }
+        }
+
         // Haptic Feedback Helper
         function triggerHaptic() {
             if (navigator.vibrate) navigator.vibrate(50);
@@ -321,14 +330,19 @@
 
                 document.querySelectorAll('.view-section').forEach(el => el.style.display = 'none');
 
+                const headerBtn = document.getElementById('headerProfileBtn');
+
                 if (tab === 'rooms') {
                     document.getElementById('roomsView').style.display = 'block';
+                    if (headerBtn) headerBtn.innerText = '👤';
                     loadRooms();
                 } else if (tab === 'blinders') {
                     document.getElementById('blindersView').style.display = 'block';
+                    if (headerBtn) headerBtn.innerText = '👤';
                     loadBlinders();
                 } else if (tab === 'profile') {
                     document.getElementById('profileView').style.display = 'block';
+                    if (headerBtn) headerBtn.innerText = '✕';
                 }
                 triggerHaptic();
             };
@@ -344,40 +358,77 @@
             try {
                 const res = await fetch('/api/rooms');
                 const data = await res.json();
-                roomsList.innerHTML = data.owned.map(r => `
-                    <div class="room-card" id="room-${r.id}">
-                        <div class="room-header">
-                            <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
-                                <button onclick="event.stopPropagation(); showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.15); border: 1px solid var(--border); border-radius: 50%; width: 44px; height: 44px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: transform 0.2s; position: relative; z-index: 10;">ℹ️</button>
-                            </div>
-                        </div>
-                        <div class="link-pills">
-                            <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
-                                <span>${r.friendA_name}</span>
-                                <span>Copiar Link</span>
-                            </div>
-                            <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
-                                <span>${r.friendB_name}</span>
-                                <span>Copiar Link</span>
-                            </div>
-                        </div>
-                        <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
-                            🔗 Compartir Acceso a Sala
-                        </button>
-                    </div>
-                `).join('');
                 if (data.owned.length === 0) {
                     roomsList.innerHTML = `
                     <div class="text-center p-3">
-                            <div class="empty-state-icon">🕸️</div>
-                            <p class="text-dim">Tu red está tranquila...</p>
-                            <p class="fs-small text-dim">¡Crea una nueva sala para empezar la magia!</p>
-                        </div > `;
+                        <div class="hero-emoji">🌵</div>
+                        <h2 class="mb-1">Aún no hay salas</h2>
+                        <p class="text-dim mb-2">¡Crea tu primera sala para empezar!</p>
+                        <button onclick="openModal()" class="btn-main w-full">Crear Sala</button>
+                    </div>`;
+                    return;
                 }
-                currentRooms = data.owned;
-            } catch (err) { console.error(err); }
+
+                roomsList.innerHTML = data.owned.map(r => {
+                    const bothUsed = r.linkA_used && r.linkB_used;
+                    let actionArea = '';
+
+                    if (bothUsed) {
+                        const msgText = r.last_message ? r.last_message.replace(/</g, "&lt;").replace(/>/g, "&gt;") : "Esperando primer mensaje...";
+                        actionArea = `
+                            <div class="sneak-peek-container" style="background: rgba(0,0,0,0.2); border-radius: 16px; padding: 12px; border: 1px solid rgba(255,255,255,0.05); margin: 10px 0; position: relative; overflow: hidden;">
+                                <div style="font-size: 0.75rem; color: var(--text-dim); margin-bottom: 6px; display: flex; align-items: center; gap: 5px;">
+                                    <span>👀</span> Vistazo rápido
+                                </div>
+                                <div style="font-style: italic; color: rgba(255,255,255,0.7); filter: blur(4px); user-select: none; pointer-events: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                    ${msgText}
+                                </div>
+                                <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 60%; background: linear-gradient(to top, rgba(20,20,20,0.8), transparent);"></div>
+                                <div style="position: absolute; bottom: 8px; right: 12px; font-size: 0.6rem; color: var(--primary); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
+                                    Top Secret
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 5px;">
+                                <button onclick="copyUrl('/chat/${r.linkA}')" class="btn-text-only" style="font-size: 0.7rem; color: var(--text-dim); background: none; border: none; cursor: pointer; text-decoration: underline;">Link ${r.friendA_name}</button>
+                                <span style="color: var(--border);">|</span>
+                                <button onclick="copyUrl('/chat/${r.linkB}')" class="btn-text-only" style="font-size: 0.7rem; color: var(--text-dim); background: none; border: none; cursor: pointer; text-decoration: underline;">Link ${r.friendB_name}</button>
+                            </div>
+                        `;
+                    } else {
+                        actionArea = `
+                            <div class="link-pills">
+                                <div class="pill ${r.linkA_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkA}')">
+                                    <span>${r.friendA_name}</span>
+                                    <span>${r.linkA_used ? '✅ Unido' : 'Copiar Link'}</span>
+                                </div>
+                                <div class="pill ${r.linkB_used ? 'used' : ''}" onclick="copyUrl('/chat/${r.linkB}')">
+                                    <span>${r.friendB_name}</span>
+                                    <span>${r.linkB_used ? '✅ Unido' : 'Copiar Link'}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    return `
+                        <div class="room-card" id="room-${r.id}">
+                            <div class="room-header">
+                                <div class="room-names">${r.friendA_name} ↔ ${r.friendB_name}</div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="badge badge-${r.status.toLowerCase().replace(' ', '')}" id="status-${r.id}">${r.status}</div>
+                                    <button onclick="event.stopPropagation(); showRoomInfo('${r.id}')" style="background: rgba(255,255,255,0.15); border: 1px solid var(--border); border-radius: 50%; width: 44px; height: 44px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: transform 0.2s; position: relative; z-index: 10;">ℹ️</button>
+                                </div>
+                            </div>
+                            ${actionArea}
+                            <button onclick="shareRoom('${r.id}')" class="btn-main btn-glass w-full mt-1" style="font-size: 0.9rem; padding: 0.6rem;">
+                                🔗 Compartir Acceso a Sala
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Error al cargar salas:", err);
+            }
         }
 
         async function shareRoom(roomId) {
