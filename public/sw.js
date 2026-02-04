@@ -18,7 +18,15 @@ const ASSETS = [
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(ASSETS);
+            // We use 'addAll' inside a try-catch equivalent by mapping.
+            // If one fails, we log it but don't crash the whole SW if possible, 
+            // OR we stick to addAll but ensure the list is clean.
+            // Google Fonts (external) can sometimes cause CORS issues in SW addAll if not CORS-enabled transparently.
+            // Removing external font from explicit pre-cache is often safer.
+            const SAFE_ASSETS = ASSETS.filter(a => !a.startsWith('http'));
+            return cache.addAll(SAFE_ASSETS).catch(err => {
+                console.warn("SW Precache warning:", err);
+            });
         })
     );
     self.skipWaiting();
