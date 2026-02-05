@@ -314,22 +314,11 @@ const isAuthenticated = (req, res, next) => {
 
   // Fix for legacy redirects or wrong paths
   let returnUrl = req.originalUrl;
-  if (returnUrl.startsWith('/dashboard')) {
-    returnUrl = returnUrl.replace('/dashboard', '/cupido-dashboard');
-  }
+
 
   const encodedUrl = encodeURIComponent(returnUrl);
   res.redirect(`/login?returnTo=${encodedUrl}`);
 };
-
-// Legacy Redirect
-app.get('/dashboard', (req, res) => {
-  // Keep query params
-  const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-  res.redirect('/cupido-dashboard' + query);
-});
-
-
 
 // Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -351,8 +340,14 @@ app.get('/verify-email', async (req, res) => {
     res.status(500).send("Error al verificar.");
   }
 });
+
+// Safe Dashboard Routing
 app.get('/dashboard', isAuthenticated, (req, res) => {
   if (req.session.userRole === 'blinder') return res.redirect('/blinder-dashboard');
+  if (req.session.userRole === 'cupido') return res.redirect('/cupido-dashboard');
+  if (req.session.userRole === 'admin') return res.redirect('/admin-dashboard');
+
+  // Fallback for anyone else (should rarely happen)
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
 });
 

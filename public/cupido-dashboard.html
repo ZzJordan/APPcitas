@@ -281,10 +281,11 @@
             <div id="secretChatArea"
                 style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; height: 200px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border); position: relative;">
                 <div id="secretMessagesList"
-                    style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px;"></div>
+                    style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px; transition: filter 0.3s; filter: blur(12px); user-select: none;">
+                </div>
                 <div id="secretOverlay"
-                    style="position: absolute; top:0; left:0; width:100%; height:100%; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; align-items: center; justify-content: center; z-index: 100; border-radius: 12px; background: rgba(0,0,0,0.2);">
-                    <span style="font-size: 2rem;">🔒</span>
+                    style="position: absolute; top:0; left:0; width:100%; height:100%; display: flex; align-items: center; justify-content: center; z-index: 100; pointer-events: none;">
+                    <span style="font-size: 3rem; text-shadow: 0 0 20px black;">🔒</span>
                 </div>
             </div>
 
@@ -534,7 +535,9 @@
             isSpyActive = false; // Reset live state
 
             // Reset UI
+            document.getElementById('secretMessagesList').style.filter = "blur(12px)";
             document.getElementById('secretOverlay').style.display = 'flex';
+
             document.getElementById('secretMessagesList').innerHTML = '<div class="spinner"></div>';
             document.getElementById('timerArea').style.display = 'none';
             document.getElementById('activateSpyBtn').disabled = true;
@@ -618,7 +621,9 @@
                 if (data.success) {
                     // Success!
                     isSpyActive = true;
-                    document.getElementById('secretOverlay').style.display = 'none'; // Unblur
+                    document.getElementById('secretMessagesList').style.filter = "none"; // UNBLUR
+                    document.getElementById('secretOverlay').style.display = 'none'; // Hide lock
+
                     document.getElementById('timerArea').style.display = 'block';
                     document.getElementById('activateSpyBtn').style.display = 'none'; // Hide button logic
 
@@ -649,13 +654,15 @@
         function endSpyMode() {
             clearInterval(spyTimerInterval);
             isSpyActive = false;
-            document.getElementById('secretOverlay').style.display = 'flex'; // Re-blur
+
+            document.getElementById('secretMessagesList').style.filter = "blur(12px)"; // REBLUR
+            document.getElementById('secretOverlay').style.display = 'flex';
+
             document.getElementById('timerArea').style.display = 'none';
             document.getElementById('activateSpyBtn').style.display = 'inline-block';
             document.getElementById('activateSpyBtn').innerText = "TIEMPO AGOTADO";
-            document.getElementById('activateSpyBtn').disabled = true; // Prevent spam re-open in same session instantly? Or allow if they have quota?
-            // Let's refetch quota logic if they want to try again, usually user closes modal.
-            // But strict requirement: "desvele el texto en live durante 10s".
+            document.getElementById('activateSpyBtn').disabled = true;
+
             closeSecretModal();
         }
 
