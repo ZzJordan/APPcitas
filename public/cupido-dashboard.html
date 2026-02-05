@@ -263,6 +263,47 @@
         </div>
     </div>
 
+    <!-- Secret Spy Modal -->
+    <div id="secretModal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 3000; align-items: center; justify-content: center;">
+        <div class="premium-card"
+            style="max-width: 95%; width: 400px; margin: 0; position: relative; border: 1px solid #ff4d6d; box-shadow: 0 0 30px rgba(255, 77, 109, 0.2);">
+            <span class="close-modal" onclick="closeSecretModal()"
+                style="position: absolute; top: 10px; right: 15px; font-size: 1.5rem; cursor: pointer;">&times;</span>
+
+            <div class="text-center mb-2">
+                <div style="font-size: 2rem; margin-bottom: 0.5rem;">🕵️‍♀️</div>
+                <h2 style="color: #ff4d6d; text-transform: uppercase; letter-spacing: 1px; font-size: 1.2rem;">
+                    Intercepción en Vivo</h2>
+                <p class="text-dim fs-small">Accede al feed de mensajes en tiempo real.</p>
+            </div>
+
+            <div id="secretChatArea"
+                style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; height: 200px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border); position: relative;">
+                <!-- Messages go here -->
+                <div id="secretOverlay"
+                    style="position: absolute; top:0; left:0; width:100%; height:100%; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10;">
+                    <span style="font-size: 2rem;">🔒</span>
+                </div>
+                <div id="secretMessagesList" style="display: flex; flex-direction: column; gap: 10px;"></div>
+            </div>
+
+            <div class="text-center">
+                <div id="timerArea" style="display: none; margin-bottom: 10px;">
+                    <div style="font-size: 1.5rem; font-weight: bold; color: #ff4d6d;" id="spyTimer">10</div>
+                    <small class="text-dim">segundos restantes</small>
+                </div>
+
+                <p id="quotaText" class="fs-small text-dim mb-1">Consultando disponibilidad...</p>
+
+                <button id="activateSpyBtn" onclick="activateSpyMode()" class="btn-main w-full"
+                    style="background: linear-gradient(135deg, #ff4d6d 0%, #ff8fa3 100%);">
+                    👁️ DESVELAR AHORA
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const socket = io();
         const roomsList = document.getElementById('roomsList');
@@ -400,9 +441,9 @@
                                     <span id="preview-msg-${r.id}" style="font-style: italic; color: rgba(255,255,255,0.8); filter: blur(2.5px); user-select: none; pointer-events: none;">${msgText}</span>
                                 </div>
                                 <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: linear-gradient(to top, rgba(20,20,20,0.5), transparent);"></div>
-                                <div style="position: absolute; bottom: 8px; right: 12px; font-size: 0.6rem; color: var(--primary); font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">
-                                    Top Secret
-                                </div>
+                                <button onclick="openSecretModal('${r.id}')" style="position: absolute; bottom: 8px; right: 12px; font-size: 0.65rem; color: white; background: #ff4d6d; border: none; padding: 4px 10px; border-radius: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; z-index: 5; box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3);">
+                                    🔐 Top Secret
+                                </button>
                             </div>
                             <div style="display: flex; gap: 10px; justify-content: center; margin-top: 5px;">
                                 <button onclick="copyUrl('/chat/${r.linkA}')" class="btn-text-only" style="font-size: 0.7rem; color: var(--text-dim); background: none; border: none; cursor: pointer; text-decoration: underline;">Link ${r.friendA_name}</button>
@@ -450,12 +491,13 @@
         // Real-time Preview Update
         socket.on('preview-update', (data) => {
             const { room_id, text, sender } = data;
+
+            // 1. Update List Card
             const msgField = document.getElementById(`preview-msg-${room_id}`);
             const senderField = document.getElementById(`preview-sender-${room_id}`);
             const container = document.getElementById(`preview-${room_id}`);
 
             if (msgField && container) {
-                // Find names from cached data
                 const room = currentRooms.find(r => r.id === room_id);
                 let senderName = '';
                 if (room) {
@@ -466,19 +508,163 @@
                 if (senderField) senderField.innerText = senderName;
                 msgField.innerText = text;
 
-                // Visual Pulse Effect
+                // Visual Pulse
                 container.style.transition = 'box-shadow 0.2s, transform 0.2s';
                 container.style.boxShadow = '0 0 15px rgba(255, 77, 109, 0.6)';
                 container.style.transform = 'scale(1.02)';
-
                 setTimeout(() => {
                     container.style.boxShadow = 'none';
                     container.style.transform = 'scale(1)';
                 }, 300);
-            } else {
-                loadRooms();
+            }
+
+            // 2. Update Spy Modal if Active
+            if (activeSpyRoomId == room_id && isSpyActive) {
+                addSecretMessage(text, sender, true);
             }
         });
+
+        // --- SPY MODE LOGIC ---
+        let activeSpyRoomId = null;
+        let isSpyActive = false;
+        let spyTimerInterval = null;
+
+        async function openSecretModal(roomId) {
+            activeSpyRoomId = roomId;
+            isSpyActive = false; // Reset live state
+
+            // Reset UI
+            document.getElementById('secretOverlay').style.display = 'flex';
+            document.getElementById('secretMessagesList').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('timerArea').style.display = 'none';
+            document.getElementById('activateSpyBtn').disabled = true;
+            document.getElementById('activateSpyBtn').style.display = 'inline-block';
+            document.getElementById('quotaText').innerText = 'Consultando disponibilidad...';
+
+            document.getElementById('secretModal').style.display = 'flex';
+
+            try {
+                // 1. Get Quota
+                const quotaRes = await fetch('/api/cupido/spy-status');
+                const quotaData = await quotaRes.json();
+
+                document.getElementById('activateSpyBtn').disabled = (quotaData.remaining <= 0);
+                document.getElementById('quotaText').innerText = `Intentos restantes hoy: ${quotaData.remaining}/3`;
+
+                if (quotaData.remaining <= 0) {
+                    document.getElementById('activateSpyBtn').innerText = "CUPO AGOTADO";
+                    document.getElementById('activateSpyBtn').style.background = "#555";
+                } else {
+                    document.getElementById('activateSpyBtn').innerText = "👁️ DESVELAR (10s)";
+                    document.getElementById('activateSpyBtn').style.background = "linear-gradient(135deg, #ff4d6d 0%, #ff8fa3 100%)";
+                }
+
+                // 2. Get Last 3 Messages
+                const msgsRes = await fetch(`/api/rooms/${roomId}/peek`);
+                const msgs = await msgsRes.json();
+
+                const list = document.getElementById('secretMessagesList');
+                list.innerHTML = '';
+
+                msgs.forEach(m => addSecretMessage(m.text, m.sender, false));
+
+            } catch (err) {
+                console.error(err);
+                document.getElementById('secretMessagesList').innerHTML = '<p class="text-danger">Error cargando datos.</p>';
+            }
+        }
+
+        function addSecretMessage(text, senderLabel, isLive) {
+            const room = currentRooms.find(r => r.id == activeSpyRoomId);
+            let name = senderLabel;
+            if (room) {
+                if (senderLabel === 'A') name = room.friendA_name;
+                else if (senderLabel === 'B') name = room.friendB_name;
+            }
+
+            const div = document.createElement('div');
+            div.style.padding = '10px';
+            div.style.borderRadius = '8px';
+            div.style.background = isLive ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255,255,255,0.1)';
+            div.style.border = isLive ? '1px solid #4ecdc4' : '1px solid transparent';
+
+            div.innerHTML = `
+                <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 2px;">
+                    ${isLive ? '🔴 LIVE - ' : ''} <b>${name}</b>
+                </div>
+                <div style="font-size: 0.95rem;">${text}</div>
+            `;
+
+            if (isLive) {
+                div.style.animation = 'premiumFadeIn 0.3s ease-out';
+            }
+
+            document.getElementById('secretMessagesList').appendChild(div);
+            // Scroll to bottom
+            const area = document.getElementById('secretChatArea');
+            area.scrollTop = area.scrollHeight;
+        }
+
+        async function activateSpyMode() {
+            if (!activeSpyRoomId) return;
+            const btn = document.getElementById('activateSpyBtn');
+            btn.disabled = true;
+            btn.innerText = "Activando...";
+
+            try {
+                const res = await fetch('/api/cupido/spy-consume', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.success) {
+                    // Success!
+                    isSpyActive = true;
+                    document.getElementById('secretOverlay').style.display = 'none'; // Unblur
+                    document.getElementById('timerArea').style.display = 'block';
+                    document.getElementById('activateSpyBtn').style.display = 'none'; // Hide button logic
+
+                    let timeLeft = 10;
+                    document.getElementById('spyTimer').innerText = timeLeft;
+
+                    if (spyTimerInterval) clearInterval(spyTimerInterval);
+                    spyTimerInterval = setInterval(() => {
+                        timeLeft--;
+                        document.getElementById('spyTimer').innerText = timeLeft;
+                        if (timeLeft <= 0) {
+                            endSpyMode();
+                        }
+                    }, 1000);
+
+                } else {
+                    alert(data.error || "No se pudo activar.");
+                    btn.disabled = false;
+                    btn.innerText = "Reintentar";
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error de conexión");
+                btn.disabled = false;
+            }
+        }
+
+        function endSpyMode() {
+            clearInterval(spyTimerInterval);
+            isSpyActive = false;
+            document.getElementById('secretOverlay').style.display = 'flex'; // Re-blur
+            document.getElementById('timerArea').style.display = 'none';
+            document.getElementById('activateSpyBtn').style.display = 'inline-block';
+            document.getElementById('activateSpyBtn').innerText = "TIEMPO AGOTADO";
+            document.getElementById('activateSpyBtn').disabled = true; // Prevent spam re-open in same session instantly? Or allow if they have quota?
+            // Let's refetch quota logic if they want to try again, usually user closes modal.
+            // But strict requirement: "desvele el texto en live durante 10s".
+            closeSecretModal();
+        }
+
+        function closeSecretModal() {
+            document.getElementById('secretModal').style.display = 'none';
+            activeSpyRoomId = null;
+            isSpyActive = false;
+            if (spyTimerInterval) clearInterval(spyTimerInterval);
+        }
 
         async function shareRoom(roomId) {
             try {

@@ -751,6 +751,94 @@ app.get('/api/cupido/invite', isAuthenticated, async (req, res) => {
   }
 });
 
+// FEATURE: CUPIDO SPY / TOP SECRET
+app.get('/api/cupido/spy-status', isAuthenticated, async (req, res) => {
+  if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
+  const cupidoId = req.session.userId;
+  const today = new Date().toISOString().split('T')[0];
+
+  try {
+    const { rows } = await pool.query(
+      "SELECT usage_count FROM cupido_secrets WHERE cupido_id = $1 AND usage_date = $2",
+      [cupidoId, today]
+    );
+    const used = rows[0] ? rows[0].usage_count : 0;
+    const max = 3;
+    res.json({ used, max, remaining: Math.max(0, max - used) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error checking quota" });
+  }
+});
+
+app.post('/api/cupido/spy-consume', isAuthenticated, async (req, res) => {
+  if (req.session.userRole !== 'cupido') return res.status(403).json({ error: "No autorizado" });
+  const cupidoId = req.session.userId;
+  const today = new Date().toISOString().split('T')[0];
+  const max = 3;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Upsert logic for Postgres: INSERT ... ON CONFLICT
+    await client.query(`
+      INSERT INTO cupido_secrets (cupido_id, usage_date, usage_count)
+      VALUES ($1, $2, 1)
+      ON CONFLICT (cupido_id, usage_date) 
+      DO UPDATE SET usage_count = cupido_secrets.usage_count + 1
+    `, [cupidoId, today]);
+
+    const { rows } = await client.query(
+      "SELECT usage_count FROM cupido_secrets WHERE cupido_id = $1 AND usage_date = $2",
+      [cupidoId, today]
+    );
+
+    const used = rows[0].usage_count;
+
+    if (used > max) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: "Cupo diario agotado" });
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, remaining: max - used });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error(err);
+    res.status(500).json({ error: "Error consuming credit" });
+  } finally {
+    client.release();
+  }
+});
+
+app.get('/api/rooms/:id/peek', isAuthenticated, async (req, res) => {
+  const roomId = req.params.id;
+  const userId = req.session.userId;
+
+  try {
+    // Verify Access
+    const accessRes = await pool.query(`
+         SELECT id FROM rooms r
+         WHERE r.id = $1 AND (r.cupido_id = $2 OR EXISTS (SELECT 1 FROM user_rooms ur WHERE ur.room_id = r.id AND ur.cupido_id = $2))
+       `, [roomId, userId]);
+
+    if (accessRes.rows.length === 0) return res.status(403).json({ error: "Acceso denegado" });
+
+    const msgs = await pool.query(`
+            SELECT sender, text, timestamp 
+            FROM messages 
+            WHERE room_id = $1 
+            ORDER BY id DESC 
+            LIMIT 3
+        `, [roomId]);
+
+    res.json(msgs.rows.reverse());
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "Error retrieving messages" });
+  }
+});
+
 app.post('/api/blinder/register-join', async (req, res) => {
   const { username, password, email, token, roomLink, fullName, age, city, tagline, photo, tel } = req.body;
 

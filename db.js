@@ -197,6 +197,17 @@ const initDb = async () => {
             );
         `);
 
+        // 10. Table: cupido_secrets (Track spy/top-secret usage)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS cupido_secrets (
+                cupido_id INTEGER,
+                usage_date DATE DEFAULT CURRENT_DATE,
+                usage_count INTEGER DEFAULT 0,
+                PRIMARY KEY (cupido_id, usage_date),
+                FOREIGN KEY (cupido_id) REFERENCES cupidos(id)
+            );
+        `);
+
         // Default Users (Always attempt creation with ON CONFLICT)
         const pass = process.env.DEFAULT_USER_PASSWORD || '1234';
         const hashedPassword = await bcrypt.hash(pass, 10);
