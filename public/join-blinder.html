@@ -125,6 +125,24 @@
 
     </div>
 
+    <!-- PWA Install Popup -->
+    <div id="pwaModal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
+        <div class="premium-card text-center"
+            style="max-width: 90%; width: 350px; margin: 0; animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+            <div id="pwaIcon" style="font-size: 3rem; margin-bottom: 0.5rem;">📲</div>
+            <h2 class="mb-1">Mejor Experiencia</h2>
+            <p class="text-dim mb-2 fs-small">Instala la App para recibir notificaciones y acceder sin internet.</p>
+
+            <button id="pwaInstallBtn" class="btn-main w-full mb-1">
+                Instalar App
+            </button>
+            <button onclick="dismissPwa()" class="btn-main w-full btn-glass">
+                Seguir en Navegador
+            </button>
+        </div>
+    </div>
+
     <script>
         let token = window.location.pathname.split('/').pop();
         if (token === 'profile') token = null; // Ignore placeholder path
@@ -296,6 +314,78 @@
                 btn.disabled = false;
             }
         };
+        // PWA Install Logic
+        let deferredPrompt;
+        const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isStandalone = ('standalone' in window.navigator && window.navigator.standalone) ||
+            (window.matchMedia('(display-mode: standalone)').matches);
+
+        function dismissPwa() {
+            document.getElementById('pwaModal').style.display = 'none';
+            sessionStorage.setItem('pwaDismissed', 'true');
+        }
+
+        function showManualInstructions() {
+            const modal = document.getElementById('pwaModal');
+            document.getElementById('pwaIcon').innerHTML = isIos ? '🍏' : '📲';
+            modal.querySelector('h2').innerText = isIos ? "Instalar en iPhone" : "Instalar App";
+            modal.querySelector('p').innerHTML = isIos ?
+                "Toca <b>Compartir</b> <span style='font-size:1.2rem'>⎋</span> y selecciona <b>'Añadir a inicio'</b> ➕" :
+                "Abre el menú del navegador (<b>⋮</b>) y selecciona <b>'Instalar aplicación'</b>.";
+
+            const btn = document.getElementById('pwaInstallBtn');
+            btn.innerText = "Entendido";
+            btn.onclick = dismissPwa;
+            modal.style.display = 'flex';
+        }
+
+        async function triggerInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    deferredPrompt = null;
+                    dismissPwa();
+                }
+            } else {
+                showManualInstructions();
+            }
+        }
+
+        // Auto-show logic
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+
+            if (!sessionStorage.getItem('pwaDismissed') && !isStandalone) {
+                setTimeout(() => {
+                    const modal = document.getElementById('pwaModal');
+                    const btn = document.getElementById('pwaInstallBtn');
+                    btn.innerText = "Instalar App";
+                    btn.onclick = triggerInstall;
+                    modal.style.display = 'flex';
+                }, 2000);
+            }
+        });
+
+        // Also check strictly if not standalone and not dismissed
+        if (!isStandalone && !sessionStorage.getItem('pwaDismissed')) {
+            setTimeout(() => {
+                if (!deferredPrompt && document.getElementById('pwaModal').style.display === 'none') {
+                    // Check if it's likely they can install manually
+                    const modal = document.getElementById('pwaModal');
+                    if (modal) {
+                        document.getElementById('pwaInstallBtn').onclick = () => showManualInstructions();
+                    }
+                }
+            }, 3000);
+        }
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+            });
+        }
     </script>
 </body>
 

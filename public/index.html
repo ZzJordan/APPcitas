@@ -156,6 +156,8 @@
 
         <!-- View: Register Blinder -->
         <div id="registerViewBlinder" class="premium-card" style="display: none;">
+            <!-- ... (existing content preserved implicitly if I use the tool correctly, but here I should replace the block or append) ... -->
+            <!-- Wait, I am replacing. I need to be careful. I will append the modal at the end of the container. -->
             <img src="/blinder_icon.png" class="hero-emoji-main" alt="Blinder Icon" style="height: 150px; width: auto; display: block; margin: 0 auto 1.5rem auto; 
                         filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.5));">
             <h1 class="primary-text-gradient text-center mb-1">Registro Blinder</h1>
@@ -213,6 +215,24 @@
                     ¿Ya tienes credenciales? <a href="javascript:void(0)" onclick="showLogin()" class="font-800"
                         style="color: var(--primary);">Inicia Sesión</a>
                 </p>
+            </div>
+        </div>
+
+        <!-- PWA Install Popup -->
+        <div id="pwaModal" class="modal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
+            <div class="premium-card text-center"
+                style="max-width: 90%; width: 350px; margin: 0; animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+                <div id="pwaIcon" style="font-size: 3rem; margin-bottom: 0.5rem;">📲</div>
+                <h2 class="mb-1">Mejor Experiencia</h2>
+                <p class="text-dim mb-2 fs-small">Instala la App para recibir notificaciones y acceder sin internet.</p>
+
+                <button id="pwaInstallBtn" class="btn-main w-full mb-1">
+                    Instalar App
+                </button>
+                <button onclick="dismissPwa()" class="btn-main w-full btn-glass">
+                    Seguir en Navegador
+                </button>
             </div>
         </div>
 
@@ -408,6 +428,79 @@
                 btn.innerText = 'Registrar ' + suffix;
             }
         };
+
+        // PWA Install Logic
+        let deferredPrompt;
+        const isIos = /iphone|ipad|ipod/.test(window.navigator.userAgent.toLowerCase());
+        const isStandalone = ('standalone' in window.navigator && window.navigator.standalone) ||
+            (window.matchMedia('(display-mode: standalone)').matches);
+
+        function dismissPwa() {
+            document.getElementById('pwaModal').style.display = 'none';
+            sessionStorage.setItem('pwaDismissed', 'true');
+        }
+
+        function showManualInstructions() {
+            const modal = document.getElementById('pwaModal');
+            document.getElementById('pwaIcon').innerHTML = isIos ? '🍏' : '📲';
+            modal.querySelector('h2').innerText = isIos ? "Instalar en iPhone" : "Instalar App";
+            modal.querySelector('p').innerHTML = isIos ?
+                "Toca <b>Compartir</b> <span style='font-size:1.2rem'>⎋</span> y selecciona <b>'Añadir a inicio'</b> ➕" :
+                "Abre el menú del navegador (<b>⋮</b>) y selecciona <b>'Instalar aplicación'</b>.";
+
+            const btn = document.getElementById('pwaInstallBtn');
+            btn.innerText = "Entendido";
+            btn.onclick = dismissPwa;
+            modal.style.display = 'flex';
+        }
+
+        async function triggerInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    deferredPrompt = null;
+                    dismissPwa();
+                }
+            } else {
+                showManualInstructions();
+            }
+        }
+
+        // Auto-show logic
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+
+            // Show if not dismissed
+            if (!sessionStorage.getItem('pwaDismissed') && !isStandalone) {
+                setTimeout(() => {
+                    const modal = document.getElementById('pwaModal');
+                    const btn = document.getElementById('pwaInstallBtn');
+                    btn.innerText = "Instalar App";
+                    btn.onclick = triggerInstall;
+                    modal.style.display = 'flex';
+                }, 2000); // Wait a bit for user to settle
+            }
+        });
+
+        // Also check strictly if not standalone and not dismissed, show manual instructions after delay if no event fired (iOS/others)
+        if (!isStandalone && !sessionStorage.getItem('pwaDismissed')) {
+            setTimeout(() => {
+                if (!deferredPrompt && document.getElementById('pwaModal').style.display === 'none') {
+                    // Check if it's likely they can install manually
+                    const modal = document.getElementById('pwaModal');
+                    if (modal) { // verification
+                        document.getElementById('pwaInstallBtn').onclick = () => showManualInstructions();
+                        // Optional: don't auto-show manual on landing page to avoid annoyance, 
+                        // but user said "no se descarga bien", so maybe they NEED the prompt.
+                        // Let's essentially leave it to the user to find it? 
+                        // No, let's show a small "Instalar" button in the UI if possible, or just rely on the modal for now.
+                        // For this task, getting the modal up is key.
+                    }
+                }
+            }, 3000);
+        }
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {

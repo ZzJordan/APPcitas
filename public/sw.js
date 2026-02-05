@@ -62,10 +62,36 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
                 .catch(() => {
-                    return caches.match(event.request);
+                    return caches.match(event.request).then(response => {
+                        if (response) return response;
+                        // Optional: Return a custom offline page if you have one
+                        // return caches.match('/offline.html'); 
+                    });
                 })
         );
+        return;
     }
+
+    // 3. Static Assets (CSS, JS, Images, Fonts) -> Cache First, then Network
+    event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+                return cachedResponse;
+            }
+            return fetch(event.request).then((response) => {
+                // Don't cache non-successful responses or basic opaque responses unnecessarily if you want strict control
+                // But for simple assets, caching valid responses is good.
+                if (!response || response.status !== 200 || response.type !== 'basic') {
+                    return response;
+                }
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                });
+                return response;
+            });
+        })
+    );
 });
 
 // --- Push Notifications ---

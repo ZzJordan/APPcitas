@@ -37,6 +37,12 @@
 
 
     <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+            });
+        }
+
         async function logout() {
             await fetch('/api/logout', { method: 'POST' });
             location.href = '/login';
