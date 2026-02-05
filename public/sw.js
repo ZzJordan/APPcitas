@@ -62,14 +62,8 @@ self.addEventListener('fetch', (event) => {
                     });
                 })
                 .catch(() => {
-                    if (ASSETS.includes(url.pathname)) {
-                        caches.open(CACHE_NAME).then((cache) => {
-                            cache.put(event.request, responseToCache);
-                        });
-                    }
-                    return response;
-                });
-    })
+                    return caches.match(event.request);
+                })
         );
     }
 });

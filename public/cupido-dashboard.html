@@ -519,11 +519,56 @@
                 const stats = room.stats || { total_messages: 0, msgs_A: 0, msgs_B: 0, ratio_A: 0, ratio_B: 0 };
                 const activeTime = room.active_time_str || "0m";
 
+                // Inactivity Logic
+                let inactivityHtml = '';
+                // Determine last significant activity
+                const createdTime = new Date(room.created_at).getTime();
+                const lastMsgTime = room.last_message_time ? new Date(room.last_message_time).getTime() : 0;
+
+                // Default to creation time, upgrade to last message if newer
+                let lastActivityTimestamp = Math.max(createdTime, lastMsgTime);
+
+                // If room is currently active, reset inactivity timer to NOW
+                if (room.active_since) {
+                    lastActivityTimestamp = Date.now();
+                }
+
+                const diffMs = Date.now() - lastActivityTimestamp;
+                const daysInactive = diffMs / (1000 * 60 * 60 * 24);
+
+                if (daysInactive > 3) {
+                    const daysLeft = 5 - daysInactive; // 5 days total life before deletion? User said "warn at 3 days that it will be deleted in 2 days" -> 3+2=5.
+                    let timeString = "";
+                    if (daysLeft > 1) {
+                        timeString = Math.floor(daysLeft) + " días";
+                    } else if (daysLeft > 0) {
+                        const hours = Math.floor(daysLeft * 24);
+                        timeString = hours + " horas";
+                    } else {
+                        timeString = "breve";
+                    }
+
+                    inactivityHtml = `
+                        <div style="background: rgba(255, 77, 109, 0.1); border: 1px solid rgba(255, 77, 109, 0.3); padding: 10px; border-radius: 12px; margin-bottom: 1rem; text-align: center;">
+                            <div style="color: #ff4d6d; font-weight: bold; font-size: 0.9rem; margin-bottom: 4px;">⚠️ Auto-Destrucción</div>
+                            <p style="margin: 0; font-size: 0.8rem; color: var(--text-dim);">Sala inactiva. Eliminación en <strong style="color: #ff4d6d;">${timeString}</strong>.</p>
+                        </div>
+                     `;
+                }
+
                 document.getElementById('infoContent').innerHTML = `
                     <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border);">
-                        <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id}</span></p>
-                        <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
-                        <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
+                        ${inactivityHtml}
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                             <div>
+                                <p class="mb-1"><strong class="text-dim">ID Sala:</strong> <span style="font-family: monospace;">${room.id}</span></p>
+                                <p class="mb-1"><strong class="text-dim">Creada:</strong> ${createdDate}</p>
+                                <p class="mb-1"><strong class="text-dim">Estado:</strong> <span class="badge badge-${room.status.toLowerCase().replace(' ', '')}" style="font-size: 0.8em; padding: 2px 8px;">${room.status}</span></p>
+                             </div>
+                             <button onclick="deleteRoom('${room.id}')" title="Eliminar Sala" style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: #ef4444; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;">
+                                🗑️
+                             </button>
+                        </div>
                         <hr style="border: 0; border-top: 1px solid var(--border); margin: 0.8rem 0;">
                         
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem;">
@@ -565,6 +610,33 @@
                         <button onclick="closeInfoModal()" class="btn-main btn-glass mt-1">Cerrar</button>
                     </div>
                 `;
+            }
+        }
+
+        async function deleteRoom(roomId) {
+            if (!confirm("⚠️ ¿Eliminar sala definitivamente?\n\nEsta acción borrará todo el historial y desconectará a los blinders.")) return;
+
+            // Visual feedback
+            const btn = event.currentTarget || document.activeElement;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<div class="spinner" style="width:14px; height:14px; border-width:2px;"></div>';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch(`/api/rooms/${roomId}`, { method: 'DELETE' });
+                if (res.ok) {
+                    closeInfoModal();
+                    loadRooms();
+                } else {
+                    alert("No se pudo eliminar la sala.");
+                    btn.innerHTML = originalContent;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Error de conexión.");
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
             }
         }
 

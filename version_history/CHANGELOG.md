@@ -2,6 +2,14 @@
 
 Este archivo registra los cambios importantes y la evolución del proyecto.
 
+## [v1.5.0] - 2026-02-04
+
+### Versión 1.5 - "Snapshot y Mantenimiento"
+
+- **General**:
+  - Actualización de versión a 1.5.0 en package.json.
+  - Creación de backup de seguridad.
+
 ## [v2.0.0] - 2026-02-01
 
 ### UX & Analytics Upgrade - "The Insight Update"

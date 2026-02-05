@@ -91,11 +91,8 @@ async function sendVerificationEmail(email, token, req) {
     </div>
   `;
 
-  // ALWAYS log the link for development/debugging purposes
-  console.log(`----------------------------------------------------------------`);
-  console.log(`🔗 EMAIL VERIFICATION LINK (DEBUG):`);
-  console.log(verifyUrl);
-  console.log(`----------------------------------------------------------------`);
+  // Debug: Log the link for development
+  console.log(`🔗 EMAIL DEBUG: ${verifyUrl}`);
 
   // Priority 1: SendGrid Web API (Standard)
   if (process.env.SENDGRID_API_KEY) {
@@ -332,58 +329,7 @@ app.get('/dashboard', (req, res) => {
   res.redirect('/cupido-dashboard' + query);
 });
 
-// --- TEMP SEED ROUTE ---
-// --- TEMP SEED ROUTE ---
-app.get('/api/seed-test-matches', isAuthenticated, async (req, res) => {
-  try {
-    const c1 = await pool.query("SELECT id FROM cupidos WHERE username = 'cupido1'");
-    if (!c1.rows.length) return res.send("cupido1 not found");
-    const cupidoId = c1.rows[0].id;
 
-    // Helper to get user info by username suffix
-    const getBlinder = async (i) => {
-      const u = await pool.query("SELECT id, username FROM cupidos WHERE username = $1", [`blinder${i}`]);
-      if (!u.rows.length) return null;
-      const p = await pool.query("SELECT full_name FROM blinder_profiles WHERE user_id = $1", [u.rows[0].id]);
-      return {
-        id: u.rows[0].id,
-        name: p.rows[0]?.full_name || u.rows[0].username
-      };
-    };
-
-    const createdRooms = [];
-    const create = async (bA, bB) => {
-      const linkA = crypto.randomUUID();
-      const linkB = crypto.randomUUID();
-      const ins = await pool.query(`
-                INSERT INTO rooms (cupido_id, friendA_name, friendB_name, linkA, linkB, user_a_id, user_b_id, status, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, 'activo', NOW())
-                ON CONFLICT (linkA) DO NOTHING
-                RETURNING id`,
-        [cupidoId, bA.name, bB.name, linkA, linkB, bA.id, bB.id]
-      );
-
-      if (ins.rows[0]) {
-        await pool.query("INSERT INTO user_rooms (cupido_id, room_id, role) VALUES ($1, $2, 'cupido') ON CONFLICT DO NOTHING", [cupidoId, ins.rows[0].id]);
-        createdRooms.push(`${bA.name} ↔ ${bB.name}`);
-      }
-    };
-
-    // Try creating matches for 1-2, 3-4, 5-6
-    for (let i = 1; i <= 5; i += 2) {
-      const bA = await getBlinder(i);
-      const bB = await getBlinder(i + 1);
-      if (bA && bB) {
-        await create(bA, bB);
-      }
-    }
-
-    res.send(`Created test matches: ${createdRooms.join(', ') || 'None (maybe already exist or users missing)'}`);
-  } catch (e) {
-    console.error(e);
-    res.status(500).send(e.toString());
-  }
-});
 
 // Routes
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
@@ -1240,7 +1186,8 @@ app.get('/api/rooms/:id', isAuthenticated, async (req, res) => {
       SELECT r.*, 
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id) as total_messages,
         (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'A') as msgs_a,
-        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b
+        (SELECT COUNT(*) FROM messages m WHERE m.room_id = r.id AND m.sender = 'B') as msgs_b,
+        (SELECT timestamp FROM messages m WHERE m.room_id = r.id ORDER BY timestamp DESC LIMIT 1) as last_message_time
       FROM rooms r 
       WHERE r.id = $2 AND (r.cupido_id = $1 OR EXISTS (SELECT 1 FROM user_rooms ur WHERE ur.room_id = r.id AND ur.cupido_id = $1))
     `, [userId, roomId]);
