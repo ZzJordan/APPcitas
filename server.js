@@ -1710,7 +1710,7 @@ io.on('connection', (socket) => {
           cRes.rows.forEach(row => {
             io.to(`dashboard_${row.cupido_id}`).emit('preview-update', {
               room_id: room_id,
-              text: type === 'image' ? '📷 Imagen' : text,
+              text: text, // Fixed: removed undefined 'type' check
               sender: sender
             });
           });
