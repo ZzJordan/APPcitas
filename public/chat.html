@@ -78,18 +78,35 @@
             background: rgba(255, 255, 255, 0.1);
         }
 
-        .avatar {
+        .avatar-container {
             width: 44px;
             height: 44px;
-            background: var(--primary-gradient);
+            position: relative;
             border-radius: 50%;
+            overflow: hidden;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .avatar-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            transition: filter 1s linear;
+        }
+
+        .avatar-placeholder {
+            width: 100%;
+            height: 100%;
+            background: var(--primary-gradient);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
             font-size: 1.2rem;
             color: white;
-            box-shadow: 0 8px 16px rgba(255, 77, 109, 0.3);
             text-transform: uppercase;
         }
 
@@ -379,7 +396,10 @@
                     <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
                 </svg>
             </button>
-            <div class="avatar" id="otherAvatar" style="width: 40px; height: 40px; font-size: 1.1rem;">?</div>
+            <div class="avatar-container" id="avatarContainer" onclick="handleAvatarClick()">
+                <div id="avatarPlaceholder" class="avatar-placeholder">?</div>
+                <img id="avatarImage" class="avatar-image" alt="Profile">
+            </div>
             <div class="flex-1" style="min-width: 0;">
                 <div id="otherNameDisplay" class="white-text"
                     style="font-weight: 700; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -435,6 +455,12 @@
         const link = window.location.pathname.split('/').pop();
         let chatId, myRole, myName;
         let typingTimeout;
+
+        // Progressive Blur Vars
+        let activeSeconds = 0;
+        let timerInterval = null;
+        const TARGET_SECONDS = 1800; // 30 minutes
+        let otherPhotoUrl = null;
 
         const msgContainer = document.getElementById('messages-container');
         const msgInput = document.getElementById('msg-input');
@@ -582,7 +608,28 @@
                     updatePresence(data.otherConnected);
                 }
 
-                document.getElementById('otherAvatar').innerText = data.otherDeleted ? "✖" : (data.otherName ? data.otherName[0] : "?");
+                // Handle Avatar & Blur
+                otherPhotoUrl = data.otherPhoto;
+                activeSeconds = data.activeSeconds || 0;
+
+                if (otherPhotoUrl) {
+                    const imgEl = document.getElementById('avatarImage');
+                    imgEl.src = otherPhotoUrl;
+                    imgEl.style.display = 'block';
+                    document.getElementById('avatarPlaceholder').style.display = 'none';
+                    updateBlur();
+                } else {
+                    document.getElementById('avatarPlaceholder').innerText = data.otherName ? data.otherName[0] : "?";
+                }
+
+                // Start timer if active
+                if (data.roomStatus === 'activo' || (data.otherConnected && data.isLoggedIn)) {
+                    // Check logic: usually 'activo' means both were connected at some point. 
+                    // But for real-time restart, status might be 'pendiente' if just reconnected. 
+                    // server sets status='activo' if both present. 
+                    // We rely on socket presence updates for real-time, but initial state relies on DB.
+                    if (data.roomStatus === 'activo') startTimer();
+                }
 
                 if (!data.isLoggedIn && !storedSession) {
                     guestOverlay.style.display = 'flex';
@@ -770,13 +817,60 @@
         socket.on('presence-update', (presence) => {
             const otherRole = myRole === 'A' ? 'B' : 'A';
             updatePresence(presence[otherRole]);
+
+            // Logic: active if BOTH are present
+            if (presence.A && presence.B) {
+                startTimer();
+            } else {
+                stopTimer();
+            }
         });
+
         socket.on('display-typing', ({ sender, isTyping }) => {
             if (sender !== myRole) {
                 typingEl.style.display = isTyping ? 'flex' : 'none';
                 scrollToBottom();
             }
         });
+
+        // --- Progressive Blur Logic ---
+        function startTimer() {
+            if (timerInterval) return;
+            timerInterval = setInterval(() => {
+                activeSeconds++;
+                updateBlur();
+            }, 1000);
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        function updateBlur() {
+            if (!otherPhotoUrl) return;
+
+            const remaining = Math.max(0, TARGET_SECONDS - activeSeconds);
+            const blurAmount = (remaining / TARGET_SECONDS) * 20; // Max 20px blur
+
+            const imgEl = document.getElementById('avatarImage');
+            if (imgEl) {
+                imgEl.style.filter = `blur(${blurAmount}px)`;
+            }
+        }
+
+        function handleAvatarClick() {
+            if (!otherPhotoUrl) return;
+            if (activeSeconds >= TARGET_SECONDS) {
+                viewImage(otherPhotoUrl);
+            } else {
+                // Optional: Toast or shake indicating not ready
+                const remainingMins = Math.ceil((TARGET_SECONDS - activeSeconds) / 60);
+                alert(`La foto se revelará en ${remainingMins} minutos de conversación activa.`);
+            }
+        }
 
         init();
     </script>

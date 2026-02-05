@@ -1450,8 +1450,9 @@ app.get('/api/chat-info/:link', async (req, res) => {
   const { link } = req.params;
   try {
     const { rows } = await pool.query(
-      `SELECT id as room_id, friendA_name, friendB_name, linkA, linkB, cupido_id, user_a_id, user_b_id 
-           FROM rooms WHERE linkA = $1 OR linkB = $2`,
+      `SELECT id as room_id, friendA_name, friendB_name, linkA, linkB, cupido_id, user_a_id, user_b_id,
+              active_since, total_active_seconds, status
+       FROM rooms WHERE linkA = $1 OR linkB = $2`,
       [link, link]
     );
     const room = rows[0];
@@ -1466,12 +1467,26 @@ app.get('/api/chat-info/:link', async (req, res) => {
     const statusObj = roomStatus[room.room_id] || { A: null, B: null };
 
     let isOtherDeleted = false;
+    let otherPhoto = null;
+
     if (otherUserId) {
       const uRes = await pool.query("SELECT id FROM cupidos WHERE id = $1", [otherUserId]);
       isOtherDeleted = (uRes.rows.length === 0);
+
+      if (!isOtherDeleted) {
+        // Fetch Photo
+        const pRes = await pool.query("SELECT photo_url FROM blinder_profiles WHERE user_id = $1", [otherUserId]);
+        otherPhoto = pRes.rows[0]?.photo_url || null;
+      }
     }
 
     const msgRes = await pool.query("SELECT sender, text, timestamp FROM messages WHERE room_id = $1 ORDER BY timestamp ASC", [room.room_id]);
+
+    // Calculate Active Time
+    let currentActiveSeconds = parseInt(room.total_active_seconds || 0, 10);
+    if (room.status === 'activo' && room.active_since) {
+      currentActiveSeconds += Math.floor((Date.now() - Number(room.active_since)) / 1000);
+    }
 
     res.json({
       room_id: room.room_id,
@@ -1481,6 +1496,9 @@ app.get('/api/chat-info/:link', async (req, res) => {
       otherRole,
       otherConnected: !!statusObj[otherRole],
       otherDeleted: isOtherDeleted,
+      otherPhoto,
+      activeSeconds: currentActiveSeconds,
+      roomStatus: room.status, // To know if timer should run client-side
       isLoggedIn: !!req.session.userId,
       messages: msgRes.rows || []
     });
