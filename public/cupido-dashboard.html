@@ -273,19 +273,19 @@
 
             <div class="text-center mb-2">
                 <div style="font-size: 2rem; margin-bottom: 0.5rem;">🕵️‍♀️</div>
-                <h2 style="color: #ff4d6d; text-transform: uppercase; letter-spacing: 1px; font-size: 1.2rem;">
-                    Intercepción en Vivo</h2>
+                <h2 style="color: #ff4d6d; text-transform: uppercase; letter-spacing: 1px; font-size: 1.2rem;">Modo
+                    Espía</h2>
                 <p class="text-dim fs-small">Accede al feed de mensajes en tiempo real.</p>
             </div>
 
             <div id="secretChatArea"
                 style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; height: 200px; overflow-y: auto; margin-bottom: 1rem; border: 1px solid var(--border); position: relative;">
-                <!-- Messages go here -->
+                <div id="secretMessagesList"
+                    style="display: flex; flex-direction: column; gap: 10px; padding-bottom: 10px;"></div>
                 <div id="secretOverlay"
-                    style="position: absolute; top:0; left:0; width:100%; height:100%; backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 10;">
+                    style="position: absolute; top:0; left:0; width:100%; height:100%; backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; align-items: center; justify-content: center; z-index: 100; border-radius: 12px; background: rgba(0,0,0,0.2);">
                     <span style="font-size: 2rem;">🔒</span>
                 </div>
-                <div id="secretMessagesList" style="display: flex; flex-direction: column; gap: 10px;"></div>
             </div>
 
             <div class="text-center">
@@ -438,7 +438,7 @@
                                 </div>
                                 <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                                     <span id="preview-sender-${r.id}" style="font-weight: bold; color: var(--primary); margin-right: 4px;">${senderLabel}</span>
-                                    <span id="preview-msg-${r.id}" style="font-style: italic; color: rgba(255,255,255,0.8); filter: blur(2.5px); user-select: none; pointer-events: none;">${msgText}</span>
+                                    <span id="preview-msg-${r.id}" style="font-style: italic; color: rgba(255,255,255,0.8); filter: blur(6px); user-select: none; pointer-events: none;">${msgText}</span>
                                 </div>
                                 <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: linear-gradient(to top, rgba(20,20,20,0.5), transparent);"></div>
                                 <button onclick="openSecretModal('${r.id}')" style="position: absolute; bottom: 8px; right: 12px; font-size: 0.65rem; color: white; background: #ff4d6d; border: none; padding: 4px 10px; border-radius: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; z-index: 5; box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3);">
