@@ -13,6 +13,12 @@
     --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* Android Color Correction to match iOS Pink */
+body.android-device {
+    --primary: #ff5c8d;
+    --primary-gradient: linear-gradient(135deg, #ff5c8d 0%, #ff85a3 100%);
+}
+
 /* Fix backdrop-filter compatibility */
 .glass-effect {
     -webkit-backdrop-filter: blur(20px);
@@ -176,8 +182,10 @@ body {
     color: white;
     text-decoration: none;
     border-radius: 18px;
+    border-radius: 18px;
     font-weight: 700;
     transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    flex-shrink: 0;
     border: none;
     cursor: pointer;
     text-align: center;

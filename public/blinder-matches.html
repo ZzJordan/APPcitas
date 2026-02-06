@@ -10,6 +10,12 @@
     <meta name="theme-color" content="#ff4d6d">
     <link rel="apple-touch-icon" href="/app-icon.png">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <script>
+        if (/android/i.test(navigator.userAgent)) {
+            document.documentElement.classList.add('android-device');
+            document.addEventListener('DOMContentLoaded', () => document.body.classList.add('android-device'));
+        }
+    </script>
 </head>
 
 <body>

@@ -236,6 +236,8 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            flex-shrink: 0;
+            /* Prevent squashing on mobile */
         }
 
         .send-btn {
@@ -354,6 +356,12 @@
             }
         }
     </style>
+    <script>
+        if (/android/i.test(navigator.userAgent)) {
+            document.documentElement.classList.add('android-device');
+            document.body.classList.add('android-device'); // Just in case
+        }
+    </script>
 </head>
 
 <body>
