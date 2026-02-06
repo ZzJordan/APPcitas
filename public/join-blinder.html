@@ -4,14 +4,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#121217"> <!-- Matches --surface color for seamless Android look -->
     <title>Unirse como Blinder | Cupido's Project</title>
     <link rel="stylesheet" href="/style.css?v=2.1">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         .join-container {
             max-width: 450px;
-            margin: 0 auto;
+            margin: auto;
+            /* Vertically center in the flex container */
             padding: 2rem 1.5rem;
+            width: 100%;
         }
 
         .photo-preview {
@@ -136,6 +139,10 @@
 
             <button id="pwaInstallBtn" class="btn-main w-full mb-1">
                 Instalar App
+            </button>
+            <button id="pwaOpenBtn" onclick="openAppFromBrowser()" class="btn-main w-full mb-1 btn-glass"
+                style="display: none;">
+                Abrir en App 🚀
             </button>
             <button onclick="dismissPwa()" class="btn-main w-full btn-glass">
                 Seguir en Navegador
@@ -352,31 +359,68 @@
             }
         }
 
+        // Open App Logic for Android
+        function openAppFromBrowser() {
+            const url = window.location.href.replace(/^https?:\/\//, '');
+            const intentUrl = 'intent://' + url + '#Intent;scheme=https;package=com.android.chrome;end';
+            // Better attempt: Just intent on the URL itself without package often prompts picker if app is registered
+            // But for PWA, it's tricky. Let's try the direct intent first which might fail if no package.
+            // Actually, the best way for PWA is to rely on the browser to handle the intent if installed.
+            // A simple reload sometimes works, but let's try a specific intent to "view" the URL.
+
+            // Try 1: Generic View Intent
+            const intent = `intent://${url}#Intent;scheme=https;action=android.intent.action.VIEW;end`;
+            window.location.href = intent;
+        }
+
         // Auto-show logic
         window.addEventListener('beforeinstallprompt', (e) => {
             e.preventDefault();
             deferredPrompt = e;
-
-            if (!sessionStorage.getItem('pwaDismissed') && !isStandalone) {
-                setTimeout(() => {
-                    const modal = document.getElementById('pwaModal');
-                    const btn = document.getElementById('pwaInstallBtn');
-                    btn.innerText = "Instalar App";
-                    btn.onclick = triggerInstall;
-                    modal.style.display = 'flex';
-                }, 2000);
-            }
+            showPwaModal();
         });
 
-        // Also check strictly if not standalone and not dismissed
+        function showPwaModal() {
+            if (!sessionStorage.getItem('pwaDismissed') && !isStandalone) {
+                const modal = document.getElementById('pwaModal');
+                const btn = document.getElementById('pwaInstallBtn');
+                const openBtn = document.getElementById('pwaOpenBtn');
+
+                const isAndroid = /android/i.test(navigator.userAgent);
+                const isIos = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+
+                // 1. Install Button Logic
+                if (deferredPrompt) {
+                    btn.onclick = triggerInstall;
+                    btn.style.display = 'block';
+                    btn.innerText = "Instalar App";
+                } else if (isIos) {
+                    btn.onclick = showManualInstructions;
+                    btn.style.display = 'block';
+                    btn.innerText = "Instalar en iPhone";
+                } else {
+                    btn.style.display = 'none';
+                }
+
+                // 2. Open App Button Logic (Android only)
+                if (isAndroid) {
+                    openBtn.style.display = 'block';
+                } else {
+                    openBtn.style.display = 'none';
+                }
+
+                if (btn.style.display !== 'none' || openBtn.style.display !== 'none') {
+                    modal.style.display = 'flex';
+                }
+            }
+        }
+
+        // Fallback check (Unified)
         if (!isStandalone && !sessionStorage.getItem('pwaDismissed')) {
             setTimeout(() => {
-                if (!deferredPrompt && document.getElementById('pwaModal').style.display === 'none') {
-                    // Check if it's likely they can install manually
-                    const modal = document.getElementById('pwaModal');
-                    if (modal) {
-                        document.getElementById('pwaInstallBtn').onclick = () => showManualInstructions();
-                    }
+                const modal = document.getElementById('pwaModal');
+                if (modal.style.display === 'none' || modal.style.display === '') {
+                    showPwaModal();
                 }
             }, 3000);
         }

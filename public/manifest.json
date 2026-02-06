@@ -11,8 +11,14 @@
         "lifestyle"
     ],
     "display": "standalone",
-    "background_color": "#0b0b0d",
-    "theme_color": "#ff4d6d",
+    "background_color": "#121217",
+    "theme_color": "#121217",
+    "launch_handler": {
+        "client_mode": [
+            "focus-existing",
+            "auto"
+        ]
+    },
     "orientation": "portrait-primary",
     "icons": [
         {
