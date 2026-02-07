@@ -1551,6 +1551,8 @@ app.get('/api/chat-info/:link', async (req, res) => {
 
     let isOtherDeleted = false;
     let otherPhoto = null;
+    let otherAge = null;
+    let otherCity = null;
 
     if (otherUserId) {
       const uRes = await pool.query("SELECT id FROM cupidos WHERE id = $1", [otherUserId]);
@@ -1558,8 +1560,11 @@ app.get('/api/chat-info/:link', async (req, res) => {
 
       if (!isOtherDeleted) {
         // Fetch Photo
-        const pRes = await pool.query("SELECT photo_url FROM blinder_profiles WHERE user_id = $1", [otherUserId]);
-        otherPhoto = pRes.rows[0]?.photo_url || null;
+        const pRes = await pool.query("SELECT photo_url, age, city FROM blinder_profiles WHERE user_id = $1", [otherUserId]);
+        const pData = pRes.rows[0];
+        otherPhoto = pData?.photo_url || null;
+        otherAge = pData?.age || null;
+        otherCity = pData?.city || null;
       }
     }
 
@@ -1581,8 +1586,11 @@ app.get('/api/chat-info/:link', async (req, res) => {
       otherDeleted: isOtherDeleted,
       otherPhoto,
       activeSeconds: currentActiveSeconds,
-      roomStatus: room.status, // To know if timer should run client-side
+      activeSeconds: currentActiveSeconds,
+      roomStatus: room.status,
       isLoggedIn: !!req.session.userId,
+      otherAge,
+      otherCity,
       messages: msgRes.rows || []
     });
 

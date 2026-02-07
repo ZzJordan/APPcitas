@@ -355,14 +355,110 @@
                 transform: scale(1);
             }
         }
-    </style>
-    <script>
-        if (/android/i.test(navigator.userAgent)) {
-            document.documentElement.classList.add('android-device');
-            document.body.classList.add('android-device'); // Just in case
+
+        /* --- Profile Modal --- */
+        .profile-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 7, 0.95);
+            backdrop-filter: blur(15px);
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem;
+            animation: fadeIn 0.3s ease;
         }
-    </script>
-</head>
+
+        .profile-content {
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .profile-close {
+            position: absolute;
+            top: -40px;
+            right: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .profile-avatar-large {
+            width: 250px;
+            height: 250px;
+            border-radius: 20px;
+            object-fit: cover;
+            box-shadow: 0 0 30px rgba(255, 77, 109, 0.4);
+            margin-bottom: 2rem;
+            background: #1a1a1a;
+            transition: filter 1s linear;
+        }
+
+        .unblur-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 10px rgba(255, 77, 109, 0.2);
+        }
+
+        .unblur-bar {
+            height: 100%;
+            background: var(--primary-gradient);
+            width: 0%;
+            transition: width 1s linear;
+            box-shadow: 0 0 10px #ff4d6d;
+        }
+
+        .profile-name {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+
+        .profile-details {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        .request-photo-box {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed var(--border);
+            padding: 2rem;
+            border-radius: 20px;
+            text-align: center;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
 
 <body>
     <div class="chat-wrapper">
@@ -396,6 +492,37 @@
             </div>
         </div>
 
+
+        <!-- Profile Modal -->
+        <div id="profileModal" class="profile-modal">
+            <div class="profile-content">
+                <button class="profile-close" onclick="closeProfileModal()">✕</button>
+
+                <div id="modalAvatarContainer">
+                    <img id="modalAvatarImage" class="profile-avatar-large" src="" alt="Profile">
+                </div>
+
+                <div id="photoRequestUI" class="request-photo-box" style="display: none;">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📷</div>
+                    <p class="mb-1">Este usuario no tiene foto de perfil.</p>
+                    <button onclick="requestPhotoUpdate()" class="btn-main fs-small">Pedir que suba foto</button>
+                </div>
+
+                <div id="progressUI" style="width: 100%;">
+                    <div class="unblur-progress">
+                        <div id="unblurBar" class="unblur-bar"></div>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1.5rem;">
+                        <span>Unblurring...</span>
+                        <span id="unblurPercent">0%</span>
+                    </div>
+                </div>
+
+                <div class="profile-name white-text" id="modalName">Name</div>
+                <div class="profile-details" id="modalDetails">Age • City</div>
+            </div>
+        </div>
 
         <!-- Chat Header -->
         <div class="chat-header">
@@ -469,6 +596,8 @@
         let timerInterval = null;
         const TARGET_SECONDS = 1800; // 30 minutes
         let otherPhotoUrl = null;
+        let otherAge = null;
+        let otherCity = null;
 
         const msgContainer = document.getElementById('messages-container');
         const msgInput = document.getElementById('msg-input');
@@ -619,6 +748,8 @@
                 // Handle Avatar & Blur
                 otherPhotoUrl = data.otherPhoto;
                 activeSeconds = data.activeSeconds || 0;
+                otherAge = data.otherAge;
+                otherCity = data.otherCity;
 
                 if (otherPhotoUrl) {
                     const imgEl = document.getElementById('avatarImage');
@@ -627,7 +758,10 @@
                     document.getElementById('avatarPlaceholder').style.display = 'none';
                     updateBlur();
                 } else {
-                    document.getElementById('avatarPlaceholder').innerText = data.otherName ? data.otherName[0] : "?";
+                    const placeholder = document.getElementById('avatarPlaceholder');
+                    placeholder.style.display = 'flex';
+                    placeholder.innerText = data.otherName ? data.otherName[0] : "?";
+                    document.getElementById('avatarImage').style.display = 'none';
                 }
 
                 // Start timer if active
@@ -858,26 +992,75 @@
         }
 
         function updateBlur() {
-            if (!otherPhotoUrl) return;
+            // Logic for mini avatar
+            if (otherPhotoUrl) {
+                const remaining = Math.max(0, TARGET_SECONDS - activeSeconds);
+                const blurAmount = (remaining / TARGET_SECONDS) * 20; // Max 20px blur for mini
+                const progress = Math.min(100, (activeSeconds / TARGET_SECONDS) * 100);
 
-            const remaining = Math.max(0, TARGET_SECONDS - activeSeconds);
-            const blurAmount = (remaining / TARGET_SECONDS) * 20; // Max 20px blur
+                const imgEl = document.getElementById('avatarImage');
+                if (imgEl) imgEl.style.filter = `blur(${blurAmount}px)`;
 
-            const imgEl = document.getElementById('avatarImage');
-            if (imgEl) {
-                imgEl.style.filter = `blur(${blurAmount}px)`;
+                // Logic for large modal
+                const modalImg = document.getElementById('modalAvatarImage');
+                if (modalImg) {
+                    // Larger blur for larger image
+                    const largeBlur = (remaining / TARGET_SECONDS) * 40;
+                    modalImg.style.filter = `blur(${largeBlur}px)`;
+                }
+
+                // Update Bar
+                const bar = document.getElementById('unblurBar');
+                const per = document.getElementById('unblurPercent');
+                if (bar) bar.style.width = `${progress}%`;
+                if (per) per.innerText = `${Math.floor(progress)}%`;
             }
         }
 
         function handleAvatarClick() {
-            if (!otherPhotoUrl) return;
-            if (activeSeconds >= TARGET_SECONDS) {
-                viewImage(otherPhotoUrl);
+            openProfileModal();
+        }
+
+        function openProfileModal() {
+            const modal = document.getElementById('profileModal');
+            const modalImg = document.getElementById('modalAvatarImage');
+            const modalName = document.getElementById('modalName');
+            const modalDetails = document.getElementById('modalDetails');
+            const reqBox = document.getElementById('photoRequestUI');
+            const progUI = document.getElementById('progressUI');
+            const displayCont = document.getElementById('modalAvatarContainer');
+
+            modalName.innerText = document.getElementById('otherNameDisplay').innerText;
+
+            // Build details string
+            let details = [];
+            if (otherAge) details.push(`${otherAge} años`);
+            if (otherCity) details.push(otherCity);
+            modalDetails.innerText = details.join(' • ') || 'Blinder';
+
+            if (otherPhotoUrl) {
+                modalImg.src = otherPhotoUrl;
+                displayCont.style.display = 'block';
+                reqBox.style.display = 'none';
+                progUI.style.display = 'block';
+                updateBlur(); // apply current level
             } else {
-                // Optional: Toast or shake indicating not ready
-                const remainingMins = Math.ceil((TARGET_SECONDS - activeSeconds) / 60);
-                alert(`La foto se revelará en ${remainingMins} minutos de conversación activa.`);
+                displayCont.style.display = 'none';
+                reqBox.style.display = 'block';
+                progUI.style.display = 'none';
             }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeProfileModal() {
+            document.getElementById('profileModal').style.display = 'none';
+        }
+
+        function requestPhotoUpdate() {
+            // We can simulate this or implement a socket event
+            alert("Solicitud enviada. El usuario recibirá una notificación.");
+            closeProfileModal();
         }
 
         init();
