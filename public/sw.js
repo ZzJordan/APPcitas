@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cupido-project-v3';
+const CACHE_NAME = 'cupido-project-v0.2.3-beta';
 const ASSETS = [
     '/',
     '/index.html',
@@ -16,6 +16,9 @@ const ASSETS = [
 
 // Install Event
 self.addEventListener('install', (event) => {
+    // Force immediate update
+    self.skipWaiting();
+
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             const SAFE_ASSETS = ASSETS.filter(a => !a.startsWith('http'));
@@ -24,12 +27,13 @@ self.addEventListener('install', (event) => {
             });
         })
     );
-    // Force immediate activation
-    self.skipWaiting();
 });
 
 // Activate Event
 self.addEventListener('activate', (event) => {
+    // Claim clients immediately
+    event.waitUntil(self.clients.claim());
+
     event.waitUntil(
         caches.keys().then((keys) => {
             return Promise.all(
@@ -37,8 +41,6 @@ self.addEventListener('activate', (event) => {
             );
         })
     );
-    // Force immediate control
-    self.clients.claim();
 });
 
 // Fetch Event
