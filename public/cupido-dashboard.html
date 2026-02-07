@@ -585,27 +585,57 @@
                 else if (senderLabel === 'B') name = room.friendB_name;
             }
 
+            const wrapper = document.createElement('div');
+            wrapper.style.display = 'flex';
+            wrapper.style.width = '100%';
+            // Validate sender to avoid crash if something else comes in
+            const isA = (senderLabel === 'A');
+            const isB = (senderLabel === 'B');
+
+            // Align: A left, B right. If unknown, center or left.
+            if (isB) wrapper.style.justifyContent = 'flex-end';
+            else wrapper.style.justifyContent = 'flex-start';
+
             const div = document.createElement('div');
+            div.style.maxWidth = '85%';
             div.style.padding = '10px';
-            div.style.borderRadius = '8px';
-            div.style.background = isLive ? 'rgba(78, 205, 196, 0.2)' : 'rgba(255,255,255,0.1)';
-            div.style.border = isLive ? '1px solid #4ecdc4' : '1px solid transparent';
+            div.style.borderRadius = '12px';
+            div.style.marginBottom = '2px';
+            div.style.position = 'relative';
 
-            div.innerHTML = `
-                <div style="font-size: 0.75rem; color: #aaa; margin-bottom: 2px;">
-                    ${isLive ? '🔴 LIVE - ' : ''} <b>${name}</b>
-                </div>
-                <div style="font-size: 0.95rem;">${text}</div>
-            `;
+            // Colors
+            if (isA) {
+                div.style.background = 'rgba(255, 77, 109, 0.2)'; // Pinkish for A
+                div.style.border = '1px solid rgba(255, 77, 109, 0.3)';
+                div.style.borderBottomLeftRadius = '2px';
+            } else if (isB) {
+                div.style.background = 'rgba(78, 205, 196, 0.2)'; // Teal for B
+                div.style.border = '1px solid rgba(78, 205, 196, 0.3)';
+                div.style.borderBottomRightRadius = '2px';
+            } else {
+                div.style.background = 'rgba(255, 255, 255, 0.1)';
+            }
 
+            // Live Highlight
             if (isLive) {
+                div.style.boxShadow = '0 0 10px rgba(255, 255, 255, 0.3)';
+                div.style.border = '1px solid #fff';
                 div.style.animation = 'premiumFadeIn 0.3s ease-out';
             }
 
-            document.getElementById('secretMessagesList').appendChild(div);
+            div.innerHTML = `
+                <div style="font-size: 0.7rem; color: #ddd; margin-bottom: 3px; font-weight: bold; text-align: ${isB ? 'right' : 'left'};">
+                    ${isLive ? '🔴 ' : ''}${name}
+                </div>
+                <div style="font-size: 0.95rem; line-height: 1.4;">${text}</div>
+            `;
+
+            wrapper.appendChild(div);
+            document.getElementById('secretMessagesList').appendChild(wrapper);
+
             // Scroll to bottom
             const area = document.getElementById('secretChatArea');
-            area.scrollTop = area.scrollHeight;
+            setTimeout(() => { area.scrollTop = area.scrollHeight; }, 50);
         }
 
         async function activateSpyMode() {

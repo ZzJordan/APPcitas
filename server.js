@@ -824,7 +824,7 @@ app.get('/api/rooms/:id/peek', isAuthenticated, async (req, res) => {
             FROM messages 
             WHERE room_id = $1 
             ORDER BY id DESC 
-            LIMIT 3
+            LIMIT 5
         `, [roomId]);
 
     res.json(msgs.rows.reverse());
